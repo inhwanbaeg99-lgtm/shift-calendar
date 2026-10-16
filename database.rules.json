@@ -1,0 +1,50 @@
+{
+  "rules": {
+    "owners": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('stores/' + newData.val() + '/meta/owner').val() === auth.uid",
+        ".validate": "newData.isString()"
+      }
+    },
+    "stores": {
+      "$sid": {
+        ".validate": "$sid.matches(/^[a-z0-9]{4,12}$/)",
+        "meta": {
+          ".read": true,
+          ".write": "auth != null && (data.exists() ? data.child('owner').val() === auth.uid : newData.child('owner').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['name', 'owner']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40"
+        },
+        "public": {
+          ".read": "root.child('stores/' + $sid + '/meta').exists()",
+          ".write": "auth != null && root.child('stores/' + $sid + '/meta/owner').val() === auth.uid",
+          "records": {
+            "$id": {
+              ".write": "root.child('stores/' + $sid + '/meta').exists() && newData.exists()",
+              ".validate": "newData.isString() && newData.val().length < 2000"
+            }
+          },
+          "shifts": {
+            "$date": {
+              ".write": "root.child('stores/' + $sid + '/meta').exists() && newData.exists()",
+              ".validate": "newData.isString() && newData.val().length < 10000"
+            }
+          },
+          "employees": {
+            "$id": {
+              ".write": "root.child('stores/' + $sid + '/meta').exists() && !data.exists()",
+              ".validate": "newData.isString() && newData.val().length < 50000"
+            }
+          },
+          "order": {
+            ".validate": "newData.isString()"
+          }
+        },
+        "private": {
+          ".read": "auth != null && root.child('stores/' + $sid + '/meta/owner').val() === auth.uid",
+          ".write": "auth != null && root.child('stores/' + $sid + '/meta/owner').val() === auth.uid"
+        }
+      }
+    }
+  }
+}
