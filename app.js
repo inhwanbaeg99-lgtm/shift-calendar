@@ -1448,7 +1448,7 @@ function renderScheduleSheet() {
   return `
     <div class="sched-sheet" id="sched-sheet">
       <div class="sc-head">
-        <h2 class="sc-title">[${esc(storeName())} 근무표](<input class="sc-period" value="${esc(meta.period ?? "")}" size="${Math.max(6, [...(meta.period ?? "")].length)}" data-meta="period" placeholder="2026. 10. 5 ~ 11. 8" aria-label="기간" />)</h2>
+        <h2 class="sc-title">[${esc(storeName())} 근무표]( <input class="sc-period" value="${esc(meta.period ?? "")}" size="${Math.max(6, [...(meta.period || "2026.06.04 ~ 2026.07.05")].length)}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~ 2026.07.05" aria-label="기간" /> )</h2>
         <div class="sc-actions" data-html2canvas-ignore>
           <button type="button" class="pill plain-dark" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
           <button type="button" class="pill" data-action="schedule-save"${hasDraft() ? "" : " disabled"}>저장</button>
@@ -1652,6 +1652,9 @@ function render() {
   else if (r.name === "records") app.innerHTML = renderRecords();
   else if (r.name === "schedule") app.innerHTML = renderSchedule();
   else app.innerHTML = renderHome();
+
+  const period = document.querySelector(".sc-period");
+  if (period) fitPeriod(period);
 
   // 처음 날짜를 눌렀을 때 달력이 줄어드는 애니메이션
   if (state.animateOpen) {
@@ -2244,9 +2247,37 @@ window.matchMedia("(min-width: 768px)").addEventListener("change", (mq) => {
 
 render();
 
+// 근무표 기간: 숫자만 입력해도 "2026.06.04 ~ 2026.07.05" 꼴로 맞춘다
+function formatPeriod(digits) {
+  const d = digits.slice(0, 16);
+  const date = (s) => [s.slice(0, 4), s.slice(4, 6), s.slice(6, 8)].filter(Boolean).join(".");
+  if (d.length < 8) return date(d);
+  return d.length === 8 ? `${date(d)} ~ ` : `${date(d.slice(0, 8))} ~ ${date(d.slice(8))}`;
+}
+
+function livePeriod(input, e) {
+  let digits = input.value.replace(/\D/g, "");
+  // 점이나 " ~ " 를 지웠을 때는 그 앞 숫자를 지운다 (안 그러면 다시 붙어서 안 지워짐)
+  if (e.inputType?.startsWith("delete") && digits === (input.dataset.digits ?? "")) digits = digits.slice(0, -1);
+  input.dataset.digits = digits;
+  input.value = formatPeriod(digits);
+  fitPeriod(input);
+}
+
+// 기간 입력칸 너비를 글자에 딱 맞춘다 (괄호와의 간격이 양쪽 같게)
+const measureCtx = document.createElement("canvas").getContext("2d");
+function fitPeriod(input) {
+  measureCtx.font = getComputedStyle(input).font;
+  input.style.width = `${Math.ceil(measureCtx.measureText(input.value || input.placeholder).width) + 2}px`;
+}
+
 // 근무표 편집 패널: 입력하는 대로 왼쪽 표에 반영
 app.addEventListener("input", (e) => {
   if (e.target.id === "slot-start" || e.target.id === "slot-end") liveSlot();
+  if (e.target.classList.contains("sc-period")) livePeriod(e.target, e);
+});
+app.addEventListener("focusin", (e) => {
+  if (e.target.classList.contains("sc-period")) e.target.dataset.digits = e.target.value.replace(/\D/g, "");
 });
 app.addEventListener("change", (e) => {
   if (e.target.id === "slot-emp") liveSlot();
