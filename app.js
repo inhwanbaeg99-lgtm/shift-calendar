@@ -2071,8 +2071,11 @@ app.addEventListener("click", (e) => {
   render();
 });
 
+// 달력에서 근무 시간을 고칠 때 엔터 = 저장
 app.addEventListener("keydown", (e) => {
-
+  if (e.key !== "Enter" || e.isComposing || !["edit-start", "edit-end"].includes(e.target.id)) return;
+  e.preventDefault();
+  e.target.closest(".staff-action, .date-box, .day-area-inner")?.querySelector('[data-action="save-shift"]')?.click();
 });
 
 app.addEventListener("submit", (e) => {
