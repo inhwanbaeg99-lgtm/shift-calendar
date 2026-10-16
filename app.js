@@ -2261,7 +2261,15 @@ app.addEventListener("change", (e) => {
 // 항목마다 JSON 문자열로 저장해서, 바뀐 항목만 올리고 받는다. 규칙은 database.rules.json.
 
 // MGC 근무와는 다른 Firebase 프로젝트를 쓴다 (가입한 다른 매장 계정이 MGC 데이터에 접근하지 못하게)
-const FIREBASE_CONFIG = null;
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDT4umtAOHW8ZVl0J6QCNIBMHcEBsvGVvU",
+  authDomain: "shift-calendar-e973e.firebaseapp.com",
+  databaseURL: "https://shift-calendar-e973e-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "shift-calendar-e973e",
+  storageBucket: "shift-calendar-e973e.firebasestorage.app",
+  messagingSenderId: "1039732498702",
+  appId: "1:1039732498702:web:e31c9d2f3abb4140e9375f",
+};
 
 const storePath = (sub) => `stores/${storeId}/${sub}`;
 
