@@ -2271,8 +2271,9 @@ function livePeriod(input, e) {
 }
 
 // 기간 입력칸 너비를 글자에 딱 맞춘다 (괄호와의 간격이 양쪽 같게)
-const measureCtx = document.createElement("canvas").getContext("2d");
+var measureCtx; // var: 이 줄보다 먼저 실행되는 첫 render() 에서도 쓸 수 있게
 function fitPeriod(input) {
+  measureCtx ??= document.createElement("canvas").getContext("2d");
   measureCtx.font = getComputedStyle(input).font;
   input.style.width = `${Math.ceil(measureCtx.measureText(input.value || input.placeholder).width) + 2}px`;
 }
