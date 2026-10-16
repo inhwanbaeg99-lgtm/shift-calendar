@@ -1834,6 +1834,54 @@ td.name {
   color: var(--ink);
 }
 
+a.lock-link {
+  text-decoration: none;
+}
+
+/* ---------- 둘러보기(로그인 전) ---------- */
+.admin-top .login-btn {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.admin-top .login-btn:hover {
+  color: #ffffff;
+}
+
+.demo-bar {
+  margin: 16px auto 0;
+  padding: 10px 16px;
+  max-width: min(720px, calc(100% - 32px));
+  border-radius: 12px;
+  background: var(--accent-soft);
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.demo-bar a {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 100;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #201d1a;
+  font-size: 14px;
+  color: #ffffff;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+
 @media (max-width: 767px) {
   .admin-top {
     padding-top: calc(64px + env(safe-area-inset-top, 0px));
@@ -1850,5 +1898,244 @@ td.name {
     right: 8px;
     padding: 8px 14px;
     font-size: 14px;
+  }
+}
+
+/* ---------- 휴대폰: 관리자 화면을 가로 스크롤 없이 한 화면 너비에 ---------- */
+.ts-mobile {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* 세로 가운데 정렬을 풀어서 위쪽 빈 공간 없애기 */
+  .admin-main.centered {
+    min-height: 0;
+    justify-content: flex-start;
+  }
+  .admin-main {
+    padding: 20px 16px 32px;
+  }
+  .admin-main h3 {
+    margin-top: 24px;
+  }
+  .demo-bar {
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .toolbar {
+    padding: 16px;
+  }
+
+  /* 직원: 한 사람씩 카드 (이름 / 월~목 / 금~일 / 시급·상태·구분·삭제) */
+  .table-wrap:has(> table.schedule) {
+    overflow: visible;
+    background: none;
+    border-radius: 0;
+  }
+  table.schedule thead {
+    display: none;
+  }
+  table.schedule,
+  table.schedule tbody {
+    display: block;
+  }
+  table.schedule tr {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 14px;
+    border-radius: 16px;
+    background: var(--paper);
+  }
+  table.schedule td {
+    display: block;
+    border: 0;
+    padding: 0;
+    min-width: 0;
+  }
+  table.schedule td.name {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 2px;
+    font-size: 16px;
+  }
+  table.schedule td.empty {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+  table.schedule .day-cell::before,
+  table.schedule .wage-cell::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    text-align: center;
+    color: var(--ink-sub);
+  }
+  table.schedule .day-cell.rest::before {
+    color: var(--red);
+  }
+  table.schedule .field.range {
+    width: 100%;
+    padding: 6px 0;
+    font-size: 12px;
+    letter-spacing: -0.02em;
+    background: var(--bg);
+  }
+  table.schedule .wage-cell {
+    grid-column: 1;
+  }
+  table.schedule .wage-cell input {
+    width: 100% !important;
+    text-align: center;
+  }
+  table.schedule td:nth-last-child(-n + 3) {
+    align-self: end;
+    text-align: center;
+  }
+  table.schedule td:nth-last-child(-n + 3) button {
+    width: 100%;
+    padding: 6px 0;
+  }
+
+  /* 근무표: 한 화면 너비에 (휴대폰용 배치는 app.js 에서 시간 한 칸) */
+  .sched-sheet {
+    min-width: 0;
+    padding-top: 0;
+  }
+  .sc-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .sc-actions {
+    position: static;
+    transform: none;
+  }
+  .sc-title {
+    font-size: 17px;
+    letter-spacing: 0;
+  }
+  .sched.compact {
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+  .sched.compact th,
+  .sched.compact td {
+    height: 24px;
+    padding: 0 1px;
+  }
+  .sched.compact th {
+    height: 26px;
+    font-size: 11px;
+  }
+  .sched.compact thead th:first-child {
+    width: 30px;
+  }
+  .sched.compact td.sc-name {
+    white-space: normal;
+    word-break: break-all;
+    line-height: 1.1;
+  }
+  .sched.compact .sc-note input {
+    font-size: 9px;
+  }
+
+  /* 급여 · 근무 상세: 날짜가 줄, 직원이 칸 */
+  .ts-desktop {
+    display: none;
+  }
+  .ts-mobile {
+    display: block;
+    overflow-x: auto;
+  }
+  .ts-mobile .timesheet {
+    width: 100%;
+    table-layout: fixed;
+  }
+  .ts-mobile th,
+  .ts-mobile td {
+    padding: 5px 2px;
+  }
+  .ts-mobile th.ts-date {
+    width: 52px;
+    font-weight: 500;
+  }
+  .ts-mobile th.ts-person {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ts-mobile .ts-sum th,
+  .ts-mobile .ts-sum td {
+    font-weight: 700;
+  }
+
+  /* 급여 · 정산: 한 사람씩 카드 */
+  .pay-wrap {
+    overflow: visible;
+    background: none;
+    border-radius: 0;
+  }
+  .pay-table thead {
+    display: none;
+  }
+  .pay-table,
+  .pay-table tbody {
+    display: block;
+  }
+  .pay-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 8px;
+    margin-bottom: 10px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: var(--paper);
+  }
+  .pay-table td {
+    display: block;
+    border: 0;
+    padding: 0;
+    min-width: 0;
+    text-align: left;
+    white-space: normal;
+  }
+  .pay-table td.name {
+    grid-column: 1 / 3;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .pay-table td.ps-cell {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+  }
+  .pay-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--ink-sub);
+  }
+  .pay-table td.net {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    font-size: 17px;
+  }
+  .pay-table td.net::before {
+    display: inline;
+    font-size: 13px;
+  }
+  .pay-table td.empty {
+    grid-column: 1 / -1;
+    text-align: center;
   }
 }

@@ -159,10 +159,53 @@ function loadStore() {
   return initialData();
 }
 
-let store = loadStore();
+// 관리자 사이트 둘러보기(로그인 전)에 보여 줄 샘플 매장. 이 기기에서만 만들고 어디에도 저장하지 않는다.
+const DEMO_NAME = "샘플 매장";
+function demoData() {
+  const people = [
+    ["김민지", "#fff2cc", { 1: "07-12", 2: "07-12", 3: "07-12", 5: "07-12" }],
+    ["이준호", "#d0cece", { 1: "12-18", 2: "12-18", 4: "12-18", 5: "12-18" }],
+    ["박서연", "#bdd7ee", { 2: "18-22", 3: "18-22", 4: "18-22", 6: "10-16" }],
+    ["최우진", "#c6e0b4", { 5: "18-22", 6: "16-22", 0: "10-18" }],
+    ["정하늘", "#ffe699", { 1: "18-22", 3: "12-18", 0: "18-22" }],
+  ];
+  const employees = people.map(([name, color, days], i) => ({
+    id: `demo${i}`,
+    name,
+    phone: null,
+    hourlyWage: DEFAULT_WAGE,
+    active: true,
+    color,
+    weekly: Object.fromEntries(Object.entries(days).map(([wd, r]) => [wd, parseRange(r)])),
+  }));
+  // 지난달 1일부터 어제까지 근무표대로 출근한 기록. 몇 번은 더 일하거나(파랑) 덜 일한 날(빨강)로.
+  const today = todayDateString();
+  const [y, m] = today.split("-").map(Number);
+  const from = m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, "0")}-01`;
+  const records = [];
+  let n = 0;
+  for (let date = from; date < today; date = addDays(date, 1)) {
+    for (const e of employees) {
+      const shift = e.weekly[weekdayOf(date)];
+      if (!shift) continue;
+      n++;
+      if (n % 23 === 0) continue; // 결근
+      let { start, end } = shift;
+      if (n % 11 === 0) end = `${String(Number(end.slice(0, 2)) + 1).padStart(2, "0")}:00`;
+      else if (n % 13 === 0) end = `${String(Number(end.slice(0, 2)) - 1).padStart(2, "0")}:00`;
+      records.push({ id: `demo-r${n}`, employeeId: e.id, date, clockIn: kstIso(date, start), clockOut: endIso(date, start, end), createdAt: kstIso(date, start), edited: end !== shift.end });
+    }
+  }
+  return { employees, records, shifts: {}, scheduleMeta: { period: `${from.replaceAll("-", ".")} ~ `, notes: {} } };
+}
+
+// 관리자 사이트는 로그인하기 전까지 샘플 매장을 보여 준다
+let demoLoaded = document.body.dataset.site === "admin";
+let store = demoLoaded ? demoData() : loadStore();
 
 // 이 기기에 캐시로 저장하고, 바뀐 부분을 온라인 저장소에 올린다
 function save() {
+  if (demoLoaded) return; // 둘러보기 중에는 아무것도 저장하지 않는다
   saveCache();
   pushChanges();
 }
@@ -375,6 +418,9 @@ function parseRange(text) {
 }
 
 const formatRange = (r) => (r ? `${r.start}~${r.end}` : "");
+// 직원 표의 요일 칸: 휴대폰에서는 칸이 좁아 "07:00~12:00" → "7~12", "18:00~22:30" → "18~22:30"
+const shortTime = (t) => t.replace(/^0/, "").replace(/:00$/, "");
+const rangeLabel = (r) => (!r ? "" : isDesktop() ? formatRange(r) : `${shortTime(r.start)}~${shortTime(r.end)}`);
 
 // 비워 두면 placeholder(기존 시간)를 그대로 쓴다. 형식이 틀리면 null.
 function readTime(id) {
@@ -417,7 +463,8 @@ const state = {
 
 // ---------- 화면: 홈 ----------
 
-const storeName = () => state.storeName || APP_NAME;
+const storeName = () => (demoLoaded ? DEMO_NAME : state.storeName || APP_NAME);
+const BACK_TO_DEMO = `<a class="lock-link" href="#/employees">← 샘플 매장 둘러보기</a>`;
 const errorLine = () => (state.error ? `<p class="error">${esc(state.error)}</p>` : "");
 
 // 관리자 사이트 첫 화면: 로그인 / 매장 등록(회원가입) / 로그인했는데 매장이 없으면 매장 만들기
@@ -445,7 +492,7 @@ function renderLock() {
         <button type="button" class="lock-link" data-action="logout">다른 계정으로 로그인</button>
       </div>`;
   }
-  if (state.authMode === "signup") {
+  if (location.hash === "#/signup") {
     return `
       <div class="lock-page">
         ${title}
@@ -456,7 +503,8 @@ function renderLock() {
           <button type="submit" class="btn-primary"${busy ? " disabled" : ""}>${busy ? "등록 중…" : "매장 등록"}</button>
           ${errorLine()}
         </form>
-        <button type="button" class="lock-link" data-action="auth-mode" data-mode="login">이미 등록했어요 · 로그인</button>
+        <a class="lock-link" href="#/login">이미 등록했어요 · 로그인</a>
+        ${BACK_TO_DEMO}
       </div>`;
   }
   return `
@@ -468,7 +516,8 @@ function renderLock() {
         <button type="submit" class="btn-primary"${busy ? " disabled" : ""}>${busy ? "로그인 중…" : "로그인"}</button>
         ${errorLine()}
       </form>
-      <button type="button" class="lock-link" data-action="auth-mode" data-mode="signup">처음이에요 · 매장 등록하기</button>
+      <a class="lock-link" href="#/signup">처음이에요 · 매장 등록하기</a>
+      ${BACK_TO_DEMO}
     </div>`;
 }
 
@@ -714,15 +763,17 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
     <nav class="admin-top" aria-label="관리자 메뉴">
       <div class="store-tag">
         <b>${esc(storeName())}</b>
-        <a href="../?s=${storeId}" target="_blank" rel="noopener" title="매장 코드 ${storeId} · 이 주소를 매장 기기에서 열어주세요">직원용 달력 ↗</a>
+        ${demoLoaded ? "" : `<a href="../?s=${storeId}" target="_blank" rel="noopener" title="매장 코드 ${storeId} · 이 주소를 매장 기기에서 열어주세요">직원용 달력 ↗</a>`}
       </div>
       ${link("#/employees", "직원", "employees")}
       ${link("#/schedule", "근무표", "schedule")}
       ${link("#/calendar", "달력", "calendar")}
       ${link("#/records", "급여", "records")}
-      <button type="button" class="logout" data-action="logout">로그아웃</button>
+      ${demoLoaded ? `<a class="logout login-btn" href="#/login">로그인</a>` : `<button type="button" class="logout" data-action="logout">로그아웃</button>`}
     </nav>
-    <main class="admin-main${center ? " centered" : ""}${wide ? " wide" : ""}">${content}</main>`;
+    ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. 내 매장으로 쓰려면 <a href="#/signup">매장 등록</a> 또는 <a href="#/login">로그인</a>해주세요.</p>` : ""}
+    <main class="admin-main${center ? " centered" : ""}${wide ? " wide" : ""}">${content}</main>
+    ${state.toast ? `<p class="toast" role="status">${esc(state.toast)}</p>` : ""}`;
 }
 
 // ? 버튼을 누르면 펼쳐지는 설명 (다른 화면에 갔다 오면 다시 접힘)
@@ -761,10 +812,10 @@ function renderEmployees() {
         ${order
           .map(
             (wd) =>
-              `<td class="day-cell"><input class="field range" type="text" placeholder="-" value="${formatRange(e.weekly[wd])}" data-weekly="${wd}" data-id="${e.id}" aria-label="${esc(e.name)} ${WEEKDAYS[wd]}요일 근무 시간" /></td>`,
+              `<td class="day-cell${wd === 0 ? " rest" : ""}" data-label="${WEEKDAYS[wd]}"><input class="field range" type="text" placeholder="-" value="${rangeLabel(e.weekly[wd])}" data-weekly="${wd}" data-id="${e.id}" aria-label="${esc(e.name)} ${WEEKDAYS[wd]}요일 근무 시간" /></td>`,
           )
           .join("")}
-        <td><input class="field money" style="width:88px;padding:4px 8px" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /></td>
+        <td class="wage-cell" data-label="시급"><input class="field money" style="width:88px;padding:4px 8px" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /></td>
         <td><button type="button" class="status${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button></td>
         <td><button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저는 근무표에만 나오고 출근·급여 계산에서 빠져요">${isManager(e) ? "매니저" : "알바"}</button></td>
         <td><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
@@ -950,7 +1001,7 @@ function renderTimesheet(ym, employeeId) {
     return (wd === 0 || wd === 6 ? " weekend" : "") + (wd === 0 || HOLIDAYS[d] ? " red-day" : "");
   };
   return `
-    <div class="table-wrap ts-wrap">
+    <div class="table-wrap ts-wrap ts-desktop">
       <table class="timesheet">
         <thead>
           <tr>
@@ -968,20 +1019,41 @@ function renderTimesheet(ym, employeeId) {
             <tr>
               <td class="ts-no">${i + 1}</td>
               <td class="ts-name">${esc(r.emp.name)}</td>
-              ${r.cells
-                .map((saved, j) => {
-                  const d = days[j];
-                  if (d > today) return `<td class="ts-day${wkClass(d)}"></td>`;
-                  // 오늘인데 아직 기록이 없으면 결근으로 보지 않는다
-                  const diff = d === today && !saved ? "" : diffClass(r.emp, d, saved);
-                  const cls = (r.edited[j] ? " edited" : "") + diff;
-                  return `<td class="ts-day${wkClass(d)}${cls}"${r.edited[j] ? ` title="달력에서 직접 고친 시간"` : ""}>${hour1(saved)}</td>`;
-                })
-                .join("")}
+              ${r.cells.map((_, j) => cell(r, j)).join("")}
               <td class="ts-total">${r.total.toFixed(1)}</td>
             </tr>`,
             )
             .join("")}
+        </tbody>
+      </table>
+    </div>
+    ${renderTimesheetMobile(days, rows, cell, wkClass)}`;
+
+  function cell(r, j) {
+    const d = days[j];
+    const saved = r.cells[j];
+    if (d > today) return `<td class="ts-day${wkClass(d)}"></td>`;
+    // 오늘인데 아직 기록이 없으면 결근으로 보지 않는다
+    const diff = d === today && !saved ? "" : diffClass(r.emp, d, saved);
+    const cls = (r.edited[j] ? " edited" : "") + diff;
+    return `<td class="ts-day${wkClass(d)}${cls}"${r.edited[j] ? ` title="달력에서 직접 고친 시간"` : ""}>${hour1(saved)}</td>`;
+  }
+}
+
+// 휴대폰용 근무 상세: 날짜가 줄, 직원이 칸 (한 달 31칸을 가로로 늘어놓지 않게)
+function renderTimesheetMobile(days, rows, cell, wkClass) {
+  return `
+    <div class="ts-mobile">
+      <table class="timesheet">
+        <thead><tr><th class="ts-date">날짜</th>${rows.map((r) => `<th class="ts-person">${esc(r.emp.name)}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${days
+            .map(
+              (d, j) =>
+                `<tr><th class="ts-date${wkClass(d)}">${Number(d.slice(8))} ${WEEKDAYS[weekdayOf(d)]}</th>${rows.map((r) => cell(r, j)).join("")}</tr>`,
+            )
+            .join("")}
+          <tr class="ts-sum"><th class="ts-date">합계</th>${rows.map((r) => `<td class="ts-total">${r.total.toFixed(1)}</td>`).join("")}</tr>
         </tbody>
       </table>
     </div>`;
@@ -1081,16 +1153,16 @@ function renderRecords() {
       (r) => `
       <tr>
         <td class="name">${esc(r.emp.name)}</td>
-        <td class="num">${r.days}일</td>
-        <td class="num">${hrs(r.hours)}</td>
-        <td class="num">${won(r.base)}</td>
-        <td class="num" title="${esc(r.weekly.weeks.map((w) => `${shortDate(w.mon)}~${shortDate(w.sun)} 소정 ${hrs(w.planned)} (실근무 ${hrs(w.hours)}) ${w.reason || `→ ${won(w.amount)}`}`).join("\n"))}">${won(r.weekly.total)}</td>
-        <td class="num">${won(r.extra)}</td>
-        <td class="num strong">${won(r.gross)}</td>
-        <td class="num">${won(r.income)}</td>
-        <td class="num">${won(r.local)}</td>
-        <td class="num strong">${won(r.net)}</td>
-        <td><button type="button" class="link-btn" data-action="open-payslip" data-id="${r.emp.id}">명세서</button></td>
+        <td class="num" data-label="근무일">${r.days}일</td>
+        <td class="num" data-label="근무시간">${hrs(r.hours)}</td>
+        <td class="num" data-label="기본급">${won(r.base)}</td>
+        <td class="num" data-label="주휴수당" title="${esc(r.weekly.weeks.map((w) => `${shortDate(w.mon)}~${shortDate(w.sun)} 소정 ${hrs(w.planned)} (실근무 ${hrs(w.hours)}) ${w.reason || `→ ${won(w.amount)}`}`).join("\n"))}">${won(r.weekly.total)}</td>
+        <td class="num" data-label="수당">${won(r.extra)}</td>
+        <td class="num strong" data-label="지급총액">${won(r.gross)}</td>
+        <td class="num" data-label="소득세">${won(r.income)}</td>
+        <td class="num" data-label="지방소득세">${won(r.local)}</td>
+        <td class="num strong net" data-label="실지급액">${won(r.net)}</td>
+        <td class="ps-cell"><button type="button" class="link-btn" data-action="open-payslip" data-id="${r.emp.id}">명세서</button></td>
       </tr>`,
     )
     .join("");
@@ -1132,14 +1204,14 @@ function renderRecords() {
       <h3>급여 정산</h3>
       <button type="button" class="pill" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF${rows.length > 1 ? " (전체)" : ""}</button>
     </div>
-    <div class="table-wrap">
-      <table>
+    <div class="table-wrap pay-wrap">
+      <table class="pay-table">
         <thead><tr><th>이름</th><th class="num">근무일</th><th class="num">근무시간</th><th class="num">기본급</th><th class="num">주휴수당</th><th class="num">수당</th><th class="num">지급총액</th><th class="num">소득세</th><th class="num">지방소득세</th><th class="num">실지급액</th><th></th></tr></thead>
         <tbody>
           ${summary || `<tr><td colspan="11" class="empty">이 달의 근무 기록이 없습니다.</td></tr>`}
           ${
             rows.length > 1
-              ? `<tr class="total-row"><td>합계</td><td class="num">${total.days}일</td><td class="num">${hrs(total.hours)}</td><td class="num">${won(total.base)}</td><td class="num">${won(total.weekly)}</td><td class="num">${won(total.extra)}</td><td class="num">${won(total.gross)}</td><td class="num">${won(total.income)}</td><td class="num">${won(total.local)}</td><td class="num">${won(total.net)}</td><td></td></tr>`
+              ? `<tr class="total-row"><td class="name">합계</td><td class="num" data-label="근무일">${total.days}일</td><td class="num" data-label="근무시간">${hrs(total.hours)}</td><td class="num" data-label="기본급">${won(total.base)}</td><td class="num" data-label="주휴수당">${won(total.weekly)}</td><td class="num" data-label="수당">${won(total.extra)}</td><td class="num" data-label="지급총액">${won(total.gross)}</td><td class="num" data-label="소득세">${won(total.income)}</td><td class="num" data-label="지방소득세">${won(total.local)}</td><td class="num net" data-label="실지급액">${won(total.net)}</td><td class="ps-cell"></td></tr>`
               : ""
           }
         </tbody>
@@ -1406,6 +1478,7 @@ function scheduleLayout() {
 function renderScheduleSheet() {
   const { days, rows } = scheduleLayout();
   const meta = schedMeta();
+  const compact = !isDesktop();
   const occupant = (col, row) => col.find((p) => p.start <= row.start && p.end >= row.end);
   // 같은 정시(예: 22:00~22:30, 22:30~23:00)에 속한 행들은 같은 사람이면 한 칸으로 합친다
   const hourOf = (row) => Math.floor(row.start / 60);
@@ -1432,6 +1505,8 @@ function renderScheduleSheet() {
             .join(""),
         )
         .join("");
+      // 휴대폰: 시작 시각 한 칸만 (오른쪽 시간 칸 없이 한 화면에 들어가게)
+      if (compact) return `<tr><td class="sc-time">${fromMin(row.start)}</td>${cells}</tr>`;
       const time = `<td class="sc-time">${fromMin(row.start)}</td><td class="sc-time">${fromMin(row.end)}</td>`;
       return `<tr>${time}${cells}${time}</tr>`;
     })
@@ -1454,12 +1529,20 @@ function renderScheduleSheet() {
           <button type="button" class="pill plain-dark" data-action="schedule-pdf">PDF 저장</button>
         </div>
       </div>
-      <table class="sched">
-        <thead><tr><th colspan="2">시간</th>${head}<th colspan="2">시간</th></tr></thead>
+      <table class="sched${compact ? " compact" : ""}">
+        ${
+          compact
+            ? `<thead><tr><th>시간</th>${head}</tr></thead>
+        <tbody>
+          ${body}
+          <tr class="sc-foot"><td>비고</td>${notes}</tr>
+        </tbody>`
+            : `<thead><tr><th colspan="2">시간</th>${head}<th colspan="2">시간</th></tr></thead>
         <tbody>
           ${body}
           <tr class="sc-foot"><td colspan="2">비 고</td>${notes}<td colspan="2">비 고</td></tr>
-        </tbody>
+        </tbody>`
+        }
       </table>
     </div>`;
 }
@@ -1629,8 +1712,10 @@ async function schedulePdf(button) {
 
 function route() {
   const hash = location.hash.replace(/^#/, "") || "/";
-  if (ADMIN_SITE && !isAdmin()) return { name: "lock" };
-  if (!storeId) return { name: "pick" };
+  if (ADMIN_SITE && !isAdmin()) {
+    // 로그인 화면 / 로그인은 했는데 매장이 없거나 확인 중 → 로그인 화면, 그 외에는 샘플 매장 둘러보기
+    if (!state.authReady || hash === "/login" || hash === "/signup" || cloud?.auth.currentUser) return { name: "lock" };
+  } else if (!storeId) return { name: "pick" };
   const day = hash.match(/^\/day\/(\d{4}-\d{2}-\d{2})$/);
   if (day) return { name: "day", date: day[1] };
   if (!ADMIN_SITE) return { name: "home" };
@@ -1654,6 +1739,7 @@ function render() {
 
   const period = document.querySelector(".sc-period");
   if (period) fitPeriod(period);
+  lockDemoFields();
 
   // 처음 날짜를 눌렀을 때 달력이 줄어드는 애니메이션
   if (state.animateOpen) {
@@ -1869,11 +1955,6 @@ app.addEventListener("click", (e) => {
   const { action, id } = el.dataset;
 
   switch (action) {
-    case "auth-mode":
-      state.authMode = el.dataset.mode;
-      state.error = "";
-      render();
-      return;
     case "prev-month":
     case "next-month": {
       const m = state.month + (action === "prev-month" ? -1 : 1);
@@ -1960,7 +2041,6 @@ app.addEventListener("click", (e) => {
       break;
     }
     case "logout":
-      state.authMode = "login";
       cloud?.auth.signOut();
       navigate("#/");
       return;
@@ -2071,6 +2151,66 @@ app.addEventListener("click", (e) => {
   render();
 });
 
+// ---------- 둘러보기(로그인 전): 보기만, 고치는 동작은 막는다 ----------
+// 화면을 옮겨 다니고 펼쳐 보는 동작만 허용. 나머지(추가·수정·삭제·저장·내보내기)는 안내만 띄운다.
+const DEMO_ALLOWED = new Set([
+  "prev-month", "next-month", "close-panel", "go-home", "toggle-staff", "toggle-help",
+  "payroll-prev", "payroll-next", "open-payslip", "close-payslip",
+]);
+
+let toastTimer = null;
+function showToast(text) {
+  state.toast = text;
+  render();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    state.toast = "";
+    render();
+  }, 2200);
+}
+const blockDemo = (e) => {
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  showToast("둘러보기 중이에요. 로그인하면 쓸 수 있어요.");
+};
+// 보기만 바꾸는 입력칸 (급여 화면의 직원 선택)
+const demoViewField = (t) => t.dataset?.payroll !== undefined;
+// 둘러보기 화면인지 (로그인·매장 등록 화면은 막지 않는다)
+const inDemo = (t) => demoLoaded && ADMIN_SITE && !t.closest?.(".lock-page");
+
+// 둘러보기 화면을 그릴 때 입력칸은 읽기 전용, 선택칸은 비활성으로
+function lockDemoFields() {
+  if (!demoLoaded || !ADMIN_SITE || app.querySelector(".lock-page")) return;
+  for (const f of app.querySelectorAll("input, textarea, select")) {
+    if (demoViewField(f)) continue;
+    if (f.tagName === "SELECT") f.disabled = true;
+    else f.readOnly = true;
+  }
+}
+
+app.addEventListener(
+  "click",
+  (e) => {
+    if (!inDemo(e.target)) return;
+    const el = e.target.closest("[data-action]");
+    if (el && !DEMO_ALLOWED.has(el.dataset.action)) return blockDemo(e);
+    if (e.target.closest('button[type="submit"]')) return blockDemo(e);
+  },
+  true,
+);
+// 읽기 전용 입력칸을 누르면 안내 (손가락으로 표를 밀어 스크롤하는 건 막지 않는다)
+app.addEventListener(
+  "focusin",
+  (e) => {
+    const t = e.target;
+    if (!inDemo(t) || !t.matches?.("input, textarea") || demoViewField(t)) return;
+    t.blur();
+    showToast("둘러보기 중이에요. 로그인하면 쓸 수 있어요.");
+  },
+  true,
+);
+app.addEventListener("submit", (e) => inDemo(e.target) && blockDemo(e), true);
+
 // 달력에서 근무 시간을 고칠 때 엔터 = 저장
 app.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.isComposing || !["edit-start", "edit-end"].includes(e.target.id)) return;
@@ -2154,7 +2294,7 @@ app.addEventListener("change", (e) => {
         setTimeout(() => t.classList.remove("invalid"), 1200);
       }
     }
-    t.value = formatRange(emp.weekly[wd]);
+    t.value = rangeLabel(emp.weekly[wd]);
     return;
   }
   if (t.dataset.note !== undefined || t.dataset.meta) {
@@ -2248,6 +2388,8 @@ window.matchMedia("(min-width: 768px)").addEventListener("change", (mq) => {
     const date = state.selectedDate;
     state.selectedDate = null;
     navigate(`#/day/${date}`);
+  } else if (r.name === "schedule" || r.name === "employees") {
+    render(); // 근무표·직원 표는 휴대폰용 표시가 따로 있다
   }
 });
 
@@ -2507,9 +2649,10 @@ function watchStore() {
 
 // 이 기기에서 쓸 매장을 바꾼다. admin 이면 그 매장의 관리자로 연다.
 function openStore(code, admin = false) {
-  const changed = code !== storeId || !pubRef;
-  if (code !== storeId) {
+  const changed = code !== storeId || !pubRef || demoLoaded;
+  if (code !== storeId || demoLoaded) {
     storeId = code;
+    demoLoaded = false;
     store = loadStore();
     ensureColors();
     resetDayUi();
@@ -2519,6 +2662,24 @@ function openStore(code, admin = false) {
   if (admin) state.adminStore = code;
   if (changed) watchStore();
   if (admin) watchPrivate(true);
+}
+
+// 관리자 사이트에서 로그아웃하면 다시 샘플 매장 둘러보기로
+function enterDemo() {
+  if (pubRef) pubRef.off();
+  if (metaRef) metaRef.off();
+  pubRef = metaRef = null;
+  watchPrivate(false);
+  remote = { pub: null, priv: null, pubLoaded: false, privLoaded: false, last: {}, seedAsked: false };
+  state.adminStore = null;
+  state.storeName = "";
+  if (!demoLoaded) {
+    demoLoaded = true;
+    store = demoData();
+    resetDayUi();
+    state.selectedDate = null;
+  }
+  document.title = `${APP_NAME} (관리자)`;
 }
 
 (function startCloud() {
@@ -2533,7 +2694,8 @@ function openStore(code, admin = false) {
     render();
     return;
   }
-  watchStore();
+  // 관리자 사이트는 로그인해서 내 매장을 열 때 연결한다 (그 전에는 샘플 매장)
+  if (!ADMIN_SITE) watchStore();
   cloud.auth.onAuthStateChanged(async (user) => {
     state.authReady = true;
     if (!ADMIN_SITE) {
@@ -2542,9 +2704,10 @@ function openStore(code, admin = false) {
     }
     // 매장 등록 중에는 createStore 가 매장을 연다
     if (state.busy === "signup") return;
-    state.adminStore = null;
-    watchPrivate(false);
-    if (user) {
+    if (!user) enterDemo();
+    else {
+      state.adminStore = null;
+      watchPrivate(false);
       state.busy = "check";
       render();
       try {
