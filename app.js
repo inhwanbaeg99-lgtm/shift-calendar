@@ -282,8 +282,7 @@ function pinPeriodYear() {
   if (period && !/\d{4}/.test(period) && /\d/.test(period)) store.scheduleMeta.period = `${scheduleStart().slice(0, 4)}. ${period.trim()}`;
 }
 
-function scheduleStart() {
-  const period = store.scheduleMeta?.period ?? "";
+function scheduleStart(period = store.scheduleMeta?.period ?? "") {
   const pad = (n) => n.padStart(2, "0");
   // 연도가 있으면 그대로 (2026. 10. 5 / 2026-10-05 / 2026년 10월 5일)
   const full = period.match(/(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})/);
@@ -2005,7 +2004,11 @@ app.addEventListener("click", (e) => {
       break;
     case "schedule-save":
       if (state.slotEdit) liveSlot({ final: true });
-      if (!window.confirm("근무표를 저장하면 직원 관리·달력·근무 기록에 반영돼요. 저장할까요?")) return;
+      {
+        // 저장할 근무표(아직 저장 전인 기간 포함)의 시작일
+        const from = scheduleStart(state.schedWork?.meta?.period ?? store.scheduleMeta?.period ?? "").replaceAll("-", ".");
+        if (!window.confirm(`근무표를 저장하면 ${from} 부터 직원 관리·달력·근무 기록에 반영돼요. 저장할까요?`)) return;
+      }
       state.slotEdit = null;
       commitSchedule();
       break;
