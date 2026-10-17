@@ -2894,3 +2894,285 @@ td.name {
   min-height: 0;
   justify-content: flex-start;
 }
+
+/* ---------- 급여 · 근무 상세: 요일·날짜 한 칸, 토 파랑·일 빨강, 오늘 동그라미 ---------- */
+.timesheet .ts-head {
+  padding: 8px 0 10px;
+  vertical-align: bottom;
+}
+.timesheet .ts-wd {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-sub);
+}
+.timesheet .ts-dn {
+  display: block;
+  margin: 3px auto 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.timesheet .sat .ts-wd,
+.timesheet .sat .ts-dn {
+  color: var(--accent);
+}
+.timesheet .sun .ts-wd,
+.timesheet .sun .ts-dn {
+  color: var(--red);
+}
+.timesheet .ts-head.today .ts-dn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+}
+.ts-desktop .timesheet th.ts-name,
+.ts-desktop .timesheet td.ts-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 72px;
+  padding-left: 14px;
+  text-align: left;
+  background: var(--paper);
+}
+.ts-desktop .timesheet th.ts-total,
+.ts-desktop .timesheet td.ts-total {
+  padding-right: 14px;
+  text-align: right;
+}
+.timesheet th.ts-name,
+.timesheet th.ts-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  vertical-align: bottom;
+  padding-bottom: 12px;
+}
+.timesheet td.ts-day {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.timesheet tbody tr:hover td,
+.timesheet tbody tr:hover th {
+  background: var(--bg);
+}
+.timesheet th.weekend,
+.timesheet td.weekend {
+  background: none;
+}
+/* 휴대폰: 날짜 칸 */
+.ts-mobile th.ts-date {
+  text-align: left;
+  padding-left: 10px;
+}
+.ts-mobile th.ts-date .ts-dn,
+.ts-mobile th.ts-date .ts-wd {
+  display: inline;
+  margin: 0 4px 0 0;
+}
+.ts-mobile tr.today-row th,
+.ts-mobile tr.today-row td {
+  background: var(--accent-soft);
+}
+
+/* ---------- 근무표 PDF: 아래 출력 정보 (PDF 에만) ---------- */
+.sc-brand {
+  display: none;
+}
+.sched-sheet.capturing .sc-brand {
+  display: block;
+  margin: 16px 4px 0;
+  text-align: right;
+  font-size: 12px;
+  color: #8b95a1;
+}
+
+/* ---------- 급여명세서 (A4 794 x 1123px, PDF·미리보기 공용) ---------- */
+.payslip {
+  display: flex;
+  flex-direction: column;
+  padding: 72px 80px 64px;
+  background: #ffffff;
+  color: #191f28;
+  font-family:
+    "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  letter-spacing: -0.01em;
+}
+.ps-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ps-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+}
+.ps-brand .logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 17px;
+  background: #3182f6;
+}
+.ps-month {
+  font-size: 17px;
+  font-weight: 600;
+  color: #8b95a1;
+}
+.ps-name {
+  margin: 64px 0 10px;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.ps-meta {
+  margin: 0;
+  font-size: 17px;
+  color: #4e5968;
+}
+.ps-net {
+  margin: 40px 0 44px;
+  padding: 30px 34px;
+  border-radius: 24px;
+  background: #e8f3ff;
+}
+.ps-net span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #4e5968;
+}
+.ps-net strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #3182f6;
+  font-variant-numeric: tabular-nums;
+}
+.ps-sec {
+  margin-bottom: 34px;
+}
+.ps-sec h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #8b95a1;
+}
+.ps-sec ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ps-sec li,
+.ps-sum {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.ps-sec li {
+  padding: 14px 0;
+  border-bottom: 1px solid #f2f4f6;
+  font-size: 18px;
+  color: #4e5968;
+}
+.ps-sec li b,
+.ps-sum b {
+  font-variant-numeric: tabular-nums;
+  color: #191f28;
+}
+.ps-sec li b {
+  font-weight: 600;
+}
+.ps-sum {
+  margin: 0;
+  padding-top: 16px;
+  font-size: 19px;
+  font-weight: 700;
+}
+.ps-foot {
+  margin-top: auto;
+  text-align: center;
+}
+.ps-foot .ps-thanks {
+  margin: 0 0 10px;
+  font-family: inherit;
+  font-size: 17px;
+  color: #4e5968;
+}
+.ps-foot .ps-store {
+  margin: 0 0 18px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.ps-issued {
+  margin: 0;
+  font-size: 13px;
+  color: #8b95a1;
+}
+
+/* PDF 머리: 화면 제목 대신 로고 + 매장 근무표 + 기간 */
+.sc-print-head {
+  display: none;
+}
+.sched-sheet.capturing .sc-head {
+  display: none;
+}
+.sched-sheet.capturing .sc-print-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 4px 20px;
+}
+.sc-print-head .ps-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #191f28;
+}
+.sc-print-head .logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 16px;
+}
+.sc-print-period {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #f2f4f6;
+  font-size: 15px;
+  font-weight: 600;
+  color: #4e5968;
+}
+/* PDF 변환기는 자간이 있으면 글자를 하나씩 찍어 "11 :00" 처럼 벌어지므로 자간 0 */
+.sched-sheet.capturing,
+.sched-sheet.capturing *,
+.ps-stage,
+.ps-stage * {
+  letter-spacing: 0 !important;
+}
+
+/* 근무 상세: 일정보다 많으면 파랑, 적으면 빨강 (위 글자색보다 우선) */
+.timesheet td.ts-day.over {
+  color: var(--accent);
+  font-weight: 600;
+}
+.timesheet td.ts-day.under {
+  color: var(--red);
+  font-weight: 600;
+}
+/* PDF 변환기는 고정폭 숫자에서 "10 :00", "528,920 원" 처럼 틈이 생겨서 PDF 에서는 끈다 */
+.sched-sheet.capturing *,
+.ps-stage * {
+  font-variant-numeric: normal !important;
+}

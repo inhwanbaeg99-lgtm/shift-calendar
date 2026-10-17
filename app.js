@@ -1006,28 +1006,26 @@ function renderTimesheet(ym, employeeId) {
   const { days, rows } = timesheet(ym, employeeId, { includeAll: true });
   const today = todayDateString();
   if (!rows.length) return `<div class="table-wrap ts-wrap"><p class="empty">이 달의 근무 기록이 없습니다.</p></div>`;
-  const wkClass = (d) => {
+  // 토요일 파랑, 일요일·공휴일 빨강, 오늘 강조 (열 전체를 칠하지 않고 글자로만)
+  const dayClass = (d) => {
     const wd = weekdayOf(d);
-    return (wd === 0 || wd === 6 ? " weekend" : "") + (wd === 0 || HOLIDAYS[d] ? " red-day" : "");
+    return (wd === 0 || HOLIDAYS[d] ? " sun" : wd === 6 ? " sat" : "") + (d === today ? " today" : "");
   };
   return `
     <div class="table-wrap ts-wrap ts-desktop">
       <table class="timesheet">
         <thead>
           <tr>
-            <th rowspan="2" class="ts-no">No.</th>
-            <th rowspan="2" class="ts-name">성명</th>
-            ${days.map((d) => `<th class="ts-day${wkClass(d)}">${WEEKDAYS[weekdayOf(d)]}</th>`).join("")}
-            <th rowspan="2" class="ts-total">시간</th>
+            <th class="ts-name">이름</th>
+            ${days.map((d) => `<th class="ts-head${dayClass(d)}"><span class="ts-wd">${WEEKDAYS[weekdayOf(d)]}</span><span class="ts-dn">${Number(d.slice(8))}</span></th>`).join("")}
+            <th class="ts-total">합계</th>
           </tr>
-          <tr>${days.map((d) => `<th class="ts-day${wkClass(d)}">${Number(d.slice(8))}</th>`).join("")}</tr>
         </thead>
         <tbody>
           ${rows
             .map(
-              (r, i) => `
+              (r) => `
             <tr>
-              <td class="ts-no">${i + 1}</td>
               <td class="ts-name">${esc(r.emp.name)}</td>
               ${r.cells.map((_, j) => cell(r, j)).join("")}
               <td class="ts-total">${r.total.toFixed(1)}</td>
@@ -1037,21 +1035,21 @@ function renderTimesheet(ym, employeeId) {
         </tbody>
       </table>
     </div>
-    ${renderTimesheetMobile(days, rows, cell, wkClass)}`;
+    ${renderTimesheetMobile(days, rows, cell, dayClass)}`;
 
   function cell(r, j) {
     const d = days[j];
     const saved = r.cells[j];
-    if (d > today) return `<td class="ts-day${wkClass(d)}"></td>`;
+    if (d > today) return `<td class="ts-day"></td>`;
     // 오늘인데 아직 기록이 없으면 결근으로 보지 않는다
     const diff = d === today && !saved ? "" : diffClass(r.emp, d, saved);
     const cls = (r.edited[j] ? " edited" : "") + diff;
-    return `<td class="ts-day${wkClass(d)}${cls}"${r.edited[j] ? ` title="달력에서 직접 고친 시간"` : ""}>${hour1(saved)}</td>`;
+    return `<td class="ts-day${cls}"${r.edited[j] ? ` title="달력에서 직접 고친 시간"` : ""}>${saved ? hour1(saved) : ""}</td>`;
   }
 }
 
 // 휴대폰용 근무 상세: 날짜가 줄, 직원이 칸 (한 달 31칸을 가로로 늘어놓지 않게)
-function renderTimesheetMobile(days, rows, cell, wkClass) {
+function renderTimesheetMobile(days, rows, cell, dayClass) {
   return `
     <div class="ts-mobile">
       <table class="timesheet">
@@ -1060,7 +1058,7 @@ function renderTimesheetMobile(days, rows, cell, wkClass) {
           ${days
             .map(
               (d, j) =>
-                `<tr><th class="ts-date${wkClass(d)}">${Number(d.slice(8))} ${WEEKDAYS[weekdayOf(d)]}</th>${rows.map((r) => cell(r, j)).join("")}</tr>`,
+                `<tr class="${dayClass(d).includes("today") ? "today-row" : ""}"><th class="ts-date${dayClass(d)}"><span class="ts-dn">${Number(d.slice(8))}</span><span class="ts-wd">${WEEKDAYS[weekdayOf(d)]}</span></th>${rows.map((r) => cell(r, j)).join("")}</tr>`,
             )
             .join("")}
           <tr class="ts-sum"><th class="ts-date">합계</th>${rows.map((r) => `<td class="ts-total">${r.total.toFixed(1)}</td>`).join("")}</tr>
@@ -1072,46 +1070,53 @@ function renderTimesheetMobile(days, rows, cell, wkClass) {
 // ---------- 급여명세서 ----------
 
 
-// "기본급" → "기   본   급" 처럼 칸 너비에 맞춰 글자를 벌린다 (PDF 변환에서도 유지되도록 글자마다 span)
-const spread = (label) => `<span class="spread">${[...label.replace(/\s/g, "")].map((c) => `<span>${esc(c)}</span>`).join("")}</span>`;
 
 function renderPayslip(r, ym) {
-  const month = Number(ym.slice(5, 7));
+  const [y, m] = ym.split("-").map(Number);
   const pay = [
     ["기본급", r.base],
     ["주휴수당", r.weekly.total],
-    ...r.allowances.map((a) => [a.name, Number(a.amount) || 0]),
+    ...r.allowances.filter((a) => a.name || Number(a.amount)).map((a) => [a.name || "수당", Number(a.amount) || 0]),
   ];
-  while (pay.length < 5) pay.push(["", null]);
   const deduct = [
-    ["소득세", r.income],
-    ["지방소득세", r.local],
+    ["소득세 (3%)", r.income],
+    ["지방소득세 (0.3%)", r.local],
   ];
-  const rows = pay
-    .map((p, i) => {
-      const d = deduct[i] ?? ["", null];
-      const cell = (label, value) =>
-        `<td class="ps-label${label.length > 5 ? " tight" : ""}">${label ? spread(label) : ""}</td><td class="ps-amount">${value === null ? "" : num(value)}</td>`;
-      return `<tr>${cell(p[0], p[1])}${cell(d[0], d[1])}</tr>`;
-    })
-    .join("");
   const deductTotal = r.income + r.local;
+  const line = ([label, value]) => `<li><span>${esc(label)}</span><b>${won(value)}</b></li>`;
+  const issued = todayDateString().replaceAll("-", ".");
 
   return `
     <div class="payslip">
-      <h1 class="ps-title">아르바이트 급여명세서</h1>
-      <table class="ps-table">
-        <tr><td class="ps-head ps-label">${spread("성명")}</td><td class="ps-center ps-spaced">${esc(r.emp.name)}</td><td class="ps-head ps-label">${spread("지급월")}</td><td class="ps-center">${month}월</td></tr>
-        <tr><td class="ps-head ps-label">${spread("시급")}</td><td class="ps-amount">${num(r.emp.hourlyWage)}</td><td class="ps-head ps-label">${spread("총근무시간")}</td><td class="ps-amount">${Number(r.hours.toFixed(2))}</td></tr>
-      </table>
-      <table class="ps-table ps-body">
-        <tr><td colspan="2" class="ps-head ps-center ps-spaced">지급</td><td colspan="2" class="ps-head ps-center ps-spaced">공제</td></tr>
-        ${rows}
-        <tr><td class="ps-label">${spread("①소계")}</td><td class="ps-amount">${num(r.gross)}</td><td class="ps-label">${spread("②소계")}</td><td class="ps-amount">${num(deductTotal)}</td></tr>
-        <tr><td colspan="2" class="ps-center ps-strong">지 급 금 액(①-②)</td><td colspan="2" class="ps-amount ps-strong">${num(r.net)}</td></tr>
-      </table>
-      <p class="ps-thanks">이번 한달도 수고많으셨습니다. 감사합니다.</p>
-      <p class="ps-store">${esc(storeName())}</p>
+      <header class="ps-top">
+        <span class="ps-brand"><span class="logo">품</span>급여명세서</span>
+        <span class="ps-month">${y}년 ${m}월</span>
+      </header>
+      <h1 class="ps-name">${esc(r.emp.name)} 님</h1>
+      <p class="ps-meta">시급 ${won(r.emp.hourlyWage)} · 근무 ${r.days}일 · 총 ${Number(r.hours.toFixed(2))}시간</p>
+
+      <div class="ps-net">
+        <span>이번 달 받으실 금액</span>
+        <strong>${won(r.net)}</strong>
+      </div>
+
+      <section class="ps-sec">
+        <h2>지급</h2>
+        <ul>${pay.map(line).join("")}</ul>
+        <p class="ps-sum"><span>지급 합계</span><b>${won(r.gross)}</b></p>
+      </section>
+
+      <section class="ps-sec">
+        <h2>공제</h2>
+        <ul>${deductTotal ? deduct.map(line).join("") : `<li><span>공제 없음</span><b>0원</b></li>`}</ul>
+        <p class="ps-sum"><span>공제 합계</span><b>${won(deductTotal)}</b></p>
+      </section>
+
+      <footer class="ps-foot">
+        <p class="ps-thanks">이번 한 달도 수고 많으셨어요. 감사합니다.</p>
+        <p class="ps-store">${esc(storeName())}</p>
+        <p class="ps-issued">발행일 ${issued} · 품</p>
+      </footer>
     </div>`;
 }
 
@@ -1538,6 +1543,10 @@ function renderScheduleSheet() {
 
   return `
     <div class="sched-sheet" id="sched-sheet">
+      <div class="sc-print-head">
+        <span class="ps-brand"><span class="logo">품</span>${esc(storeName())} 근무표</span>
+        ${meta.period ? `<span class="sc-print-period">${esc(meta.period.trim().replace(/~$/, "~ "))}</span>` : ""}
+      </div>
       <div class="sc-head">
         <h2 class="sc-title">[${esc(storeName())} 근무표]( <input class="sc-period" value="${esc(meta.period ?? "")}" size="${Math.max(6, [...(meta.period || "2026.06.04 ~ 2026.07.05")].length)}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~ 2026.07.05" aria-label="기간" /> )</h2>
         ${compact ? "" : actions}
@@ -1551,6 +1560,7 @@ function renderScheduleSheet() {
         </tbody>
       </table>
       ${compact ? renderSchedLegend(days) + actions : ""}
+      <p class="sc-brand">${esc(storeName())} · ${todayDateString().replaceAll("-", ".")} 출력 · 품</p>
     </div>`;
 }
 
@@ -1724,7 +1734,8 @@ async function schedulePdf(button) {
       const w = 297 - margin * 2;
       const h = Math.min(210 - margin * 2, (canvas.height / canvas.width) * w);
       const fitW = (canvas.width / canvas.height) * h;
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", (297 - fitW) / 2, margin, fitW, h);
+      // A4 가로 한가운데에 (위아래 여백을 똑같이)
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", (297 - fitW) / 2, (210 - h) / 2, fitW, h);
       pdf.save(`근무표_${(store.scheduleMeta?.period || todayDateString()).replace(/[\s.~]+/g, "_")}.pdf`);
     } finally {
       periodText.replaceWith(period);
