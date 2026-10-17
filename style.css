@@ -3208,18 +3208,22 @@ td.name {
 
 /* 관리자 · 휴대폰 날짜 화면: 출근 기록과 근무 예정을 위아래로 (버튼 글자가 줄바꿈되지 않게) */
 @media (max-width: 560px) {
-  .admin-main .day-page {
+  .admin-main .day-page,
+  .m-main .day-page {
     padding: 0;
   }
-  .admin-main .day-page .day-area-inner {
+  .admin-main .day-page .day-area-inner,
+  .m-main .day-page .day-area-inner {
     grid-template-columns: minmax(0, 1fr);
     min-height: 0;
     box-shadow: var(--shadow);
   }
-  .admin-main .day-page .date-box {
+  .admin-main .day-page .date-box,
+  .m-main .day-page .date-box {
     box-shadow: none;
   }
-  .admin-main .back-btn {
+  .admin-main .back-btn,
+  .m-main .back-btn {
     box-shadow: var(--shadow);
   }
 }
@@ -3437,4 +3441,756 @@ td.name {
 }
 .ts-desktop .timesheet td.ts-name {
   background: var(--paper);
+}
+
+/* =====================================================================
+   휴대폰 관리자 화면 (app.js renderMobileShell): 아래 탭바 + 목록 + 시트
+   ===================================================================== */
+@media (max-width: 767px) {
+  .m-top {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 10px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+  .m-store {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .m-login,
+  .m-logout {
+    flex-shrink: 0;
+    border-radius: 10px;
+    padding: 7px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .m-login {
+    background: var(--accent);
+    color: #ffffff;
+  }
+  .m-logout {
+    color: var(--ink-sub);
+  }
+  .m-main {
+    flex: 1;
+    width: 100%;
+    padding: 4px 16px calc(150px + env(safe-area-inset-bottom, 0px));
+  }
+  .demo-bar {
+    margin: 4px 16px 4px;
+    max-width: none;
+  }
+
+  /* 아래 탭바 */
+  .m-tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--paper) 92%, transparent);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
+  .m-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 0 4px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-sub);
+    text-decoration: none;
+    transition: color 0.2s ease, transform 0.12s ease;
+  }
+  .m-tab.active {
+    color: var(--accent);
+  }
+  .m-tab:active {
+    transform: scale(0.92);
+  }
+
+  /* 큰 제목 줄 */
+  .m-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 10px 4px 14px;
+  }
+  .m-head h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .m-count {
+    margin-left: 4px;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink-sub);
+  }
+  .m-add {
+    border-radius: 12px;
+    padding: 9px 14px;
+    background: var(--accent-soft);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .m-help .help {
+    margin: 0;
+  }
+  .m-help .help-text {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    z-index: 5;
+    margin-top: 36px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: var(--paper);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.12);
+  }
+  .m-head {
+    position: relative;
+  }
+  .m-help .help {
+    flex-direction: row-reverse;
+  }
+
+  /* 카드 · 목록 */
+  .m-card {
+    margin-bottom: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    background: var(--paper);
+    box-shadow: var(--shadow);
+  }
+  .m-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .m-link b {
+    display: block;
+    font-size: 15px;
+  }
+  .m-link small {
+    font-size: 13px;
+    color: var(--ink-sub);
+  }
+  .m-list {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--radius);
+    background: var(--paper);
+    box-shadow: var(--shadow);
+  }
+  .m-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  .m-row:last-child {
+    border-bottom: 0;
+  }
+  .m-row:active {
+    transform: none;
+    background: var(--bg);
+  }
+  .swatch.big {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
+  }
+  .m-row-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .m-row-body b {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .m-row-body small {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    color: var(--ink-sub);
+  }
+  .m-chip {
+    border-radius: 6px;
+    padding: 2px 6px;
+    background: var(--accent-soft);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .m-chip.off {
+    background: var(--bg);
+    color: var(--ink-sub);
+  }
+  .m-chev {
+    display: flex;
+    flex-shrink: 0;
+    color: var(--grid);
+  }
+  .m-empty {
+    margin: 0;
+    padding: 28px 16px;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-sub);
+  }
+  .m-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .m-btns .btn-ghost {
+    background: var(--paper);
+    box-shadow: var(--shadow);
+  }
+
+  /* 접어 둔 표 */
+  .m-fold {
+    margin-top: 16px;
+    border-radius: var(--radius);
+    background: var(--paper);
+    box-shadow: var(--shadow);
+  }
+  .m-fold summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    list-style: none;
+    cursor: pointer;
+  }
+  .m-fold summary::-webkit-details-marker {
+    display: none;
+  }
+  .m-fold summary::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--ink-sub);
+    border-bottom: 2px solid var(--ink-sub);
+    transform: rotate(45deg);
+    transition: transform 0.2s ease;
+  }
+  .m-fold[open] summary::after {
+    transform: rotate(-135deg);
+  }
+  .m-fold > :not(summary) {
+    padding: 0 8px 12px;
+  }
+  .m-fold .sched-sheet,
+  .m-fold .ts-mobile {
+    box-shadow: none;
+    padding-top: 0;
+  }
+  .m-fold .sc-head,
+  .m-fold .sc-actions,
+  .m-fold .sc-help {
+    display: none;
+  }
+
+  /* 근무표: 기간 · 요일 칩 · 근무자 목록 · 저장 줄 */
+  .m-period {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: var(--paper);
+    box-shadow: var(--shadow);
+  }
+  .m-period span {
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-sub);
+  }
+  .m-period .sc-period {
+    flex: 1;
+    min-width: 0;
+    width: auto !important;
+    border: 0;
+    text-align: left;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .m-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .m-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 9px 0 8px;
+    border-radius: 14px;
+    background: var(--paper);
+    box-shadow: var(--shadow);
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .m-day small {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-sub);
+  }
+  .m-day.sun span {
+    color: var(--red);
+  }
+  .m-day.sat span {
+    color: var(--accent);
+  }
+  .m-day.on {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .m-day.on span,
+  .m-day.on small {
+    color: var(--paper);
+  }
+  .m-shifts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .m-shift {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 14px 16px 14px 14px;
+    border-radius: 16px;
+    background: var(--paper);
+    box-shadow: var(--shadow);
+    text-align: left;
+  }
+  .m-shift-bar {
+    width: 6px;
+    align-self: stretch;
+    border-radius: 3px;
+    background: var(--emp);
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  }
+  .m-shift-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .m-shift-body b {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 16px;
+  }
+  .m-shift-body small {
+    display: block;
+    margin-top: 2px;
+    font-size: 14px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .m-shift-hours {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-sub);
+  }
+  .m-add-shift {
+    width: 100%;
+    padding: 14px;
+    border: 1.5px dashed var(--grid);
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-sub);
+  }
+  .m-savebar {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    z-index: 25;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 0.8fr;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 6px 24px rgb(0 0 0 / 0.1);
+  }
+  .m-savebar .btn-ghost,
+  .m-savebar .btn-primary {
+    padding: 12px 0;
+    font-size: 15px;
+  }
+  .m-savebar .btn-primary:disabled {
+    opacity: 0.45;
+  }
+  #sched-status .sched-status {
+    margin: 12px 4px 0;
+  }
+
+  /* 급여: 달 · 합계 카드 · 직원 목록 */
+  .m-month {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin: 8px 0 12px;
+  }
+  .m-month h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .m-month .round-btn {
+    background: var(--paper);
+    box-shadow: var(--shadow);
+  }
+  .m-hero {
+    margin-bottom: 12px;
+    padding: 20px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgb(49 130 246 / 0.28);
+  }
+  .m-hero small {
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+  .m-hero strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .m-hero-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 13px;
+    opacity: 0.9;
+  }
+  .m-tax {
+    border: 0;
+    border-radius: 8px;
+    padding: 5px 8px;
+    background: rgb(255 255 255 / 0.2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+  }
+  .m-tax option {
+    color: #191f28;
+  }
+  .m-pay-net {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .m-hero.small {
+    margin: 4px 0 12px;
+    padding: 16px 18px;
+    box-shadow: none;
+  }
+  .m-hero.small strong {
+    font-size: 28px;
+  }
+
+  /* 시트 */
+  .sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+    background: rgb(0 0 0 / 0.32);
+  }
+  .sheet {
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    border-radius: 24px 24px 0 0;
+    background: var(--paper);
+    box-shadow: 0 -10px 40px rgb(0 0 0 / 0.15);
+    overscroll-behavior: contain;
+  }
+  .sheet-grip {
+    display: block;
+    width: 40px;
+    height: 5px;
+    margin: 0 auto 14px;
+    border-radius: 3px;
+    background: var(--line);
+  }
+  .sheet-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .sheet-head h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .sheet-head small {
+    font-size: 13px;
+    color: var(--ink-sub);
+  }
+  .sheet-label {
+    display: block;
+    margin: 16px 2px 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+  .sheet-label small {
+    margin-left: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-sub);
+  }
+  .sheet-note {
+    margin: 8px 2px 0;
+    font-size: 12px;
+    color: var(--ink-sub);
+  }
+  .sheet-actions {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .sheet .field {
+    width: 100%;
+    height: 48px;
+    font-size: 16px;
+  }
+  .m-week {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .m-week-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .m-week-row span {
+    width: 22px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .m-week-row.sun span {
+    color: var(--red);
+  }
+  .m-week-row.sat span {
+    color: var(--accent);
+  }
+  .m-week-row .field.range {
+    flex: 1;
+    height: 44px;
+    text-align: left;
+    font-size: 16px;
+  }
+  .m-wage {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+  }
+  .m-toggles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .m-toggle {
+    padding: 12px 0;
+    border-radius: 12px;
+    background: var(--bg);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink-sub);
+  }
+  .m-toggle.on {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .sheet .danger-ghost {
+    background: #ffeeee;
+    color: var(--red);
+  }
+  .m-form .sheet-label:first-child {
+    margin-top: 0;
+  }
+  .sheet .slot-form .staff-title {
+    font-size: 20px;
+    font-weight: 800;
+  }
+  .sheet .slot-form .edit-row .field {
+    height: 52px;
+    font-size: 18px;
+  }
+  .sheet .slot-form .btn-primary,
+  .sheet .slot-form .btn-ghost {
+    padding: 14px 0;
+  }
+  .m-lines,
+  .m-days-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .m-lines li,
+  .m-days-list li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 2px;
+    border-bottom: 1px solid var(--line);
+    font-size: 15px;
+    color: var(--ink-2);
+  }
+  .m-lines li b,
+  .m-days-list li b {
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .m-lines li.sum {
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .m-days-list li {
+    font-size: 14px;
+  }
+  .m-day-time {
+    flex: 1;
+    color: var(--ink-sub);
+    font-variant-numeric: tabular-nums;
+  }
+  .m-days-list b.over {
+    color: var(--accent);
+  }
+  .m-days-list b.under {
+    color: var(--red);
+  }
+
+  /* 명세서 창: 휴대폰에서는 위아래로 */
+  .ps-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .ps-dialog {
+    width: 100%;
+    max-height: 92vh;
+    flex-direction: column;
+    border-radius: 24px 24px 0 0;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .ps-side {
+    width: auto;
+  }
+  .ps-preview {
+    align-self: center;
+    zoom: 0.42;
+  }
+
+  /* 알림은 탭바 위로 */
+  .toast {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
+  .sheet-backdrop.enter {
+    animation: fade-in 0.22s ease both;
+  }
+  .sheet-backdrop.enter .sheet {
+    animation: sheet-up 0.34s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+  }
+  .page-enter .m-row,
+  .page-enter .m-shift,
+  .page-enter .m-hero,
+  .page-enter .m-card {
+    animation: rise-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: calc(min(var(--i, 0), 10) * 40ms + 40ms);
+  }
+  #sched-day-list.enter .m-shift {
+    animation: rise-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: calc(min(var(--i, 0), 10) * 35ms);
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-color-scheme: dark) and (max-width: 767px) {
+  .sheet .danger-ghost {
+    background: rgb(255 107 117 / 0.16);
+  }
 }

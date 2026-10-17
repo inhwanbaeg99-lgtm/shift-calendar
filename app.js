@@ -770,6 +770,7 @@ function renderDayPage(date) {
 // ---------- 화면: 관리자 ----------
 
 function renderAdminShell(active, content, { center = false, wide = false } = {}) {
+  if (!isDesktop()) return renderMobileShell(active, content);
   const link = (href, label, key) => `<a href="${href}" class="${active === key ? "active" : ""}">${label}</a>`;
   return `
     <nav class="admin-top" aria-label="관리자 메뉴">
@@ -812,6 +813,7 @@ const formatMoney = (text) => {
 const parseMoney = (text) => Number(String(text).replace(/\D/g, "")) || 0;
 
 function renderEmployees() {
+  if (!isDesktop()) return renderEmployeesMobile();
   // 표는 월요일부터
   const order = [1, 2, 3, 4, 5, 6, 0];
   const rows = store.employees
@@ -871,6 +873,288 @@ function renderStaffLink() {
         <a class="pill plain-dark" href="${esc(staffUrl())}" target="_blank" rel="noopener">열기</a>
         <button type="button" class="pill" data-action="copy-staff-link">주소 복사</button>
       </div>
+    </div>`;
+}
+
+// =====================================================================
+// 휴대폰 관리자 화면: 아래 탭바 + 목록 + 아래에서 올라오는 시트
+// (컴퓨터 화면을 줄인 것이 아니라 휴대폰에서 보기 편하게 따로 그린다. 기능·동작은 같다)
+// =====================================================================
+
+const ICON_TAB = {
+  employees: svg(24, '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>', 2),
+  schedule: svg(24, '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 10h18M9 4v16M15 4v16"/>', 2),
+  calendar: svg(24, '<rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/>', 2),
+  records: svg(24, '<rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M16 15h2"/>', 2),
+};
+const ICON_CHEVRON = svg(18, '<path d="m9 18 6-6-6-6"/>', 2.25);
+
+function renderMobileShell(active, content) {
+  const tab = (key, label) =>
+    `<a href="#/${key}" class="m-tab${active === key ? " active" : ""}"${active === key ? ' aria-current="page"' : ""}>${ICON_TAB[key]}<span>${label}</span></a>`;
+  return `
+    <header class="m-top">
+      <b class="m-store">${esc(storeName())}</b>
+      ${demoLoaded ? `<a class="m-login" href="#/login">로그인</a>` : `<button type="button" class="m-logout" data-action="logout">로그아웃</button>`}
+    </header>
+    ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. <a href="#/signup">매장 등록</a> · <a href="#/login">로그인</a></p>` : ""}
+    <main class="m-main${state.pageEnter ? " page-enter" : ""}">${content}</main>
+    <nav class="m-tabbar" aria-label="관리자 메뉴">
+      ${tab("employees", "직원")}${tab("schedule", "근무표")}${tab("calendar", "달력")}${tab("records", "급여")}
+    </nav>
+    ${renderSheet()}
+    ${toastHtml()}`;
+}
+
+// 아래에서 올라오는 시트 (근무표 칸 편집 · 직원 정보 · 직원 추가 · 급여 내역)
+function renderSheet() {
+  let body = "";
+  let close = "close-sheet";
+  const r = route();
+  if (r.name === "schedule" && state.slotEdit) {
+    body = renderSlotPanel();
+    close = "cancel-slot";
+  } else if (state.sheet?.type === "emp" && employeeById(state.sheet.id)) body = renderEmpSheet(employeeById(state.sheet.id));
+  else if (state.sheet?.type === "add-emp") body = renderAddEmpSheet();
+  else if (state.sheet?.type === "pay" && employeeById(state.sheet.id)) body = renderPaySheet(employeeById(state.sheet.id));
+  if (!body) return "";
+  const enter = state.sheetEnter;
+  return `
+    <div class="sheet-backdrop${enter ? " enter" : ""}" data-action="${close}">
+      <div class="sheet" data-stop role="dialog" aria-modal="true">
+        <span class="sheet-grip" aria-hidden="true"></span>
+        ${body}
+      </div>
+    </div>`;
+}
+
+const mHead = (title, side = "") => `<div class="m-head"><h1>${title}</h1>${side}</div>`;
+
+// ---------- 직원 ----------
+function weeklySummary(e) {
+  const days = [1, 2, 3, 4, 5, 6, 0].filter((wd) => e.weekly[wd]);
+  if (!days.length) return "근무 요일 없음";
+  return days.map((wd) => `${WEEKDAYS[wd]} ${rangeLabel(e.weekly[wd])}`).join(" · ");
+}
+
+function renderEmployeesMobile() {
+  const list = store.employees
+    .map(
+      (e, i) => `
+      <button type="button" class="m-row" style="--i:${i}" data-action="open-sheet" data-sheet="emp" data-id="${e.id}">
+        <span class="swatch big" style="background:${e.color || "#ffffff"}"></span>
+        <span class="m-row-body">
+          <b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}${e.active ? "" : `<em class="m-chip off">비활성</em>`}</b>
+          <small>${esc(weeklySummary(e))}</small>
+        </span>
+        <span class="m-chev">${ICON_CHEVRON}</span>
+      </button>`,
+    )
+    .join("");
+  return renderAdminShell(
+    "employees",
+    `
+    ${mHead(`직원 <span class="m-count">${store.employees.length}명</span>`, `<button type="button" class="m-add" data-action="open-sheet" data-sheet="add-emp">+ 추가</button>`)}
+    ${
+      demoLoaded
+        ? ""
+        : `<div class="m-card m-link">
+            <div><b>직원용 달력</b><small>매장 코드 ${storeId}</small></div>
+            <button type="button" class="pill" data-action="copy-staff-link">주소 복사</button>
+          </div>`
+    }
+    <div class="m-list">${list || `<p class="m-empty">아직 직원이 없어요.<br />오른쪽 위 <b>+ 추가</b>로 등록해주세요.</p>`}</div>`,
+  );
+}
+
+function renderEmpSheet(e) {
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  return `
+    <div class="sheet-head">
+      <span class="swatch big" style="background:${e.color || "#ffffff"}"></span>
+      <div><h2>${esc(e.name)}</h2>${e.phone ? `<small>${esc(formatPhone(e.phone))}</small>` : ""}</div>
+    </div>
+    <p class="sheet-label">요일별 근무 시간 <small>7-12, 18-2230 처럼 입력 · 비우면 쉬는 날</small></p>
+    <div class="m-week">
+      ${order
+        .map(
+          (wd) => `
+        <label class="m-week-row${wd === 0 ? " sun" : wd === 6 ? " sat" : ""}">
+          <span>${WEEKDAYS[wd]}</span>
+          <input class="field range" type="text" placeholder="쉬는 날" value="${formatRange(e.weekly[wd])}" data-weekly="${wd}" data-id="${e.id}" aria-label="${esc(e.name)} ${WEEKDAYS[wd]}요일 근무 시간" />
+        </label>`,
+        )
+        .join("")}
+    </div>
+    <label class="sheet-label" for="m-wage">시급</label>
+    <div class="m-wage"><input id="m-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /><span>원</span></div>
+    <div class="m-toggles">
+      <button type="button" class="m-toggle${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button>
+      <button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>
+    </div>
+    <p class="sheet-note">매니저는 근무표에만 나오고 출근·급여 계산에서 빠져요.</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn-ghost danger-ghost" data-action="remove-employee" data-id="${e.id}">삭제</button>
+      <button type="button" class="btn-primary" data-action="close-sheet">완료</button>
+    </div>`;
+}
+
+function renderAddEmpSheet() {
+  return `
+    <div class="sheet-head"><div><h2>직원 추가</h2></div></div>
+    <form id="add-employee" class="m-form">
+      <label class="sheet-label" for="f-name">이름</label>
+      <input id="f-name" class="field" placeholder="홍길동" required autocomplete="off" />
+      <label class="sheet-label" for="f-phone">전화번호 (선택)</label>
+      <input id="f-phone" class="field phone" type="text" inputmode="numeric" placeholder="010-0000-0000" />
+      <label class="sheet-label" for="f-wage">시급(원)</label>
+      <input id="f-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required />
+      <div class="sheet-actions">
+        <button type="button" class="btn-ghost" data-action="close-sheet">취소</button>
+        <button type="submit" class="btn-primary">추가</button>
+      </div>
+    </form>`;
+}
+
+// ---------- 근무표 ----------
+// 고른 요일의 근무자 (시작 시각 순)
+function renderDayShifts() {
+  const wd = state.schedDay ?? weekdayOf(todayDateString());
+  const people = store.employees
+    .filter((e) => e.active && effWeekly(e)[wd])
+    .map((e) => ({ e, shift: effWeekly(e)[wd] }))
+    .sort((a, b) => (a.shift.start < b.shift.start ? -1 : 1));
+  const rows = people
+    .map(({ e, shift }, i) => {
+      const hours = hoursBetween(kstIso("2026-01-05", shift.start), endIso("2026-01-05", shift.start, shift.end));
+      return `
+        <button type="button" class="m-shift" style="--i:${i};--emp:${e.color || "#ffffff"}" data-action="edit-slot" data-wd="${wd}" data-id="${e.id}" data-start="${toMin(shift.start)}">
+          <span class="m-shift-bar"></span>
+          <span class="m-shift-body"><b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}</b><small>${shift.start} ~ ${shift.end}</small></span>
+          <span class="m-shift-hours">${hour1(hours)}시간</span>
+        </button>`;
+    })
+    .join("");
+  return `
+    ${rows || `<p class="m-empty">${WEEKDAYS[wd]}요일 근무자가 없어요.</p>`}
+    <button type="button" class="m-add-shift" data-action="edit-slot" data-wd="${wd}" data-start="540">+ ${WEEKDAYS[wd]}요일 근무자 추가</button>`;
+}
+
+function renderScheduleMobile() {
+  const wd = state.schedDay ?? weekdayOf(todayDateString());
+  const meta = schedMeta();
+  const count = (d) => store.employees.filter((e) => e.active && effWeekly(e)[d]).length;
+  return renderAdminShell(
+    "schedule",
+    `
+    ${mHead("근무표", `<div class="m-help">${schedHelp()}</div>`)}
+    <label class="m-period">
+      <span>기간</span>
+      <input class="sc-period" value="${esc(meta.period ?? "")}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~ 2026.07.05" aria-label="기간" />
+    </label>
+    <div class="m-days" role="tablist">
+      ${[1, 2, 3, 4, 5, 6, 0]
+        .map(
+          (d) => `
+        <button type="button" role="tab" aria-selected="${d === wd}" class="m-day${d === wd ? " on" : ""}${d === 0 ? " sun" : d === 6 ? " sat" : ""}" data-action="sched-day" data-wd="${d}">
+          <span>${WEEKDAYS[d]}</span><small>${count(d)}명</small>
+        </button>`,
+        )
+        .join("")}
+    </div>
+    <div class="m-shifts${state.dayListEnter ? " enter" : ""}" id="sched-day-list">${renderDayShifts()}</div>
+    <details class="m-fold">
+      <summary>일주일 한눈에 보기 (색으로)</summary>
+      <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
+    </details>
+    <div id="sched-status">${renderSchedStatus()}</div>
+    <div class="m-savebar">
+      <button type="button" class="btn-ghost" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
+      <button type="button" class="btn-primary" data-action="schedule-save"${hasDraft() ? "" : " disabled"}>저장</button>
+      <button type="button" class="btn-ghost" data-action="schedule-pdf">PDF</button>
+    </div>`,
+  );
+}
+
+// ---------- 급여 ----------
+function renderRecordsMobile() {
+  const { month } = state.payroll;
+  const [y, m] = month.split("-").map(Number);
+  const { recs, rows, total } = payrollFor(month, "");
+  const taxOn = store.settings?.tax !== "none";
+  const cards = rows
+    .map(
+      (r, i) => `
+      <button type="button" class="m-row m-pay" style="--i:${i}" data-action="open-sheet" data-sheet="pay" data-id="${r.emp.id}">
+        <span class="swatch big" style="background:${r.emp.color || "#ffffff"}"></span>
+        <span class="m-row-body"><b>${esc(r.emp.name)}</b><small>${r.days}일 · ${hrs(r.hours)}</small></span>
+        <span class="m-pay-net net">${won(r.net)}</span>
+        <span class="m-chev">${ICON_CHEVRON}</span>
+      </button>`,
+    )
+    .join("");
+  return renderAdminShell(
+    "records",
+    `
+    <div class="m-month">
+      <button type="button" class="round-btn" data-action="payroll-prev" aria-label="이전 달">${ICON_PREV}</button>
+      <h1>${y}년 ${m}월</h1>
+      <button type="button" class="round-btn" data-action="payroll-next" aria-label="다음 달">${ICON_NEXT}</button>
+    </div>
+    <div class="m-hero">
+      <small>이번 달 실지급액 합계</small>
+      <strong class="net">${won(total.net)}</strong>
+      <div class="m-hero-meta">
+        <span>${rows.length}명 · ${total.days}일 · ${hrs(total.hours)}</span>
+        <select class="m-tax" data-setting="tax" aria-label="세금">
+          <option value="3.3"${taxOn ? " selected" : ""}>3.3% 공제</option>
+          <option value="none"${taxOn ? "" : " selected"}>공제 안 함</option>
+        </select>
+      </div>
+    </div>
+    <div class="m-list">${cards || `<p class="m-empty">이 달의 근무 기록이 없어요.</p>`}</div>
+    <details class="m-fold">
+      <summary>날짜별 근무 시간 표</summary>
+      ${renderTimesheet(month, "")}
+    </details>
+    <div class="m-btns">
+      <button type="button" class="btn-ghost" data-action="export-xlsx"${recs.length ? "" : " disabled"}>엑셀 다운로드</button>
+      <button type="button" class="btn-primary" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF 전체</button>
+    </div>
+    ${renderPayslipModal()}`,
+  );
+}
+
+function renderPaySheet(emp) {
+  const { month } = state.payroll;
+  const recs = monthRecords(month, emp.id);
+  const r = payrollRow(emp, month, recs);
+  const line = (label, value, cls = "") => `<li class="${cls}"><span>${label}</span><b>${won(value)}</b></li>`;
+  const days = recs
+    .map((rec) => {
+      const h = hoursBetween(rec.clockIn, rec.clockOut);
+      return `<li><span>${shortDate(rec.date)}</span><span class="m-day-time">${formatTime(rec.clockIn)} ~ ${formatTime(rec.clockOut)}</span><b class="${diffClass(emp, rec.date, h).trim()}">${hour1(h)}시간</b></li>`;
+    })
+    .join("");
+  return `
+    <div class="sheet-head">
+      <span class="swatch big" style="background:${emp.color || "#ffffff"}"></span>
+      <div><h2>${esc(emp.name)}</h2><small>${Number(month.slice(5, 7))}월 · ${r.days}일 · ${hrs(r.hours)}</small></div>
+    </div>
+    <div class="m-hero small"><small>받을 금액</small><strong>${won(r.net)}</strong></div>
+    <ul class="m-lines">
+      ${line("기본급", r.base)}
+      ${line("주휴수당", r.weekly.total)}
+      ${r.allowances.filter((a) => a.name || Number(a.amount)).map((a) => line(esc(a.name || "수당"), Number(a.amount) || 0)).join("")}
+      ${line("지급 합계", r.gross, "sum")}
+      ${line("소득세", r.income)}
+      ${line("지방소득세", r.local)}
+    </ul>
+    <p class="sheet-label">날짜별 근무</p>
+    <ul class="m-days-list">${days || `<li><span>근무 기록이 없어요</span></li>`}</ul>
+    <div class="sheet-actions">
+      <button type="button" class="btn-ghost" data-action="open-payslip" data-id="${emp.id}">수당 · 명세서</button>
+      <button type="button" class="btn-primary" data-action="payslip-pdf-one" data-id="${emp.id}">명세서 PDF</button>
     </div>`;
 }
 
@@ -1175,6 +1459,7 @@ function renderPayslipModal() {
 }
 
 function renderRecords() {
+  if (!isDesktop()) return renderRecordsMobile();
   const { month, employeeId } = state.payroll;
   const [y, m] = month.split("-").map(Number);
   const { recs, rows, total } = payrollFor(month, employeeId);
@@ -1593,6 +1878,10 @@ function schedHelp() {
 // 근무표 칸을 누르면 편집 패널("월요일 · 근무자 추가")이 화면 위쪽에 보이게 옮기고 입력칸에 커서
 // (패널이 표 아래에 있는 좁은 화면에서 눌러도 안 보이는 일이 없게)
 function revealSlotPanel() {
+  if (!isDesktop()) {
+    document.getElementById(state.slotEdit?.empId ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
+    return;
+  }
   const panel = document.querySelector(".sched-panel");
   if (!panel) return;
   const { top, bottom } = panel.getBoundingClientRect();
@@ -1621,6 +1910,7 @@ function renderSchedStatus() {
 }
 
 function renderSchedule() {
+  if (!isDesktop()) return renderScheduleMobile();
   return renderAdminShell(
     "schedule",
     `
@@ -1717,6 +2007,8 @@ function liveSlot({ final = false } = {}) {
 function refreshSchedule() {
   const scroll = document.getElementById("sched-scroll");
   if (scroll) scroll.innerHTML = renderScheduleSheet();
+  const dayList = document.getElementById("sched-day-list");
+  if (dayList) dayList.innerHTML = renderDayShifts();
   const status = document.getElementById("sched-status");
   if (status) status.innerHTML = renderSchedStatus();
 }
@@ -1738,6 +2030,9 @@ async function schedulePdf(button) {
     const [html2canvas, jsPDF] = await Promise.all([loadLib("html2canvas"), loadLib("jspdf")]);
     await document.fonts.ready;
     const sheet = document.getElementById("sched-sheet");
+    const fold = sheet.closest("details");
+    const wasOpen = fold?.open;
+    if (fold) fold.open = true;
     sheet.classList.add("capturing");
     // 기간 입력칸은 글자로 바꿔서 찍는다 (입력칸 여백이 생기지 않게)
     const period = sheet.querySelector(".sc-period");
@@ -1757,6 +2052,7 @@ async function schedulePdf(button) {
     } finally {
       periodText.replaceWith(period);
       sheet.classList.remove("capturing");
+      if (fold) fold.open = wasOpen;
     }
   });
 }
@@ -1794,12 +2090,14 @@ function render() {
   if (period) fitPeriod(period);
   lockDemoFields();
   placeNavPill();
-  if (state.pageEnter && r.name === "records") countUp(app.querySelectorAll(".pay-table td.net"));
+  if (state.pageEnter && r.name === "records") countUp(app.querySelectorAll(".pay-table td.net, .m-main .net"));
   state.pageEnter = false;
   state.monthDir = null;
   state.expandEnter = false;
   state.dayEnter = false;
   state.modalEnter = false;
+  state.sheetEnter = false;
+  state.dayListEnter = false;
 
   // 처음 날짜를 눌렀을 때 달력이 줄어드는 애니메이션
   if (state.animateOpen) {
@@ -1825,6 +2123,7 @@ function navigate(hash) {
 
 window.addEventListener("hashchange", () => {
   state.pageEnter = true;
+  state.sheet = null;
   resetDayUi();
   state.payslipId = null;
   state.allowDraft = null;
@@ -2012,7 +2311,8 @@ app.addEventListener("click", (e) => {
 
   const el = e.target.closest("[data-action]");
   // 명세서 창 안쪽 빈 곳을 누르면 바깥(닫기)으로 전달되지 않게
-  const insideDialog = el?.classList.contains("ps-backdrop") && e.target.closest("[data-stop]") && !e.target.closest("[data-action]:not(.ps-backdrop)");
+  const isBackdrop = el?.classList.contains("ps-backdrop") || el?.classList.contains("sheet-backdrop");
+  const insideDialog = isBackdrop && e.target.closest("[data-stop]") && !e.target.closest("[data-action]:not(.ps-backdrop):not(.sheet-backdrop)");
   if (!el || insideDialog) return;
   const { action, id } = el.dataset;
 
@@ -2127,6 +2427,7 @@ app.addEventListener("click", (e) => {
         store.records = store.records.filter((x) => x.employeeId !== id);
         save();
         queueToast(`${emp.name}님을 삭제했어요`);
+        if (state.sheet?.id === id) state.sheet = null;
         render();
       };
       // 줄이 옆으로 밀려나며 사라진 뒤에 지운다
@@ -2154,6 +2455,20 @@ app.addEventListener("click", (e) => {
       queueToast(`${emp.name}님을 ${isManager(emp) ? "매니저로" : "알바로"} 바꿨어요`);
       break;
     }
+    case "open-sheet":
+      state.sheet = { type: el.dataset.sheet, id: id ?? null };
+      state.sheetEnter = true;
+      break;
+    case "close-sheet":
+      state.sheet = null;
+      break;
+    case "sched-day":
+      state.schedDay = Number(el.dataset.wd);
+      state.dayListEnter = true;
+      break;
+    case "payslip-pdf-one":
+      payslipPdf(el, [id]);
+      return;
     case "copy-staff-link":
       navigator.clipboard?.writeText(staffUrl()).then(
         () => showToast("직원용 달력 주소를 복사했어요", "ok"),
@@ -2182,6 +2497,7 @@ app.addEventListener("click", (e) => {
       return;
     case "edit-slot":
       if (state.slotEdit) liveSlot({ final: true }); // 보던 칸은 입력한 대로 두고 넘어간다
+      state.sheetEnter = !state.slotEdit;
       state.error = "";
       state.slotEdit = {
         wd: el.dataset.wd,
@@ -2211,6 +2527,7 @@ app.addEventListener("click", (e) => {
       return;
     }
     case "open-payslip":
+      state.sheet = null; // 휴대폰: 급여 시트에서 명세서 창으로 넘어간다
       state.modalEnter = true;
       state.payslipId = id;
       state.allowDraft = structuredClone(allowancesFor(state.payroll.month, id));
@@ -2293,6 +2610,7 @@ function countUp(cells) {
 const DEMO_ALLOWED = new Set([
   "prev-month", "next-month", "close-panel", "go-home", "toggle-staff", "toggle-help",
   "payroll-prev", "payroll-next", "open-payslip", "close-payslip",
+  "open-sheet", "close-sheet", "sched-day",
 ]);
 
 let toastTimer = null;
@@ -2413,6 +2731,7 @@ app.addEventListener("submit", (e) => {
   });
   ensureColors();
   save();
+  state.sheet = null;
   render();
   showToast(`${name}님을 추가했어요`, "ok");
 });
@@ -2537,8 +2856,8 @@ window.matchMedia("(min-width: 768px)").addEventListener("change", (mq) => {
     const date = state.selectedDate;
     state.selectedDate = null;
     navigate(`#/day/${date}`);
-  } else if (r.name === "schedule" || r.name === "employees" || r.name === "records") {
-    render(); // 근무표·직원·급여는 휴대폰용 표시가 따로 있다
+  } else if (ADMIN_SITE) {
+    render(); // 관리자 화면은 휴대폰용 화면이 따로 있다
   }
 });
 
