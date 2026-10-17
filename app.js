@@ -1563,6 +1563,18 @@ function schedHelp() {
   );
 }
 
+// 근무표 칸을 누르면 편집 패널("월요일 · 근무자 추가")이 화면 위쪽에 보이게 옮기고 입력칸에 커서
+// (패널이 표 아래에 있는 좁은 화면에서 눌러도 안 보이는 일이 없게)
+function revealSlotPanel() {
+  const panel = document.querySelector(".sched-panel");
+  if (!panel) return;
+  const { top, bottom } = panel.getBoundingClientRect();
+  // 패널이 표 아래에 있으면(좁은 화면) 항상 제목이 맨 위로 오게 — 키보드가 올라와도 입력칸이 가리지 않게
+  const below = window.matchMedia("(max-width: 1379px)").matches;
+  if (below || top < 0 || bottom > window.innerHeight) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById(state.slotEdit?.empId ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
+}
+
 // 휴대폰 근무표 아래 색 안내: 근무표에 나오는 사람만
 function renderSchedLegend(days) {
   const ids = new Set(days.flatMap((d) => d.cols.flatMap((col) => col.map((p) => p.emp.id))));
@@ -1590,7 +1602,7 @@ function renderSchedule() {
         <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
         ${isDesktop() ? schedHelp() : ""}
       </div>
-      <div class="sched-side">
+      <div class="sched-side${state.slotEdit ? " editing" : ""}">
         <div id="sched-status">${renderSchedStatus()}</div>
         <aside class="sched-panel">${renderSlotPanel()}</aside>
       </div>
@@ -2125,7 +2137,7 @@ app.addEventListener("click", (e) => {
         snapshot: structuredClone(schedWork().weekly),
       };
       render();
-      document.getElementById(state.slotEdit.empId ? "slot-start" : "slot-emp")?.focus();
+      revealSlotPanel();
       return;
     case "cancel-slot":
       state.schedWork.weekly = state.slotEdit.snapshot; // 이번에 입력한 것 되돌리기
