@@ -3273,3 +3273,141 @@ td.name {
     background: rgb(255 107 117 / 0.16);
   }
 }
+
+/* ---------- 직원 화면: 직원용 달력 주소 ---------- */
+.staff-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -12px 0 24px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.staff-link-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.staff-link-title b {
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+.staff-link-url {
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--ink-sub);
+}
+.staff-link > div:first-child {
+  min-width: 0;
+}
+.staff-link-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.staff-link-actions a {
+  text-decoration: none;
+}
+@media (max-width: 767px) {
+  .staff-link {
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: -8px;
+  }
+  .staff-link-actions > * {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+/* ---------- 인터랙션 더 ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* 명세서 창: 배경은 서서히, 창은 살짝 커지며 */
+  .ps-backdrop.enter {
+    animation: fade-in 0.25s ease both;
+  }
+  .ps-backdrop.enter .ps-dialog {
+    animation: dialog-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  /* 날짜를 누르면 출근 기록·근무 예정이 차례로 */
+  .day-enter .in-item,
+  .day-enter .staff-item,
+  .day-enter .add-btn {
+    animation: rise-in 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .day-enter .in-item:nth-child(2),
+  .day-enter .staff-item:nth-child(2) {
+    animation-delay: 40ms;
+  }
+  .day-enter .in-item:nth-child(3),
+  .day-enter .staff-item:nth-child(3) {
+    animation-delay: 80ms;
+  }
+  .day-enter .in-item:nth-child(4),
+  .day-enter .staff-item:nth-child(4) {
+    animation-delay: 120ms;
+  }
+  .day-enter .in-item:nth-child(n + 5),
+  .day-enter .staff-item:nth-child(n + 5),
+  .day-enter .add-btn {
+    animation-delay: 160ms;
+  }
+  /* 이름을 누르면 버튼 줄이 아래로 펼쳐지며 */
+  .staff-action.enter {
+    animation: unfold 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    transform-origin: top;
+  }
+  /* 시간 형식이 틀리면 흔들기 */
+  .field.invalid {
+    animation: admin-pin-shake 0.4s ease;
+  }
+  /* 카드에 마우스를 올리면 살짝 떠오르기 (컴퓨터) */
+  @media (hover: hover) {
+    .staff-link,
+    .toolbar {
+      transition: box-shadow 0.2s ease;
+    }
+    .staff-item {
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+    .staff-item:not(.expanded):hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+}
+@keyframes unfold {
+  from {
+    opacity: 0;
+    transform: scaleY(0.6) translateY(-6px);
+  }
+}
+
+/* 매장 이름을 오른쪽 위 로그인·로그아웃 버튼과 같은 높이에 (버튼과 같은 위아래 여백) */
+.admin-top .store-tag b {
+  padding: 12px 0;
+  line-height: normal;
+}
+@media (max-width: 1099px) {
+  .admin-top .store-tag b {
+    padding: 6px 0;
+  }
+}

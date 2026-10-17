@@ -664,7 +664,7 @@ function renderStaffItem(emp, date) {
         ${done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
         <span class="staff-time${ADMIN_SITE && rec ? diffClass(emp, date, hoursBetween(rec.clockIn, rec.clockOut)) : ""}">${start} ~ ${end}</span>
       </button>
-      ${action ? `<div class="staff-action">${action}</div>` : ""}
+      ${action ? `<div class="staff-action${state.expandEnter ? " enter" : ""}">${action}</div>` : ""}
     </li>`;
 }
 
@@ -728,7 +728,7 @@ function renderStaff(date) {
 }
 
 function renderDayArea(date, { closable }) {
-  return `<div class="day-area-inner">${renderDateBox(date, { closable })}${renderStaff(date)}</div>`;
+  return `<div class="day-area-inner${state.dayEnter ? " day-enter" : ""}">${renderDateBox(date, { closable })}${renderStaff(date)}</div>`;
 }
 
 function renderCalendarCard() {
@@ -741,11 +741,14 @@ function renderCalendarCard() {
     </div>`;
 }
 
+const toastHtml = () => (state.toast ? `<p class="toast${state.toastKind === "ok" ? " ok" : ""}" role="status">${esc(state.toast)}</p>` : "");
+
 function renderHome() {
   return `
     <div class="home">
       <div class="home-inner">${renderCalendarCard()}</div>
-    </div>`;
+    </div>
+    ${toastHtml()}`;
 }
 
 // 관리자 달력: 직원용 달력과 같은 화면. 출근 버튼은 없고 지난 날짜도 근무 시간을 고칠 수 있다.
@@ -761,7 +764,7 @@ function renderDayPage(date) {
         ${renderDayArea(date, { closable: false })}
       </div>
     </div>`;
-  return ADMIN_SITE ? renderAdminShell("calendar", page) : page;
+  return ADMIN_SITE ? renderAdminShell("calendar", page) : page + toastHtml();
 }
 
 // ---------- 화면: 관리자 ----------
@@ -771,10 +774,7 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
   return `
     <nav class="admin-top" aria-label="관리자 메뉴">
       <span class="nav-pill" aria-hidden="true"></span>
-      <div class="store-tag">
-        <b><span class="logo" aria-hidden="true">품</span>${esc(storeName())}</b>
-        ${demoLoaded ? "" : `<a href="../?s=${storeId}" target="_blank" rel="noopener" title="매장 코드 ${storeId} · 이 주소를 매장 기기에서 열어주세요">직원용 달력 ↗</a>`}
-      </div>
+      <div class="store-tag"><b>${esc(storeName())}</b></div>
       ${link("#/employees", "직원", "employees")}
       ${link("#/schedule", "근무표", "schedule")}
       ${link("#/calendar", "달력", "calendar")}
@@ -783,7 +783,7 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
     </nav>
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. 내 매장으로 쓰려면 <a href="#/signup">매장 등록</a> 또는 <a href="#/login">로그인</a>해주세요.</p>` : ""}
     <main class="admin-main${center ? " centered" : ""}${wide ? " wide" : ""}${state.pageEnter ? " page-enter" : ""}">${content}</main>
-    ${state.toast ? `<p class="toast${state.toastKind === "ok" ? " ok" : ""}" role="status">${esc(state.toast)}</p>` : ""}`;
+    ${toastHtml()}`;
 }
 
 // ? 버튼을 누르면 펼쳐지는 설명 (다른 화면에 갔다 오면 다시 접힘)
@@ -842,6 +842,7 @@ function renderEmployees() {
       <div><label for="f-wage">시급(원)</label><input id="f-wage" class="field money" style="width:112px" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required /></div>
       <button type="submit" class="pill">추가</button>
     </form>
+    ${demoLoaded ? "" : renderStaffLink()}
     <div class="table-wrap">
       <table class="schedule">
         <thead><tr><th>이름</th>${order.map((wd) => `<th class="${wd === 0 ? "rest" : ""}">${WEEKDAYS[wd]}</th>`).join("")}<th>시급</th><th>상태</th><th>구분</th><th>관리</th></tr></thead>
@@ -855,6 +856,22 @@ function renderEmployees() {
     )}`,
     { center: true },
   );
+}
+
+// 직원용 달력 주소: 매장 기기에서 한 번 열면 그 기기가 매장을 기억한다
+const staffUrl = () => new URL(`../?s=${storeId}`, location.href).href;
+function renderStaffLink() {
+  return `
+    <div class="staff-link">
+      <div>
+        <p class="staff-link-title">직원용 달력 · 매장 코드 <b>${storeId}</b></p>
+        <p class="staff-link-url">${esc(staffUrl())}</p>
+      </div>
+      <div class="staff-link-actions">
+        <a class="pill plain-dark" href="${esc(staffUrl())}" target="_blank" rel="noopener">열기</a>
+        <button type="button" class="pill" data-action="copy-staff-link">주소 복사</button>
+      </div>
+    </div>`;
 }
 
 // ---------- 급여 계산 ----------
@@ -1089,7 +1106,7 @@ function renderPayslip(r, ym) {
   return `
     <div class="payslip">
       <header class="ps-top">
-        <span class="ps-brand"><span class="logo">품</span>급여명세서</span>
+        <span class="ps-brand">급여명세서</span>
         <span class="ps-month">${y}년 ${m}월</span>
       </header>
       <h1 class="ps-name">${esc(r.emp.name)} 님</h1>
@@ -1129,7 +1146,7 @@ function renderPayslipModal() {
   const r = payrollRow(emp, month, monthRecords(month, empId), state.allowDraft);
   const list = r.allowances;
   return `
-    <div class="ps-backdrop" data-action="close-payslip">
+    <div class="ps-backdrop${state.modalEnter ? " enter" : ""}" data-action="close-payslip">
       <div class="ps-dialog" data-stop>
         <div class="ps-side">
           <p class="staff-title">${esc(emp.name)} · ${Number(month.slice(5, 7))}월 명세서</p>
@@ -1545,7 +1562,7 @@ function renderScheduleSheet() {
   return `
     <div class="sched-sheet" id="sched-sheet">
       <div class="sc-print-head">
-        <span class="ps-brand"><span class="logo">품</span>${esc(storeName())} 근무표${meta.period ? `<span class="sc-print-period">${esc(meta.period.trim())}</span>` : ""}</span>
+        <span class="ps-brand">${esc(storeName())} 근무표${meta.period ? `<span class="sc-print-period">${esc(meta.period.trim())}</span>` : ""}</span>
       </div>
       <div class="sc-head">
         <h2 class="sc-title">[${esc(storeName())} 근무표]( <input class="sc-period" value="${esc(meta.period ?? "")}" size="${Math.max(6, [...(meta.period || "2026.06.04 ~ 2026.07.05")].length)}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~ 2026.07.05" aria-label="기간" /> )</h2>
@@ -1780,6 +1797,9 @@ function render() {
   if (state.pageEnter && r.name === "records") countUp(app.querySelectorAll(".pay-table td.net"));
   state.pageEnter = false;
   state.monthDir = null;
+  state.expandEnter = false;
+  state.dayEnter = false;
+  state.modalEnter = false;
 
   // 처음 날짜를 눌렀을 때 달력이 줄어드는 애니메이션
   if (state.animateOpen) {
@@ -1963,6 +1983,7 @@ function resetDayUi() {
 
 function selectDate(date) {
   resetDayUi();
+  state.dayEnter = true;
   if (!isDesktop()) {
     navigate(`#/day/${date}`);
     return;
@@ -2014,6 +2035,7 @@ app.addEventListener("click", (e) => {
       state.error = "";
       state.editingId = null;
       state.expandedId = state.expandedId === id ? null : id;
+      state.expandEnter = Boolean(state.expandedId);
       break;
     case "edit-shift":
       state.error = "";
@@ -2038,6 +2060,7 @@ app.addEventListener("click", (e) => {
       if (ADMIN_SITE && date < todayDateString()) {
         setRecordTimes(id, date, start, end);
         save();
+        queueToast(`${emp.name}님 근무 시간을 고쳤어요`);
         state.error = "";
         state.editingId = null;
         state.editingWhere = null;
@@ -2052,6 +2075,7 @@ app.addEventListener("click", (e) => {
         rec.clockOut = scheduledEnd(emp, date);
       }
       save();
+      queueToast(`${emp.name}님 근무 시간을 바꿨어요`);
       state.error = "";
       state.editingId = null;
       state.editingWhere = null;
@@ -2069,6 +2093,7 @@ app.addEventListener("click", (e) => {
       if (!state.error) {
         state.expandedId = null;
         state.justAddedId = recordFor(id, todayDateString()).id;
+        queueToast(`${employeeById(id).name}님 출근 완료!`);
         render();
         state.justAddedId = null;
         return;
@@ -2079,6 +2104,7 @@ app.addEventListener("click", (e) => {
       if (!window.confirm(`${employeeById(id).name}님의 ${shortDate(date)} 근무 기록을 삭제할까요?`)) return;
       removeRecord(id, date);
       save();
+      queueToast("근무 기록을 삭제했어요");
       state.expandedId = null;
       break;
     }
@@ -2090,15 +2116,25 @@ app.addEventListener("click", (e) => {
       const emp = employeeById(id);
       emp.active = !emp.active;
       save();
+      queueToast(`${emp.name}님을 ${emp.active ? "재직중으로" : "비활성으로"} 바꿨어요`);
       break;
     }
     case "remove-employee": {
       const emp = employeeById(id);
       if (!window.confirm(`${emp.name}님을 삭제하시겠습니까? 근무 기록도 함께 삭제됩니다.`)) return;
-      store.employees = store.employees.filter((x) => x.id !== id);
-      store.records = store.records.filter((x) => x.employeeId !== id);
-      save();
-      break;
+      const finish = () => {
+        store.employees = store.employees.filter((x) => x.id !== id);
+        store.records = store.records.filter((x) => x.employeeId !== id);
+        save();
+        queueToast(`${emp.name}님을 삭제했어요`);
+        render();
+      };
+      // 줄이 옆으로 밀려나며 사라진 뒤에 지운다
+      const row = el.closest("tr");
+      if (row && !reducedMotion()) {
+        row.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(24px)" }], { duration: 220, easing: "ease-in" }).finished.then(finish);
+      } else finish();
+      return;
     }
     case "export-xlsx":
       exportXlsx(el);
@@ -2107,6 +2143,7 @@ app.addEventListener("click", (e) => {
     case "payroll-next":
       state.payroll.month = shiftMonth(state.payroll.month, action === "payroll-prev" ? -1 : 1);
       state.payslipId = null;
+      state.pageEnter = true; // 달을 넘기면 카드가 다시 올라오고 금액도 다시 올라간다
       break;
     case "toggle-role": {
       const emp = employeeById(id);
@@ -2114,8 +2151,15 @@ app.addEventListener("click", (e) => {
       if (!isManager(emp)) emp.color = null;
       ensureColors();
       save();
+      queueToast(`${emp.name}님을 ${isManager(emp) ? "매니저로" : "알바로"} 바꿨어요`);
       break;
     }
+    case "copy-staff-link":
+      navigator.clipboard?.writeText(staffUrl()).then(
+        () => showToast("직원용 달력 주소를 복사했어요", "ok"),
+        () => showToast("복사하지 못했어요. 주소를 길게 눌러 복사해주세요."),
+      );
+      return;
     case "schedule-pdf":
       schedulePdf(el);
       return;
@@ -2167,6 +2211,7 @@ app.addEventListener("click", (e) => {
       return;
     }
     case "open-payslip":
+      state.modalEnter = true;
       state.payslipId = id;
       state.allowDraft = structuredClone(allowancesFor(state.payroll.month, id));
       break;
@@ -2177,6 +2222,7 @@ app.addEventListener("click", (e) => {
     case "save-payslip":
       setAllowances(state.payroll.month, state.payslipId, state.allowDraft.filter((a) => a.name || a.amount));
       save();
+      queueToast("수당을 저장했어요");
       state.payslipId = null;
       state.allowDraft = null;
       break;
@@ -2250,6 +2296,16 @@ const DEMO_ALLOWED = new Set([
 ]);
 
 let toastTimer = null;
+// 다음 그리기에 알림을 띄운다 (처리 뒤에 어차피 다시 그리는 곳에서 사용)
+function queueToast(text, kind = "ok") {
+  state.toast = text;
+  state.toastKind = kind;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    state.toast = "";
+    render();
+  }, 2200);
+}
 function showToast(text, kind = "") {
   state.toast = text;
   state.toastKind = kind;
