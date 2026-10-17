@@ -753,7 +753,7 @@ function renderHome() {
 
 // 관리자 달력: 직원용 달력과 같은 화면. 출근 버튼은 없고 지난 날짜도 근무 시간을 고칠 수 있다.
 function renderAdminCalendar() {
-  return renderAdminShell("calendar", `<div class="admin-cal">${renderCalendarCard()}</div>`, { center: true, wide: true });
+  return renderAdminShell("calendar", `${isDesktop() ? "" : mHead("달력")}<div class="admin-cal">${renderCalendarCard()}</div>`, { center: true, wide: true });
 }
 
 function renderDayPage(date) {
@@ -891,7 +891,7 @@ const ICON_CHEVRON = svg(18, '<path d="m9 18 6-6-6-6"/>', 2.25);
 
 function renderMobileShell(active, content) {
   const tab = (key, label) =>
-    `<a href="#/${key}" class="m-tab${active === key ? " active" : ""}"${active === key ? ' aria-current="page"' : ""}>${ICON_TAB[key]}<span>${label}</span></a>`;
+    `<a href="#/${key}" class="m-tab${active === key ? " active" : ""}"${active === key ? ' aria-current="page"' : ""}>${label}</a>`;
   return `
     <header class="m-top">
       <b class="m-store">${esc(storeName())}</b>
@@ -1064,7 +1064,7 @@ function renderScheduleMobile() {
     </div>
     <div class="m-shifts${state.dayListEnter ? " enter" : ""}" id="sched-day-list">${renderDayShifts()}</div>
     <details class="m-fold">
-      <summary>일주일 한눈에 보기 (색으로)</summary>
+      <summary>근무표 한눈에 보기</summary>
       <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
     </details>
     <div id="sched-status">${renderSchedStatus()}</div>

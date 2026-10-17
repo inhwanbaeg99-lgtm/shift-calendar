@@ -4194,3 +4194,57 @@ td.name {
     background: rgb(255 107 117 / 0.16);
   }
 }
+
+/* 토요일은 파랑 대신 기본 글자색 (컴퓨터·휴대폰 모두) */
+.timesheet .sat .ts-wd,
+.timesheet .sat .ts-dn,
+.m-day.sat span,
+.m-week-row.sat span {
+  color: var(--ink);
+}
+.timesheet .sat .ts-wd {
+  color: var(--ink-sub);
+}
+
+@media (max-width: 767px) {
+  /* 근무표: 고른 요일은 파랑 */
+  .m-day.on {
+    background: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 6px 16px rgb(49 130 246 / 0.3);
+  }
+  .m-day.on span,
+  .m-day.on small {
+    color: #ffffff;
+  }
+
+  /* 아래 메뉴: 흰 막대 대신 컴퓨터처럼 버튼, 고른 메뉴만 흰 알약 */
+  .m-tabbar {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 0;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+  }
+  .m-tab {
+    flex: 1;
+    max-width: 96px;
+    padding: 11px 0;
+    border-radius: 999px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-sub);
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
+  }
+  .m-tab.active {
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 700;
+    box-shadow: var(--shadow);
+  }
+  .m-savebar {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
