@@ -1186,7 +1186,7 @@ function renderRecords() {
       <div>
         <label for="r-tax">세금</label>
         <select id="r-tax" class="field" data-setting="tax">
-          <option value="3.3"${taxOn ? " selected" : ""}>3.3% 공제 (사업소득)</option>
+          <option value="3.3"${taxOn ? " selected" : ""}>${isDesktop() ? "3.3% 공제 (사업소득)" : "3.3% 공제"}</option>
           <option value="none"${taxOn ? "" : " selected"}>공제 안 함</option>
         </select>
       </div>
@@ -1500,7 +1500,9 @@ function renderScheduleSheet() {
               const bg = who.emp.color || "#ffffff";
               const ed = state.slotEdit;
               const editing = ed && String(ed.wd) === String(d.wd) && (ed.empId ?? ed.addEmpId) === who.emp.id;
-              return `<td class="sc-name${editing ? " sc-editing" : ""}" ${slot} data-id="${who.emp.id}"${span} style="background:${bg};color:${textOn(bg)}">${esc(who.emp.name)}</td>`;
+              // 휴대폰: 칸이 좁아 이름 대신 색만 (누구인지는 아래 색 안내)
+              const label = compact ? "" : esc(who.emp.name);
+              return `<td class="sc-name${editing ? " sc-editing" : ""}" ${slot} data-id="${who.emp.id}"${span} style="background:${bg};color:${textOn(bg)}"${compact ? ` title="${esc(who.emp.name)}" aria-label="${esc(who.emp.name)}"` : ""}>${label}</td>`;
             })
             .join(""),
         )
@@ -1544,7 +1546,19 @@ function renderScheduleSheet() {
         </tbody>`
         }
       </table>
+      ${compact ? renderSchedLegend(days) : ""}
     </div>`;
+}
+
+// 휴대폰 근무표 아래 색 안내: 근무표에 나오는 사람만
+function renderSchedLegend(days) {
+  const ids = new Set(days.flatMap((d) => d.cols.flatMap((col) => col.map((p) => p.emp.id))));
+  const people = store.employees.filter((e) => ids.has(e.id));
+  if (!people.length) return "";
+  return `
+    <ul class="sc-legend">
+      ${people.map((e) => `<li><span class="sc-swatch" style="background:${e.color || "#ffffff"}"></span>${esc(e.name)}</li>`).join("")}
+    </ul>`;
 }
 
 function renderSchedStatus() {
@@ -1563,7 +1577,7 @@ function renderSchedule() {
         <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
         ${helpToggle(
           "schedule",
-          `이름 칸을 누르면 시간 수정·삭제, 빈 칸(사선)을 누르면 근무자 추가예요. 오른쪽에서 입력하면 표에 바로 보여요.<br />
+          `${isDesktop() ? "이름 칸을 누르면 시간 수정·삭제, 빈 칸(사선)을 누르면 근무자 추가예요. 오른쪽에서 입력하면 표에 바로 보여요." : "색 칸을 누르면 시간 수정·삭제, 흰 칸을 누르면 근무자 추가예요. 아래에서 입력하면 표에 바로 보여요."}<br />
           <b>저장</b>하면 직원 관리·달력·근무 기록에 반영되고, <b>임시저장</b>은 반영하지 않고 고친 내용만 보관해요.<br />
           지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간과 비고 칸도 눌러서 고칠 수 있어요.`,
         )}
@@ -1582,7 +1596,7 @@ function renderSlotPanel() {
   if (!ed) {
     return `
       <p class="staff-title">근무 수정</p>
-      <p class="sub">근무표에서 이름 칸이나 빈 칸(사선)을 누르면 여기서 시간을 입력할 수 있어요.</p>`;
+      <p class="sub">${isDesktop() ? "근무표에서 이름 칸이나 빈 칸(사선)을" : "근무표에서 색 칸이나 흰 칸을"} 누르면 여기서 시간을 입력할 수 있어요.</p>`;
   }
   const empId = ed.empId ?? ed.addEmpId;
   const emp = empId ? employeeById(empId) : null;
@@ -2388,8 +2402,8 @@ window.matchMedia("(min-width: 768px)").addEventListener("change", (mq) => {
     const date = state.selectedDate;
     state.selectedDate = null;
     navigate(`#/day/${date}`);
-  } else if (r.name === "schedule" || r.name === "employees") {
-    render(); // 근무표·직원 표는 휴대폰용 표시가 따로 있다
+  } else if (r.name === "schedule" || r.name === "employees" || r.name === "records") {
+    render(); // 근무표·직원·급여는 휴대폰용 표시가 따로 있다
   }
 });
 

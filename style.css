@@ -2001,48 +2001,146 @@ a.lock-link {
     padding: 6px 0;
   }
 
-  /* 근무표: 한 화면 너비에 (휴대폰용 배치는 app.js 에서 시간 한 칸) */
+  /* 근무표: 한 화면 너비에, 사이트 카드 모양으로 (휴대폰용 배치는 app.js 에서 시간 한 칸·색만) */
   .sched-sheet {
     min-width: 0;
-    padding-top: 0;
+    padding: 16px 12px 14px;
+    border-radius: 20px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: inherit;
   }
   .sc-head {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    margin-bottom: 14px;
   }
   .sc-actions {
     position: static;
     transform: none;
   }
+  .sc-actions .pill.plain-dark {
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .admin-main .sc-title {
+    margin: 0;
+  }
   .sc-title {
     font-size: 17px;
+    font-weight: 700;
     letter-spacing: 0;
+    color: var(--ink);
+  }
+  .sc-period {
+    border-bottom-color: var(--grid);
+    color: var(--ink-sub);
   }
   .sched.compact {
-    font-size: 9px;
+    border-collapse: separate;
+    border-spacing: 3px;
+    margin: -3px;
+    width: calc(100% + 6px);
     letter-spacing: 0;
   }
   .sched.compact th,
   .sched.compact td {
-    height: 24px;
-    padding: 0 1px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
   }
   .sched.compact th {
-    height: 26px;
-    font-size: 11px;
+    height: 24px;
+    background: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-sub);
+  }
+  .sched.compact th.sc-rest {
+    color: var(--red);
   }
   .sched.compact thead th:first-child {
-    width: 30px;
+    width: 34px;
+  }
+  .sched.compact td.sc-time {
+    background: none;
+    text-align: right;
+    padding-right: 4px;
+    font-size: 10px;
+    color: var(--ink-sub);
+  }
+  .sched.compact td.sc-empty {
+    background: var(--bg);
+    background-image: none;
+  }
+  .sched.compact td.sc-empty:hover {
+    background: var(--accent-soft);
   }
   .sched.compact td.sc-name {
-    white-space: normal;
-    word-break: break-all;
-    line-height: 1.1;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
+  }
+  .sched.compact td.sc-name:hover,
+  .sched.compact td.sc-editing {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  .sched.compact .sc-foot td {
+    height: 28px;
+    background: var(--bg);
+    font-size: 10px;
+    letter-spacing: 0;
+    color: var(--ink-sub);
+  }
+  .sched.compact .sc-foot td:first-child {
+    background: none;
+    text-align: right;
+    padding-right: 4px;
   }
   .sched.compact .sc-note input {
-    font-size: 9px;
+    font-size: 10px;
+    color: var(--ink);
+  }
+
+  /* 색 안내 */
+  .sc-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 14px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13px;
+  }
+  .sc-legend li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sc-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  }
+
+  /* 급여: 날짜는 한 줄, 그 아래 직원·세금 나란히 */
+  .records-bar {
+    gap: 12px 10px;
+  }
+  .records-bar .month-nav {
+    flex-basis: 100%;
+    justify-content: center;
+    margin: 0;
+  }
+  .records-bar > div:not(.month-nav) {
+    flex: 1;
+    min-width: 0;
+  }
+  .records-bar select {
+    width: 100%;
   }
 
   /* 급여 · 근무 상세: 날짜가 줄, 직원이 칸 */
