@@ -1544,8 +1544,7 @@ function renderScheduleSheet() {
   return `
     <div class="sched-sheet" id="sched-sheet">
       <div class="sc-print-head">
-        <span class="ps-brand"><span class="logo">품</span>${esc(storeName())} 근무표</span>
-        ${meta.period ? `<span class="sc-print-period">${esc(meta.period.trim().replace(/~$/, "~ "))}</span>` : ""}
+        <span class="ps-brand"><span class="logo">품</span>${esc(storeName())} 근무표${meta.period ? `<span class="sc-print-period">${esc(meta.period.trim())}</span>` : ""}</span>
       </div>
       <div class="sc-head">
         <h2 class="sc-title">[${esc(storeName())} 근무표]( <input class="sc-period" value="${esc(meta.period ?? "")}" size="${Math.max(6, [...(meta.period || "2026.06.04 ~ 2026.07.05")].length)}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~ 2026.07.05" aria-label="기간" /> )</h2>

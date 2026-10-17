@@ -3129,7 +3129,6 @@ td.name {
 .sched-sheet.capturing .sc-print-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin: 0 4px 20px;
 }
 .sc-print-head .ps-brand {
@@ -3146,12 +3145,11 @@ td.name {
   border-radius: 9px;
   font-size: 16px;
 }
+/* 기간은 제목 바로 옆, 같은 크기 (색만 한 단계 연하게) */
 .sc-print-period {
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: #f2f4f6;
-  font-size: 15px;
-  font-weight: 600;
+  margin-left: 4px;
+  font-size: 22px;
+  font-weight: 700;
   color: #4e5968;
 }
 /* PDF 변환기는 자간이 있으면 글자를 하나씩 찍어 "11 :00" 처럼 벌어지므로 자간 0 */
