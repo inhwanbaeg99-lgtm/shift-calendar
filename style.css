@@ -3174,3 +3174,59 @@ td.name {
 .ps-stage * {
   font-variant-numeric: normal !important;
 }
+
+/* 근무 상세: 세로선 */
+.timesheet th + th,
+.timesheet th + td,
+.timesheet td + td {
+  border-left: 1px solid var(--line);
+}
+
+/* 날짜 칸 닫기: 흰 동그라미 없이 검정 X */
+.close-btn {
+  background: none;
+  color: var(--ink);
+}
+
+/* 근무 예정: 사람마다 근무표 색으로 상자 구분 */
+.staff-item {
+  background: var(--emp, var(--bg));
+  color: var(--emp-ink, var(--ink));
+}
+.staff-item .staff-time {
+  color: inherit;
+  opacity: 0.7;
+}
+.staff-item .staff-time.over,
+.staff-item .staff-time.under {
+  opacity: 1;
+  font-weight: 700;
+}
+.staff-item .badge {
+  background: rgb(255 255 255 / 0.75);
+}
+.staff-item .btn-ghost {
+  background: rgb(255 255 255 / 0.7);
+  color: #191f28;
+}
+.staff-item.expanded {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* 관리자 · 휴대폰 날짜 화면: 출근 기록과 근무 예정을 위아래로 (버튼 글자가 줄바꿈되지 않게) */
+@media (max-width: 560px) {
+  .admin-main .day-page {
+    padding: 0;
+  }
+  .admin-main .day-page .day-area-inner {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    box-shadow: var(--shadow);
+  }
+  .admin-main .day-page .date-box {
+    box-shadow: none;
+  }
+  .admin-main .back-btn {
+    box-shadow: var(--shadow);
+  }
+}

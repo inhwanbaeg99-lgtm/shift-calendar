@@ -658,7 +658,7 @@ function renderStaffItem(emp, date) {
   if (expanded && state.error && state.editingWhere !== "staff") action += `<p class="error">${esc(state.error)}</p>`;
 
   return `
-    <li class="staff-item${expanded ? " expanded" : ""}">
+    <li class="staff-item${expanded ? " expanded" : ""}" style="--emp:${emp.color || "#ffffff"};--emp-ink:${textOn(emp.color || "#ffffff")}">
       <button type="button" class="staff-name-btn" data-action="toggle-staff" data-id="${emp.id}"${editable ? "" : " disabled"}>
         <span class="staff-name">${esc(emp.name)}</span>
         ${done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
