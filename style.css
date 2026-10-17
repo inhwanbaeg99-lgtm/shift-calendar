@@ -3411,3 +3411,30 @@ td.name {
     padding: 6px 0;
   }
 }
+
+/* 휴대폰 근무 상세: 직원이 많으면 이름이 잘리지 않게 칸 최소 너비, 넘치면 옆으로 밀어 보기 */
+@media (max-width: 767px) {
+  .ts-mobile .timesheet {
+    table-layout: auto;
+    min-width: 100%;
+  }
+  .ts-mobile th.ts-person {
+    min-width: 46px;
+    white-space: nowrap;
+  }
+  .ts-mobile th.ts-date {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 52px;
+    background: var(--paper);
+  }
+}
+
+/* 근무 상세 칸은 카드와 같은 흰 바탕 (예전 회색 칸 규칙 덮어쓰기) */
+.timesheet td {
+  background: none;
+}
+.ts-desktop .timesheet td.ts-name {
+  background: var(--paper);
+}
