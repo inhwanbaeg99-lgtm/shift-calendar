@@ -775,7 +775,7 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
   return `
     <nav class="admin-top" aria-label="관리자 메뉴">
       <span class="nav-pill" aria-hidden="true"></span>
-      <div class="store-tag"><b>${esc(storeName())}</b></div>
+      <div class="store-tag"><b>${esc(storeName())}</b>${demoLoaded ? "" : staffCalLink()}</div>
       ${link("#/employees", "직원", "employees")}
       ${link("#/schedule", "근무표", "schedule")}
       ${link("#/calendar", "달력", "calendar")}
@@ -860,6 +860,10 @@ function renderEmployees() {
   );
 }
 
+// 직원용 달력으로 가는 버튼 (새 탭)
+const staffCalLink = (cls = "") =>
+  `<a${cls ? ` class="${cls}"` : ""} href="${esc(staffUrl())}" target="_blank" rel="noopener" title="매장 코드 ${storeId} · 이 주소를 매장 기기에서 열어주세요">직원용 달력 ↗</a>`;
+
 // 직원용 달력 주소: 매장 기기에서 한 번 열면 그 기기가 매장을 기억한다
 const staffUrl = () => new URL(`../?s=${storeId}`, location.href).href;
 function renderStaffLink() {
@@ -895,6 +899,7 @@ function renderMobileShell(active, content) {
   return `
     <header class="m-top">
       <b class="m-store">${esc(storeName())}</b>
+      ${demoLoaded ? "" : staffCalLink("m-staff-link")}
       ${demoLoaded ? `<a class="m-login" href="#/login">로그인</a>` : `<button type="button" class="m-logout" data-action="logout">로그아웃</button>`}
     </header>
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. <a href="#/signup">매장 등록</a> · <a href="#/login">로그인</a></p>` : ""}

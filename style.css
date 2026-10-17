@@ -4248,3 +4248,21 @@ td.name {
     bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* 휴대폰 위 줄: 매장 이름 옆 직원용 달력 버튼 */
+@media (max-width: 767px) {
+  .m-top .m-store {
+    flex: 1;
+    min-width: 0;
+  }
+  .m-staff-link {
+    flex-shrink: 0;
+    border-radius: 10px;
+    padding: 7px 10px;
+    background: var(--accent-soft);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    text-decoration: none;
+  }
+}
