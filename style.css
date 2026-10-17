@@ -3230,3 +3230,36 @@ td.name {
     box-shadow: var(--shadow);
   }
 }
+
+/* 근무표 글자 조금 크게 + 시간 칸은 "7:00 ~ 8:00" */
+@media (min-width: 768px) {
+  .sched.modern {
+    font-size: 15px;
+  }
+  .sched.modern th {
+    font-size: 16px;
+  }
+  .sched.modern thead th:first-child {
+    width: 104px;
+  }
+  .sched.modern td.sc-time {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .sched.modern td {
+    height: 32px;
+  }
+}
+@media (max-width: 767px) {
+  .sched.compact th {
+    font-size: 13px;
+  }
+  .sched.compact thead th:first-child {
+    width: 44px;
+  }
+  .sched.compact td.sc-time {
+    font-size: 11px;
+    white-space: nowrap;
+    padding-right: 3px;
+  }
+}

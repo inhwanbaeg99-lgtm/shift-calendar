@@ -1522,8 +1522,9 @@ function renderScheduleSheet() {
             .join(""),
         )
         .join("");
-      // 시작 시각 한 칸 (휴대폰에서도 한 화면에 들어가게)
-      return `<tr><td class="sc-time">${fromMin(row.start)}</td>${cells}</tr>`;
+      // 시간 칸: "7:00 ~ 8:00" (휴대폰은 칸이 좁아 "7~8")
+      const time = compact ? `${shortTime(fromMin(row.start))}~${shortTime(fromMin(row.end))}` : `${fromMin(row.start)} ~ ${fromMin(row.end)}`;
+      return `<tr><td class="sc-time">${time}</td>${cells}</tr>`;
     })
     .join("");
 
