@@ -2020,6 +2020,30 @@ a.lock-link {
   .sc-actions {
     position: static;
     transform: none;
+    justify-content: center;
+    margin-top: 16px;
+  }
+  /* ? 는 카드 오른쪽 위, 펼친 설명은 제목 아래 */
+  .sched-sheet {
+    position: relative;
+  }
+  .sc-head {
+    padding: 0 26px;
+  }
+  .admin-main .sc-title {
+    font-size: 15px;
+  }
+  .sc-help .help {
+    margin: -4px 0 12px;
+  }
+  .sc-help .help-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--bg);
+  }
+  .sc-help .help-btn.on {
+    background: var(--ink);
   }
   .sc-actions .pill.plain-dark {
     background: var(--bg);

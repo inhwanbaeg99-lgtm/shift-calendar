@@ -1520,17 +1520,21 @@ function renderScheduleSheet() {
   const notes = days
     .map((d) => `<td colspan="${d.cols.length}" class="sc-note"><input value="${esc(meta.notes?.[d.wd] ?? "")}" data-note="${d.wd}" aria-label="${WEEKDAYS[d.wd]}요일 비고" /></td>`)
     .join("");
+  // 휴대폰에서는 표·색 안내 아래에
+  const actions = `
+        <div class="sc-actions" data-html2canvas-ignore>
+          <button type="button" class="pill plain-dark" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
+          <button type="button" class="pill" data-action="schedule-save"${hasDraft() ? "" : " disabled"}>저장</button>
+          <button type="button" class="pill plain-dark" data-action="schedule-pdf">PDF 저장</button>
+        </div>`;
 
   return `
     <div class="sched-sheet" id="sched-sheet">
       <div class="sc-head">
         <h2 class="sc-title">[${esc(storeName())} 근무표]( <input class="sc-period" value="${esc(meta.period ?? "")}" size="${Math.max(6, [...(meta.period || "2026.06.04 ~ 2026.07.05")].length)}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~ 2026.07.05" aria-label="기간" /> )</h2>
-        <div class="sc-actions" data-html2canvas-ignore>
-          <button type="button" class="pill plain-dark" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
-          <button type="button" class="pill" data-action="schedule-save"${hasDraft() ? "" : " disabled"}>저장</button>
-          <button type="button" class="pill plain-dark" data-action="schedule-pdf">PDF 저장</button>
-        </div>
+        ${compact ? "" : actions}
       </div>
+      ${compact ? `<div class="sc-help" data-html2canvas-ignore>${schedHelp()}</div>` : ""}
       <table class="sched${compact ? " compact" : ""}">
         ${
           compact
@@ -1546,8 +1550,17 @@ function renderScheduleSheet() {
         </tbody>`
         }
       </table>
-      ${compact ? renderSchedLegend(days) : ""}
+      ${compact ? renderSchedLegend(days) + actions : ""}
     </div>`;
+}
+
+function schedHelp() {
+  return helpToggle(
+    "schedule",
+    `${isDesktop() ? "이름 칸을 누르면 시간 수정·삭제, 빈 칸(사선)을 누르면 근무자 추가예요. 오른쪽에서 입력하면 표에 바로 보여요." : "색 칸을 누르면 시간 수정·삭제, 흰 칸을 누르면 근무자 추가예요. 아래에서 입력하면 표에 바로 보여요."}<br />
+    <b>저장</b>하면 직원 관리·달력·근무 기록에 반영되고, <b>임시저장</b>은 반영하지 않고 고친 내용만 보관해요.<br />
+    지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간과 비고 칸도 눌러서 고칠 수 있어요.`,
+  );
 }
 
 // 휴대폰 근무표 아래 색 안내: 근무표에 나오는 사람만
@@ -1575,12 +1588,7 @@ function renderSchedule() {
     <div class="sched-layout">
       <div class="sched-main">
         <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
-        ${helpToggle(
-          "schedule",
-          `${isDesktop() ? "이름 칸을 누르면 시간 수정·삭제, 빈 칸(사선)을 누르면 근무자 추가예요. 오른쪽에서 입력하면 표에 바로 보여요." : "색 칸을 누르면 시간 수정·삭제, 흰 칸을 누르면 근무자 추가예요. 아래에서 입력하면 표에 바로 보여요."}<br />
-          <b>저장</b>하면 직원 관리·달력·근무 기록에 반영되고, <b>임시저장</b>은 반영하지 않고 고친 내용만 보관해요.<br />
-          지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간과 비고 칸도 눌러서 고칠 수 있어요.`,
-        )}
+        ${isDesktop() ? schedHelp() : ""}
       </div>
       <div class="sched-side">
         <div id="sched-status">${renderSchedStatus()}</div>
