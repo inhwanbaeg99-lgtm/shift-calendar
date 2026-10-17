@@ -1,8 +1,8 @@
-// 근무 달력 — 여러 매장이 각자 매장을 등록해서 쓰는 버전 (GitHub Pages + Firebase)
+// 품 (근무 달력) — 여러 매장이 각자 매장을 등록해서 쓰는 버전 (GitHub Pages + Firebase)
 // 매장마다 데이터는 Firebase 의 stores/{매장 코드}/ 아래에 따로 저장되고, 이 브라우저의 localStorage 는 캐시로만 쓴다.
 
 const TIME_ZONE = "Asia/Seoul";
-const APP_NAME = "근무 달력";
+const APP_NAME = "품";
 const LAST_STORE_KEY = "shift-calendar:store";
 // 이 기기에서 쓰는 매장 코드: 주소에 ?s=코드 가 있으면 그것, 없으면 마지막으로 쓴 매장
 let storeId = initStoreId();
@@ -471,7 +471,11 @@ const errorLine = () => (state.error ? `<p class="error">${esc(state.error)}</p>
 
 // 관리자 사이트 첫 화면: 로그인 / 매장 등록(회원가입) / 로그인했는데 매장이 없으면 매장 만들기
 function renderLock() {
-  const title = `<p class="lock-title">${esc(APP_NAME)} <span class="lock-sub">관리자</span></p>`;
+  const title = `
+    <div class="lock-brand">
+      <span class="logo big" aria-hidden="true">품</span>
+      <p class="lock-title">${esc(APP_NAME)} <span class="lock-sub">관리자</span></p>
+    </div>`;
   if (!state.authReady || state.busy === "check") return `<div class="lock-page">${title}</div>`;
   if (!cloud) {
     return `
@@ -527,7 +531,10 @@ function renderLock() {
 function renderPick() {
   return `
     <div class="lock-page">
-      <p class="lock-title">${esc(APP_NAME)}</p>
+      <div class="lock-brand">
+        <span class="logo big" aria-hidden="true">품</span>
+        <p class="lock-title">${esc(APP_NAME)}</p>
+      </div>
       <p class="lock-note">관리자에게 받은 매장 코드를 입력해주세요.</p>
       <form class="lock-form" id="pick-form">
         <input id="pick-code" class="field" maxlength="12" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="매장 코드" aria-label="매장 코드" required />
@@ -765,7 +772,7 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
     <nav class="admin-top" aria-label="관리자 메뉴">
       <span class="nav-pill" aria-hidden="true"></span>
       <div class="store-tag">
-        <b>${esc(storeName())}</b>
+        <b><span class="logo" aria-hidden="true">품</span>${esc(storeName())}</b>
         ${demoLoaded ? "" : `<a href="../?s=${storeId}" target="_blank" rel="noopener" title="매장 코드 ${storeId} · 이 주소를 매장 기기에서 열어주세요">직원용 달력 ↗</a>`}
       </div>
       ${link("#/employees", "직원", "employees")}
@@ -1510,10 +1517,8 @@ function renderScheduleSheet() {
             .join(""),
         )
         .join("");
-      // 휴대폰: 시작 시각 한 칸만 (오른쪽 시간 칸 없이 한 화면에 들어가게)
-      if (compact) return `<tr><td class="sc-time">${fromMin(row.start)}</td>${cells}</tr>`;
-      const time = `<td class="sc-time">${fromMin(row.start)}</td><td class="sc-time">${fromMin(row.end)}</td>`;
-      return `<tr>${time}${cells}${time}</tr>`;
+      // 시작 시각 한 칸 (휴대폰에서도 한 화면에 들어가게)
+      return `<tr><td class="sc-time">${fromMin(row.start)}</td>${cells}</tr>`;
     })
     .join("");
 
@@ -1538,20 +1543,12 @@ function renderScheduleSheet() {
         ${compact ? "" : actions}
       </div>
       ${compact ? `<div class="sc-help" data-html2canvas-ignore>${schedHelp()}</div>` : ""}
-      <table class="sched${compact ? " compact" : ""}">
-        ${
-          compact
-            ? `<thead><tr><th>시간</th>${head}</tr></thead>
+      <table class="sched modern${compact ? " compact" : ""}">
+        <thead><tr><th>시간</th>${head}</tr></thead>
         <tbody>
           ${body}
           <tr class="sc-foot"><td>비고</td>${notes}</tr>
-        </tbody>`
-            : `<thead><tr><th colspan="2">시간</th>${head}<th colspan="2">시간</th></tr></thead>
-        <tbody>
-          ${body}
-          <tr class="sc-foot"><td colspan="2">비 고</td>${notes}<td colspan="2">비 고</td></tr>
-        </tbody>`
-        }
+        </tbody>
       </table>
       ${compact ? renderSchedLegend(days) + actions : ""}
     </div>`;
@@ -1560,7 +1557,7 @@ function renderScheduleSheet() {
 function schedHelp() {
   return helpToggle(
     "schedule",
-    `${isDesktop() ? "이름 칸을 누르면 시간 수정·삭제, 빈 칸(사선)을 누르면 근무자 추가예요. 오른쪽에서 입력하면 표에 바로 보여요." : "색 칸을 누르면 시간 수정·삭제, 흰 칸을 누르면 근무자 추가예요. 아래에서 입력하면 표에 바로 보여요."}<br />
+    `${isDesktop() ? "이름 칸을 누르면 시간 수정·삭제, 회색 빈 칸을 누르면 근무자 추가예요. 옆에서 입력하면 표에 바로 보여요." : "색 칸을 누르면 시간 수정·삭제, 회색 빈 칸을 누르면 근무자 추가예요. 아래에서 입력하면 표에 바로 보여요."}<br />
     <b>저장</b>하면 직원 관리·달력·근무 기록에 반영되고, <b>임시저장</b>은 반영하지 않고 고친 내용만 보관해요.<br />
     지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간과 비고 칸도 눌러서 고칠 수 있어요.`,
   );
@@ -1573,7 +1570,7 @@ function revealSlotPanel() {
   if (!panel) return;
   const { top, bottom } = panel.getBoundingClientRect();
   // 패널이 표 아래에 있으면(좁은 화면) 항상 제목이 맨 위로 오게 — 키보드가 올라와도 입력칸이 가리지 않게
-  const below = window.matchMedia("(max-width: 1379px)").matches;
+  const below = window.matchMedia("(max-width: 1099px)").matches;
   if (below || top < 0 || bottom > window.innerHeight) panel.scrollIntoView({ behavior: "smooth", block: "start" });
   document.getElementById(state.slotEdit?.empId ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
 }
@@ -1619,7 +1616,7 @@ function renderSlotPanel() {
   if (!ed) {
     return `
       <p class="staff-title">근무 수정</p>
-      <p class="sub">${isDesktop() ? "근무표에서 이름 칸이나 빈 칸(사선)을" : "근무표에서 색 칸이나 흰 칸을"} 누르면 여기서 시간을 입력할 수 있어요.</p>`;
+      <p class="sub">${isDesktop() ? "근무표에서 이름 칸이나 회색 빈 칸을" : "근무표에서 색 칸이나 회색 빈 칸을"} 누르면 여기서 시간을 입력할 수 있어요.</p>`;
   }
   const empId = ed.empId ?? ed.addEmpId;
   const emp = empId ? employeeById(empId) : null;
@@ -1715,14 +1712,6 @@ async function schedulePdf(button) {
     await document.fonts.ready;
     const sheet = document.getElementById("sched-sheet");
     sheet.classList.add("capturing");
-    // PDF 변환기가 늘어나는 SVG 배경을 못 그려서, 칸 크기에 딱 맞는 사선을 칸마다 넣는다
-    const empties = [...sheet.querySelectorAll(".sc-empty")];
-    for (const td of empties) {
-      const { width: w, height: h } = td.getBoundingClientRect();
-      const svgLine = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'><line x1='0' y1='${h}' x2='${w}' y2='0' stroke='#555' stroke-width='1'/></svg>`;
-      td.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svgLine)}")`;
-      td.style.backgroundSize = `${w}px ${h}px`;
-    }
     // 기간 입력칸은 글자로 바꿔서 찍는다 (입력칸 여백이 생기지 않게)
     const period = sheet.querySelector(".sc-period");
     const periodText = document.createElement("span");
@@ -1739,7 +1728,6 @@ async function schedulePdf(button) {
       pdf.save(`근무표_${(store.scheduleMeta?.period || todayDateString()).replace(/[\s.~]+/g, "_")}.pdf`);
     } finally {
       periodText.replaceWith(period);
-      empties.forEach((td) => td.removeAttribute("style"));
       sheet.classList.remove("capturing");
     }
   });
@@ -2734,7 +2722,7 @@ function watchStore() {
     (snap) => {
       if (sid !== storeId) return;
       state.storeName = snap.val() ?? "";
-      document.title = ADMIN_SITE ? `${storeName()} (관리자)` : storeName();
+      document.title = ADMIN_SITE ? `${storeName()} · ${APP_NAME} 관리자` : `${storeName()} · ${APP_NAME}`;
       requestRender();
     },
     (err) => console.warn("매장 정보 읽기 실패", err),
@@ -2773,7 +2761,7 @@ function enterDemo() {
     resetDayUi();
     state.selectedDate = null;
   }
-  document.title = `${APP_NAME} (관리자)`;
+  document.title = `${APP_NAME} 관리자`;
 }
 
 (function startCloud() {

@@ -1641,8 +1641,8 @@ td.name {
   box-shadow: inset 0 0 0 3px #3182f6;
 }
 
-/* 표(최소 1000px) + 편집 패널이 한 줄에 다 안 들어가면 패널을 표 아래로 (버튼이 잘리지 않게) */
-@media (max-width: 1379px) {
+/* 표 + 편집 패널이 한 줄에 다 안 들어가면 패널을 표 아래로 */
+@media (max-width: 1099px) {
   .sched-layout {
     flex-direction: column;
     align-items: stretch;
@@ -2390,4 +2390,507 @@ button:not(:disabled):active,
     opacity: 1;
     transform: scale(1.15);
   }
+}
+
+/* =====================================================================
+   품 디자인 (토스 스타일): 회색 바탕 + 흰 카드, Pretendard, 굵은 제목·숫자
+   위의 규칙을 덮어쓰는 층. --bg = 화면 바탕·입력칸 채움, --paper = 카드
+   ===================================================================== */
+:root {
+  --bg: #f2f4f6;
+  --paper: #ffffff;
+  --ink: #191f28;
+  --ink-2: #4e5968;
+  --ink-sub: #8b95a1;
+  --line: #e5e8eb;
+  --accent: #3182f6;
+  --accent-press: #1b64da;
+  --accent-soft: #e8f3ff;
+  --red: #f04452;
+  --grid: #d1d6db;
+  --shadow: 0 1px 3px rgb(0 0 0 / 0.04), 0 6px 20px rgb(0 0 0 / 0.04);
+  --radius: 20px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101013;
+    --paper: #1d1d22;
+    --ink: #f2f4f6;
+    --ink-2: #c3c9d1;
+    --ink-sub: #8b95a1;
+    --line: #2c2c34;
+    --accent: #4b96ff;
+    --accent-press: #3182f6;
+    --accent-soft: #4b96ff24;
+    --red: #ff6b75;
+    --grid: #3a3a43;
+    --shadow: none;
+  }
+}
+
+body {
+  font-family:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Malgun Gothic", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* 로고: 파란 둥근 네모 안의 "품" */
+.logo {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--accent);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: #ffffff;
+}
+
+.logo.big {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  font-size: 34px;
+  box-shadow: 0 10px 30px rgb(49 130 246 / 0.3);
+}
+
+/* ---------- 카드 ---------- */
+.card,
+.toolbar,
+.table-wrap:not(.ts-wrap),
+.sched-panel,
+.date-box {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.toolbar {
+  padding: 20px 24px;
+}
+
+/* ---------- 입력칸 ---------- */
+.field {
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 15px;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.field:focus {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.toolbar label {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+
+/* ---------- 버튼 ---------- */
+.pill {
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pill:not(.plain):not(.plain-dark):hover {
+  background: var(--accent-press);
+}
+
+.pill.plain-dark {
+  background: var(--bg);
+  color: var(--ink-2);
+}
+
+.btn-primary {
+  border-radius: 14px;
+  padding: 14px 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.btn-primary:not(:disabled):hover {
+  background: var(--accent-press);
+}
+
+.btn-ghost {
+  border-radius: 14px;
+  padding: 12px 0;
+  background: var(--bg);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.status {
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status.on {
+  color: var(--accent);
+}
+
+.danger {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.link-btn {
+  font-size: 14px;
+}
+
+/* ---------- 제목·숫자 ---------- */
+.admin-main h3,
+.section-head h3 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.month-nav h2,
+.records-bar h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.cal-title {
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+td.strong,
+.total-row td {
+  font-weight: 700;
+}
+
+/* ---------- 표 (컴퓨터) ---------- */
+th {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+
+td {
+  border-top-color: var(--line);
+  color: var(--ink);
+}
+
+td.name {
+  font-weight: 600;
+}
+
+/* ---------- 관리자 위쪽 ---------- */
+.store-tag b {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.admin-top > a {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+
+.admin-top > a.active {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.nav-pill {
+  box-shadow: var(--shadow);
+}
+
+.admin-top .login-btn {
+  border-radius: 12px;
+}
+
+.admin-top .logout {
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+
+.demo-bar {
+  border-radius: 14px;
+  color: var(--ink-2);
+}
+
+/* ---------- 달력 ---------- */
+.day-num.today {
+  box-shadow: 0 6px 16px rgb(49 130 246 / 0.35);
+}
+
+.round-btn {
+  background: var(--bg);
+}
+
+/* ---------- 로그인·매장 코드 화면 ---------- */
+.lock-page {
+  gap: 14px;
+}
+
+.lock-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.lock-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.lock-form {
+  max-width: 340px;
+  gap: 10px;
+}
+
+.lock-form .field {
+  height: 54px;
+  padding: 0 16px;
+  font-size: 16px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.lock-form .field:focus {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.lock-form .btn-primary {
+  height: 54px;
+  margin-top: 6px;
+}
+
+.lock-note {
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+/* ---------- 토스트 ---------- */
+.toast {
+  border-radius: 16px;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  background: #191f28e6;
+  backdrop-filter: blur(8px);
+}
+
+/* ---------- 휴대폰 카드 ---------- */
+@media (max-width: 767px) {
+  table.schedule tr,
+  .pay-table tr,
+  .sched-sheet {
+    box-shadow: var(--shadow);
+  }
+  .pay-table td.net {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .pay-table td.name {
+    font-size: 17px;
+  }
+  .toolbar {
+    padding: 16px;
+  }
+}
+
+/* ---------- 근무표 (컴퓨터): 휴대폰과 같은 카드 모양, 칸에 이름 ---------- */
+.sched-sheet.capturing {
+  /* PDF 는 다크 모드여도 밝게 */
+  --bg: #f2f4f6;
+  --paper: #ffffff;
+  --ink: #191f28;
+  --ink-sub: #8b95a1;
+  background: #ffffff;
+  color: #191f28;
+}
+
+@media (min-width: 768px) {
+  .sched-sheet {
+    min-width: 0;
+    padding: 24px 24px 20px;
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: inherit;
+    box-shadow: var(--shadow);
+  }
+  .sc-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .admin-main .sc-title {
+    margin: 0;
+    text-align: left;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .sc-period {
+    border-bottom-color: var(--grid);
+    color: var(--ink-sub);
+  }
+  .sc-actions {
+    position: static;
+    transform: none;
+  }
+  .sc-actions .pill.plain-dark {
+    background: var(--bg);
+    color: var(--ink-2);
+  }
+  .sched.modern {
+    border-collapse: separate;
+    border-spacing: 4px;
+    margin: -4px;
+    width: calc(100% + 8px);
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+  .sched.modern th,
+  .sched.modern td {
+    height: 30px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 8px;
+  }
+  .sched.modern th {
+    height: 32px;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-sub);
+  }
+  .sched.modern th.sc-rest {
+    color: var(--red);
+  }
+  .sched.modern thead th:first-child {
+    width: 56px;
+  }
+  .sched.modern td.sc-time {
+    background: none;
+    text-align: right;
+    padding-right: 8px;
+    font-size: 13px;
+    color: var(--ink-sub);
+  }
+  .sched.modern td.sc-empty {
+    background: var(--bg);
+    background-image: none;
+  }
+  .sched.modern td.sc-empty:hover {
+    background: var(--accent-soft);
+  }
+  .sched.modern td.sc-name {
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.05);
+  }
+  .sched.modern td.sc-name:hover,
+  .sched.modern td.sc-editing {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  .sched.modern .sc-foot td {
+    height: 36px;
+    background: var(--bg);
+    font-size: 13px;
+    letter-spacing: 0;
+    color: var(--ink-sub);
+  }
+  .sched.modern .sc-foot td:first-child {
+    background: none;
+    text-align: right;
+    padding-right: 8px;
+  }
+  .sched.modern .sc-note input {
+    color: var(--ink);
+  }
+}
+
+/* ---------- 급여 · 근무 상세 (컴퓨터) ---------- */
+.ts-wrap.ts-desktop {
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.ts-desktop .timesheet,
+.ts-mobile .timesheet {
+  border: 0;
+}
+
+.timesheet th,
+.timesheet td {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 9px 2px;
+}
+
+.timesheet tbody tr:last-child td,
+.timesheet tbody tr:last-child th {
+  border-bottom: 0;
+}
+
+.timesheet th {
+  background: none;
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+
+.timesheet th.weekend,
+.timesheet td.weekend {
+  background: var(--bg);
+}
+
+.timesheet .ts-name,
+.timesheet .ts-total {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ts-mobile {
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  padding: 6px;
+}
+
+/* 섹션 제목 옆 회색 버튼은 회색 바탕 위라 흰 버튼으로 */
+.section-head .pill.plain-dark {
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+/* 로그인 버튼 글자 */
+.admin-top .logout.login-btn {
+  color: #ffffff;
+}
+
+/* 컴퓨터에서도 화면을 위에서부터 (세로 가운데 정렬 대신) */
+.admin-main.centered {
+  min-height: 0;
+  justify-content: flex-start;
 }

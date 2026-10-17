@@ -1,11 +1,11 @@
 {
-  "name": "근무 달력",
-  "short_name": "근무 달력",
+  "name": "품",
+  "short_name": "품",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#f2f4f6",
+  "theme_color": "#f2f4f6",
   "lang": "ko",
   "icons": [
     {
