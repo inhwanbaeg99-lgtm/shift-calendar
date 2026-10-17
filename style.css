@@ -4,8 +4,8 @@
   --ink: #201d1a;
   --ink-sub: #7c766d;
   --line: #e1e5e9;
-  --accent: #f76b15;
-  --accent-soft: #f76b151a;
+  --accent: #0ea5a0;
+  --accent-soft: #0ea5a01a;
   --red: #ef4444;
   --grid: #b9c2cc;
   --card-w: min(1560px, calc(100vw - 32px));
@@ -22,8 +22,8 @@
     --ink: #ece7de;
     --ink-sub: #8f887c;
     --line: #37342e;
-    --accent: #ff8a3d;
-    --accent-soft: #ff8a3d26;
+    --accent: #2cc9c2;
+    --accent-soft: #2cc9c226;
     --grid: #4f4a42;
     color-scheme: dark;
   }
@@ -1508,11 +1508,11 @@ td.name {
 }
 
 .sched td.sc-name:hover {
-  box-shadow: inset 0 0 0 2px #f76b15;
+  box-shadow: inset 0 0 0 2px #0ea5a0;
 }
 
 .sched td.sc-empty:hover {
-  background-color: #fff1e7;
+  background-color: #e3f6f5;
 }
 
 .sched-sheet.capturing td {
@@ -1638,7 +1638,7 @@ td.name {
 }
 
 .sched td.sc-editing {
-  box-shadow: inset 0 0 0 3px #f76b15;
+  box-shadow: inset 0 0 0 3px #0ea5a0;
 }
 
 /* 표 + 편집 패널이 한 줄에 다 안 들어가면 패널을 표 아래로 */
@@ -2403,9 +2403,9 @@ button:not(:disabled):active,
   --ink-2: #4e5968;
   --ink-sub: #8b95a1;
   --line: #e5e8eb;
-  --accent: #f76b15;
-  --accent-press: #e05a00;
-  --accent-soft: #fff1e7;
+  --accent: #0ea5a0;
+  --accent-press: #0b8682;
+  --accent-soft: #e3f6f5;
   --red: #f04452;
   --grid: #d1d6db;
   --shadow: 0 1px 3px rgb(0 0 0 / 0.04), 0 6px 20px rgb(0 0 0 / 0.04);
@@ -2420,9 +2420,9 @@ button:not(:disabled):active,
     --ink-2: #c3c9d1;
     --ink-sub: #8b95a1;
     --line: #2c2c34;
-    --accent: #ff8a3d;
-    --accent-press: #f76b15;
-    --accent-soft: #ff8a3d29;
+    --accent: #2cc9c2;
+    --accent-press: #0ea5a0;
+    --accent-soft: #2cc9c229;
     --red: #ff6b75;
     --grid: #3a3a43;
     --shadow: none;
@@ -2456,7 +2456,7 @@ body {
   height: 64px;
   border-radius: 20px;
   font-size: 34px;
-  box-shadow: 0 10px 30px rgb(247 107 21 / 0.3);
+  box-shadow: 0 10px 30px rgb(14 165 160 / 0.3);
 }
 
 /* ---------- 카드 ---------- */
@@ -2630,7 +2630,7 @@ td.name {
 
 /* ---------- 달력 ---------- */
 .day-num.today {
-  box-shadow: 0 6px 16px rgb(247 107 21 / 0.35);
+  box-shadow: 0 6px 16px rgb(14 165 160 / 0.35);
 }
 
 .round-btn {
@@ -3020,7 +3020,7 @@ td.name {
   height: 32px;
   border-radius: 10px;
   font-size: 17px;
-  background: #f76b15;
+  background: #0ea5a0;
 }
 .ps-month {
   font-size: 17px;
@@ -3042,7 +3042,7 @@ td.name {
   margin: 40px 0 44px;
   padding: 30px 34px;
   border-radius: 24px;
-  background: #fff1e7;
+  background: #e3f6f5;
 }
 .ps-net span {
   font-size: 16px;
@@ -3055,7 +3055,7 @@ td.name {
   font-size: 48px;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: #f76b15;
+  color: #0ea5a0;
   font-variant-numeric: tabular-nums;
 }
 .ps-sec {
@@ -3903,7 +3903,7 @@ td.name {
     border-radius: var(--radius);
     background: var(--accent);
     color: #ffffff;
-    box-shadow: 0 10px 24px rgb(247 107 21 / 0.28);
+    box-shadow: 0 10px 24px rgb(14 165 160 / 0.28);
   }
   .m-hero small {
     font-size: 14px;
@@ -4211,7 +4211,7 @@ td.name {
   .m-day.on {
     background: var(--accent);
     color: #ffffff;
-    box-shadow: 0 6px 16px rgb(247 107 21 / 0.3);
+    box-shadow: 0 6px 16px rgb(14 165 160 / 0.3);
   }
   .m-day.on span,
   .m-day.on small {
@@ -4267,7 +4267,7 @@ td.name {
   }
 }
 
-/* 포인트 색은 주황, "일정보다 많이 일함" 표시만 파랑 (--more) */
+/* 포인트 색은 청록, "일정보다 많이 일함" 표시만 파랑 (--more) */
 :root {
   --more: #3182f6;
 }
