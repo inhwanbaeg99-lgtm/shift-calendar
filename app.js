@@ -436,6 +436,8 @@ function timeInput(id, placeholder, label, extra = "") {
 // ---------- 상태 ----------
 
 const state = {
+  pageEnter: true, // 화면을 옮겼을 때만 들어오는 애니메이션 (입력할 때마다 다시 그려도 반복되지 않게)
+  monthDir: null, // 달력 달을 넘긴 방향 → 넘기는 애니메이션
   year: 0,
   month: 0,
   selectedDate: null,
@@ -581,7 +583,7 @@ function renderCalendar() {
       <p class="cal-title">${year}년 ${month}월</p>
       <button type="button" class="round-btn" data-action="next-month" aria-label="다음 달">${ICON_NEXT}</button>
     </div>
-    <div class="grid">
+    <div class="grid${state.monthDir ? ` slide-${state.monthDir}` : ""}">
       ${WEEKDAYS.map((w, i) => `<div class="weekday${i === 0 ? " rest" : ""}">${w}</div>`).join("")}
       ${body}
     </div>`;
@@ -652,7 +654,7 @@ function renderStaffItem(emp, date) {
     <li class="staff-item${expanded ? " expanded" : ""}">
       <button type="button" class="staff-name-btn" data-action="toggle-staff" data-id="${emp.id}"${editable ? "" : " disabled"}>
         <span class="staff-name">${esc(emp.name)}</span>
-        ${done ? `<span class="badge done">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
+        ${done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
         <span class="staff-time${ADMIN_SITE && rec ? diffClass(emp, date, hoursBetween(rec.clockIn, rec.clockOut)) : ""}">${start} ~ ${end}</span>
       </button>
       ${action ? `<div class="staff-action">${action}</div>` : ""}
@@ -761,6 +763,7 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
   const link = (href, label, key) => `<a href="${href}" class="${active === key ? "active" : ""}">${label}</a>`;
   return `
     <nav class="admin-top" aria-label="관리자 메뉴">
+      <span class="nav-pill" aria-hidden="true"></span>
       <div class="store-tag">
         <b>${esc(storeName())}</b>
         ${demoLoaded ? "" : `<a href="../?s=${storeId}" target="_blank" rel="noopener" title="매장 코드 ${storeId} · 이 주소를 매장 기기에서 열어주세요">직원용 달력 ↗</a>`}
@@ -772,8 +775,8 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
       ${demoLoaded ? `<a class="logout login-btn" href="#/login">로그인</a>` : `<button type="button" class="logout" data-action="logout">로그아웃</button>`}
     </nav>
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. 내 매장으로 쓰려면 <a href="#/signup">매장 등록</a> 또는 <a href="#/login">로그인</a>해주세요.</p>` : ""}
-    <main class="admin-main${center ? " centered" : ""}${wide ? " wide" : ""}">${content}</main>
-    ${state.toast ? `<p class="toast" role="status">${esc(state.toast)}</p>` : ""}`;
+    <main class="admin-main${center ? " centered" : ""}${wide ? " wide" : ""}${state.pageEnter ? " page-enter" : ""}">${content}</main>
+    ${state.toast ? `<p class="toast${state.toastKind === "ok" ? " ok" : ""}" role="status">${esc(state.toast)}</p>` : ""}`;
 }
 
 // ? 버튼을 누르면 펼쳐지는 설명 (다른 화면에 갔다 오면 다시 접힘)
@@ -806,8 +809,8 @@ function renderEmployees() {
   const order = [1, 2, 3, 4, 5, 6, 0];
   const rows = store.employees
     .map(
-      (e) => `
-      <tr>
+      (e, i) => `
+      <tr style="--i:${i}">
         <td class="name"><span class="name-cell"><span class="swatch" style="background:${e.color || "#ffffff"}" title="근무표 색 (자동)"></span>${esc(e.name)}</span><div class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</div></td>
         ${order
           .map(
@@ -1150,8 +1153,8 @@ function renderRecords() {
 
   const summary = rows
     .map(
-      (r) => `
-      <tr>
+      (r, i) => `
+      <tr style="--i:${i}">
         <td class="name">${esc(r.emp.name)}</td>
         <td class="num" data-label="근무일">${r.days}일</td>
         <td class="num" data-label="근무시간">${hrs(r.hours)}</td>
@@ -1774,6 +1777,10 @@ function render() {
   const period = document.querySelector(".sc-period");
   if (period) fitPeriod(period);
   lockDemoFields();
+  placeNavPill();
+  if (state.pageEnter && r.name === "records") countUp(app.querySelectorAll(".pay-table td.net"));
+  state.pageEnter = false;
+  state.monthDir = null;
 
   // 처음 날짜를 눌렀을 때 달력이 줄어드는 애니메이션
   if (state.animateOpen) {
@@ -1798,6 +1805,7 @@ function navigate(hash) {
 }
 
 window.addEventListener("hashchange", () => {
+  state.pageEnter = true;
   resetDayUi();
   state.payslipId = null;
   state.allowDraft = null;
@@ -1992,6 +2000,7 @@ app.addEventListener("click", (e) => {
     case "prev-month":
     case "next-month": {
       const m = state.month + (action === "prev-month" ? -1 : 1);
+      state.monthDir = action === "prev-month" ? "prev" : "next";
       state.year += m < 1 ? -1 : m > 12 ? 1 : 0;
       state.month = m < 1 ? 12 : m > 12 ? 1 : m;
       break;
@@ -2115,7 +2124,8 @@ app.addEventListener("click", (e) => {
       if (state.slotEdit) liveSlot({ final: true });
       state.slotEdit = null;
       tempSaveSchedule();
-      break;
+      showToast("임시저장했어요", "ok");
+      return;
     case "schedule-save":
       if (state.slotEdit) liveSlot({ final: true });
       {
@@ -2125,7 +2135,8 @@ app.addEventListener("click", (e) => {
       }
       state.slotEdit = null;
       commitSchedule();
-      break;
+      showToast("근무표를 저장했어요", "ok");
+      return;
     case "edit-slot":
       if (state.slotEdit) liveSlot({ final: true }); // 보던 칸은 입력한 대로 두고 넘어간다
       state.error = "";
@@ -2185,6 +2196,53 @@ app.addEventListener("click", (e) => {
   render();
 });
 
+// ---------- 인터랙션 ----------
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 관리자 메뉴의 회색 배경이 누른 메뉴로 미끄러져 간다 (메뉴는 매번 다시 그려지므로 직전 위치에서 애니메이션)
+let lastPill = null;
+function placeNavPill() {
+  const pill = app.querySelector(".nav-pill");
+  const link = app.querySelector(".admin-top > a.active");
+  if (!pill || !link) {
+    lastPill = null;
+    return;
+  }
+  const box = { left: link.offsetLeft, top: link.offsetTop, width: link.offsetWidth, height: link.offsetHeight };
+  Object.assign(pill.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, opacity: 1 });
+  if (lastPill && lastPill.top === box.top && lastPill.left !== box.left && !reducedMotion()) {
+    pill.animate(
+      [
+        { transform: `translateX(${lastPill.left - box.left}px)`, width: `${lastPill.width}px` },
+        { transform: "translateX(0)", width: `${box.width}px` },
+      ],
+      { duration: 340, easing: "cubic-bezier(.2,.8,.2,1)" },
+    );
+  }
+  lastPill = box;
+}
+window.addEventListener("resize", () => {
+  lastPill = null;
+  placeNavPill();
+});
+
+// 금액이 0원부터 올라간다 ("528,920원")
+function countUp(cells) {
+  if (reducedMotion()) return;
+  for (const td of cells) {
+    const target = Number(td.textContent.replace(/[^0-9]/g, ""));
+    if (!target) continue;
+    const t0 = performance.now();
+    const step = (now) => {
+      if (!td.isConnected) return;
+      const k = Math.min(1, (now - t0) / 700);
+      td.textContent = `${Math.round(target * (1 - (1 - k) ** 3)).toLocaleString()}원`;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+}
+
 // ---------- 둘러보기(로그인 전): 보기만, 고치는 동작은 막는다 ----------
 // 화면을 옮겨 다니고 펼쳐 보는 동작만 허용. 나머지(추가·수정·삭제·저장·내보내기)는 안내만 띄운다.
 const DEMO_ALLOWED = new Set([
@@ -2193,8 +2251,9 @@ const DEMO_ALLOWED = new Set([
 ]);
 
 let toastTimer = null;
-function showToast(text) {
+function showToast(text, kind = "") {
   state.toast = text;
+  state.toastKind = kind;
   render();
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
@@ -2300,6 +2359,7 @@ app.addEventListener("submit", (e) => {
   ensureColors();
   save();
   render();
+  showToast(`${name}님을 추가했어요`, "ok");
 });
 
 app.addEventListener("change", (e) => {

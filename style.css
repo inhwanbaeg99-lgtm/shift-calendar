@@ -2271,3 +2271,123 @@ a.lock-link {
     text-align: center;
   }
 }
+
+/* ---------- 인터랙션 ---------- */
+/* 관리자 메뉴: 회색 배경이 누른 메뉴로 미끄러져 간다 (위치는 app.js placeNavPill) */
+.nav-pill {
+  position: absolute;
+  z-index: 0;
+  border-radius: 999px;
+  background: var(--paper);
+  opacity: 0;
+  pointer-events: none;
+}
+.admin-top > a:not(.logout) {
+  position: relative;
+  z-index: 1;
+  transition: color 0.2s ease;
+}
+.admin-top > a.active {
+  background: none;
+}
+
+/* 누르는 느낌 */
+button,
+.pill,
+.admin-top a,
+.lock-link {
+  transition: transform 0.12s ease, background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+button:not(:disabled):active,
+.pill:not(:disabled):active,
+.admin-top a:active {
+  transform: scale(0.96);
+}
+.sched td[data-action] {
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+.sched td[data-action]:active {
+  filter: brightness(0.94);
+}
+
+/* 완료 알림: 초록 체크 */
+.toast.ok::before {
+  content: "✓";
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  font-size: 11px;
+  font-weight: 800;
+  vertical-align: -3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 화면 들어올 때 살짝 떠오르기, 카드는 차례로 */
+  .page-enter {
+    animation: page-in 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .page-enter table.schedule tbody tr,
+  .page-enter .pay-table tbody tr {
+    animation: rise-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: calc(min(var(--i, 0), 10) * 45ms + 60ms);
+  }
+  .toast {
+    animation: toast-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  /* 달 넘기기 */
+  .grid.slide-next {
+    animation: slide-from-right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .grid.slide-prev {
+    animation: slide-from-left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  /* 출근 완료 배지 */
+  .badge.done.just {
+    animation: badge-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+}
+@keyframes slide-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@keyframes slide-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
