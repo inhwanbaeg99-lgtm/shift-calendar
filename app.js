@@ -301,6 +301,16 @@ function setRecordTimes(empId, date, start, end) {
   if (store.absent) delete store.absent[`${empId}|${date}`];
 }
 
+// 관리자가 대신 출근 처리: 그날 근무 시간(근무표 또는 그날 바꾼 시간) 그대로 기록한다
+function adminClockIn(empId, date) {
+  const emp = employeeById(empId);
+  if (!emp || recordFor(empId, date)) return;
+  const { start } = shiftFor(emp, date);
+  store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: kstIso(date, start), clockOut: scheduledEnd(emp, date), createdAt: new Date().toISOString() });
+  if (store.absent) delete store.absent[`${empId}|${date}`];
+  save();
+}
+
 // 그날 근무 기록을 지운다 (결근). 근무표를 다시 저장해도 자동으로 채워지지 않게 표시해 둔다.
 function removeRecord(empId, date) {
   store.records = store.records.filter((r) => !(r.employeeId === empId && r.date === date));
@@ -653,6 +663,7 @@ function renderStaffItem(emp, date) {
       <div class="action-row">
         <button type="button" class="btn-ghost" data-action="edit-shift" data-id="${emp.id}">수정</button>
         ${!ADMIN_SITE && isToday && !done ? `<button type="button" class="btn-primary" data-action="clock-in" data-id="${emp.id}">출근</button>` : ""}
+        ${ADMIN_SITE && !done && date <= today ? `<button type="button" class="btn-primary" data-action="admin-clock-in" data-id="${emp.id}">출근 처리</button>` : ""}
         ${ADMIN_SITE && done ? `<button type="button" class="btn-ghost danger-ghost" data-action="remove-record" data-id="${emp.id}">기록 삭제</button>` : ""}
       </div>`;
   }
@@ -2405,6 +2416,17 @@ app.addEventListener("click", (e) => {
     case "cancel-add":
       state.adding = false;
       break;
+    case "admin-clock-in": {
+      // 관리자: 출근을 못 찍은 직원을 그날 근무 시간대로 출근 처리 (오늘·지난 날짜)
+      const date = activeDate();
+      adminClockIn(id, date);
+      state.expandedId = null;
+      state.justAddedId = recordFor(id, date)?.id ?? null;
+      queueToast(`${employeeById(id).name}님 ${shortDate(date)} 출근 처리했어요`);
+      render();
+      state.justAddedId = null;
+      return;
+    }
     case "clock-in":
       state.error = clockIn(id) || "";
       if (!state.error) {
