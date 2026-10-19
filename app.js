@@ -154,7 +154,7 @@ function loadStore() {
   if (!storeId) return initialData();
   try {
     const raw = localStorage.getItem(storeKey());
-    if (raw) return { shifts: {}, ...JSON.parse(raw) };
+    if (raw) return cleanStore({ shifts: {}, ...JSON.parse(raw) });
   } catch {}
   return initialData();
 }
@@ -425,7 +425,7 @@ function parseRange(text) {
   if (parts.length !== 2) return null;
   const start = normalizeTime(parts[0]);
   const end = normalizeTime(parts[1]);
-  return start && end ? { start, end } : null;
+  return start && end && start !== end ? { start, end } : null; // 시작=끝이면 24시간이 되므로 받지 않는다
 }
 
 const formatRange = (r) => (r ? `${r.start}~${r.end}` : "");
@@ -532,7 +532,9 @@ function renderLock() {
         <input id="login-password" class="field" type="password" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호" required />
         <button type="submit" class="btn-primary"${busy ? " disabled" : ""}>${busy ? "로그인 중…" : "로그인"}</button>
         ${errorLine()}
+        ${state.notice ? `<p class="lock-note ok">${esc(state.notice)}</p>` : ""}
       </form>
+      <button type="button" class="lock-link" data-action="reset-password">비밀번호를 잊었어요</button>
       <a class="lock-link" href="#/signup">처음이에요 · 매장 등록하기</a>
       ${BACK_TO_DEMO}
     </div>`;
@@ -832,7 +834,7 @@ function renderEmployees() {
     .map(
       (e, i) => `
       <tr style="--i:${i}">
-        <td class="name"><span class="name-cell"><span class="swatch" style="background:${e.color || "#ffffff"}" title="근무표 색 (자동)"></span>${esc(e.name)}</span><div class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</div></td>
+        <td class="name"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${esc(e.name)}</span><div class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</div></td>
         ${order
           .map(
             (wd) =>
@@ -897,12 +899,6 @@ function renderStaffLink() {
 // (컴퓨터 화면을 줄인 것이 아니라 휴대폰에서 보기 편하게 따로 그린다. 기능·동작은 같다)
 // =====================================================================
 
-const ICON_TAB = {
-  employees: svg(24, '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>', 2),
-  schedule: svg(24, '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 10h18M9 4v16M15 4v16"/>', 2),
-  calendar: svg(24, '<rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/>', 2),
-  records: svg(24, '<rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M16 15h2"/>', 2),
-};
 const ICON_CHEVRON = svg(18, '<path d="m9 18 6-6-6-6"/>', 2.25);
 
 function renderMobileShell(active, content) {
@@ -959,7 +955,7 @@ function renderEmployeesMobile() {
     .map(
       (e, i) => `
       <button type="button" class="m-row" style="--i:${i}" data-action="open-sheet" data-sheet="emp" data-id="${e.id}">
-        <span class="swatch big" style="background:${e.color || "#ffffff"}"></span>
+        <span class="swatch big" style="background:${cssColor(e.color)}"></span>
         <span class="m-row-body">
           <b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}${e.active ? "" : `<em class="m-chip off">비활성</em>`}</b>
           <small>${esc(weeklySummary(e))}</small>
@@ -988,7 +984,7 @@ function renderEmpSheet(e) {
   const order = [1, 2, 3, 4, 5, 6, 0];
   return `
     <div class="sheet-head">
-      <span class="swatch big" style="background:${e.color || "#ffffff"}"></span>
+      <span class="swatch big" style="background:${cssColor(e.color)}"></span>
       <div><h2>${esc(e.name)}</h2>${e.phone ? `<small>${esc(formatPhone(e.phone))}</small>` : ""}</div>
     </div>
     <p class="sheet-label">요일별 근무 시간 <small>7-12, 18-2230 처럼 입력 · 비우면 쉬는 날</small></p>
@@ -1045,7 +1041,7 @@ function renderDayShifts() {
     .map(({ e, shift }, i) => {
       const hours = hoursBetween(kstIso("2026-01-05", shift.start), endIso("2026-01-05", shift.start, shift.end));
       return `
-        <button type="button" class="m-shift" style="--i:${i};--emp:${e.color || "#ffffff"}" data-action="edit-slot" data-wd="${wd}" data-id="${e.id}" data-start="${toMin(shift.start)}">
+        <button type="button" class="m-shift" style="--i:${i};--emp:${cssColor(e.color)}" data-action="edit-slot" data-wd="${wd}" data-id="${e.id}" data-start="${toMin(shift.start)}">
           <span class="m-shift-bar"></span>
           <span class="m-shift-body"><b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}</b><small>${shift.start} ~ ${shift.end}</small></span>
           <span class="m-shift-hours">${hour1(hours)}시간</span>
@@ -1103,7 +1099,7 @@ function renderRecordsMobile() {
     .map(
       (r, i) => `
       <button type="button" class="m-row m-pay" style="--i:${i}" data-action="open-sheet" data-sheet="pay" data-id="${r.emp.id}">
-        <span class="swatch big" style="background:${r.emp.color || "#ffffff"}"></span>
+        <span class="swatch big" style="background:${cssColor(r.emp.color)}"></span>
         <span class="m-row-body"><b>${esc(r.emp.name)}</b><small>${r.days}일 · ${hrs(r.hours)}</small></span>
         <span class="m-pay-net net">${won(r.net)}</span>
         <span class="m-chev">${ICON_CHEVRON}</span>
@@ -1155,7 +1151,7 @@ function renderPaySheet(emp) {
     .join("");
   return `
     <div class="sheet-head">
-      <span class="swatch big" style="background:${emp.color || "#ffffff"}"></span>
+      <span class="swatch big" style="background:${cssColor(emp.color)}"></span>
       <div><h2>${esc(emp.name)}</h2><small>${Number(month.slice(5, 7))}월 · ${r.days}일 · ${hrs(r.hours)}</small></div>
     </div>
     <div class="m-hero small"><small>받을 금액</small><strong>${won(r.net)}</strong></div>
@@ -1189,9 +1185,6 @@ function monthRecords(ym, employeeId) {
     .sort((a, b) => (a.date === b.date ? (a.clockIn < b.clockIn ? -1 : 1) : a.date < b.date ? -1 : 1));
 }
 
-function isScheduled(emp, date) {
-  return Boolean(weeklyOn(emp, date)[weekdayOf(date)] || store.shifts[date]?.[emp.id]);
-}
 
 // 그 날짜에 적용되는 요일별 고정 근무
 // 근무표를 저장하면 기간 시작일부터 새 근무표, 그 전 날짜는 바꾸기 전 근무표 (시작일이 미래여도 그날까지는 기존 근무표)
@@ -1286,7 +1279,6 @@ function payrollFor(ym, employeeId) {
 }
 
 const won = (n) => `${n.toLocaleString()}원`;
-const num = (n) => (n ? n.toLocaleString() : "-");
 const hrs = (n) => `${Number(n.toFixed(2))}시간`;
 const hour1 = (n) => (n ? n.toFixed(1) : "");
 const shortDate = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))} (${WEEKDAYS[weekdayOf(d)]})`;
@@ -1831,7 +1823,7 @@ function renderScheduleSheet() {
               const span = sameAll ? ` rowspan="${group.length}"` : "";
               const slot = `data-action="edit-slot" data-wd="${d.wd}" data-start="${row.start}"`;
               if (!who) return `<td class="sc-empty" ${slot}${span}></td>`;
-              const bg = who.emp.color || "#ffffff";
+              const bg = cssColor(who.emp.color);
               const ed = state.slotEdit;
               const editing = ed && String(ed.wd) === String(d.wd) && (ed.empId ?? ed.addEmpId) === who.emp.id;
               // 휴대폰: 칸이 좁아 이름 대신 색만 (누구인지는 아래 색 안내)
@@ -1915,7 +1907,7 @@ function renderSchedLegend(days) {
   if (!people.length) return "";
   return `
     <ul class="sc-legend">
-      ${people.map((e) => `<li><span class="sc-swatch" style="background:${e.color || "#ffffff"}"></span>${esc(e.name)}</li>`).join("")}
+      ${people.map((e) => `<li><span class="sc-swatch" style="background:${cssColor(e.color)}"></span>${esc(e.name)}</li>`).join("")}
     </ul>`;
 }
 
@@ -2198,6 +2190,28 @@ async function login() {
   }
 }
 
+// 비밀번호 재설정 메일 (로그인 화면의 이메일 칸 주소로)
+async function resetPassword() {
+  const email = document.getElementById("login-email")?.value.trim();
+  state.notice = "";
+  if (!email) {
+    state.error = "이메일을 먼저 입력해주세요.";
+    render();
+    return;
+  }
+  try {
+    cloud.auth.languageCode = "ko";
+    await cloud.auth.sendPasswordResetEmail(email);
+    state.error = "";
+    state.notice = `${email} 로 비밀번호 재설정 메일을 보냈어요. 메일함(스팸함 포함)을 확인해주세요.`;
+  } catch (err) {
+    state.error = LOGIN_ERRORS[err.code] ?? "메일을 보내지 못했어요. 이메일을 확인해주세요.";
+  }
+  render();
+  const field = document.getElementById("login-email");
+  if (field) field.value = email;
+}
+
 // 매장 등록 = 관리자 계정 만들기 + 매장 만들기
 async function signup() {
   const name = document.getElementById("signup-store").value.trim();
@@ -2382,6 +2396,10 @@ app.addEventListener("click", (e) => {
         state.error = "시간은 09:00 처럼 숫자로 입력해주세요.";
         break;
       }
+      if (start === end) {
+        state.error = "시작과 끝 시간이 같아요. 다시 입력해주세요.";
+        break;
+      }
       const date = activeDate();
       const emp = employeeById(id);
       // 관리자: 지난 날짜는 근무 기록을 바로 고친다 (기록이 없으면 새로 넣는다)
@@ -2508,6 +2526,9 @@ app.addEventListener("click", (e) => {
     case "payslip-pdf-one":
       payslipPdf(el, [id]);
       return;
+    case "reset-password":
+      resetPassword();
+      return;
     case "copy-staff-link":
       navigator.clipboard?.writeText(staffUrl()).then(
         () => showToast("직원용 달력 주소를 복사했어요", "ok"),
@@ -2589,7 +2610,8 @@ app.addEventListener("click", (e) => {
       state.allowDraft.splice(Number(el.dataset.index), 1);
       break;
     case "payslip-pdf-all":
-      payslipPdf(el, payrollFor(state.payroll.month, state.payroll.employeeId).rows.map((r) => r.emp.id));
+      // 휴대폰 화면은 직원 필터가 없으므로 항상 전체
+      payslipPdf(el, payrollFor(state.payroll.month, isDesktop() ? state.payroll.employeeId : "").rows.map((r) => r.emp.id));
       return;
     default:
       return;
@@ -2800,7 +2822,7 @@ app.addEventListener("change", (e) => {
         setTimeout(() => t.classList.remove("invalid"), 1200);
       }
     }
-    t.value = rangeLabel(emp.weekly[wd]);
+    t.value = t.closest(".m-week") ? formatRange(emp.weekly[wd]) : rangeLabel(emp.weekly[wd]);
     return;
   }
   if (t.dataset.note !== undefined || t.dataset.meta) {
@@ -2835,11 +2857,13 @@ function addExtra() {
   const start = readTime("extra-start");
   const end = readTime("extra-end");
   if (!name) return;
-  if (!start || !end) {
-    alertField("extra-start");
+  if (!start || !end || start === end) {
+    alertField(start === end ? "extra-end" : "extra-start");
     return;
   }
   let emp = store.employees.find((x) => x.active && x.name === name);
+  // 오타로 직원이 새로 생기지 않게: 처음 보는 이름이면 한 번 묻는다
+  if (!emp && !window.confirm(`'${name}'님은 등록된 직원이 아니에요. 새 직원으로 등록할까요?`)) return;
   if (!emp) {
     emp = { id: uid(), name, phone: null, hourlyWage: DEFAULT_WAGE, active: true, weekly: {} };
     store.employees.push(emp);
@@ -3003,6 +3027,59 @@ function flattenRemote() {
   return out;
 }
 
+// ---------- 받은 데이터 검사 ----------
+// 직원용 달력은 로그인 없이 쓸 수 있어 누구나 데이터를 쓸 수 있다. 화면에 그대로 넣는 값(id·색·시간·날짜)은
+// 정해진 모양만 받아들이고 나머지는 버린다 (관리자 화면에 코드가 끼어들거나 화면이 멈추지 않게).
+function safeId(v) {
+  return typeof v === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(v);
+}
+function cssColor(v) {
+  return typeof v === "string" && /^(#[0-9a-fA-F]{3,8}|hsl\(\d{1,3} \d{1,3}% \d{1,3}%\))$/.test(v) ? v : "#ffffff";
+}
+function cleanRange(r) {
+  const ok = (t) => typeof t === "string" && /^\d{2}:\d{2}$/.test(t);
+  return r && ok(r.start) && ok(r.end) ? { start: r.start, end: r.end } : null;
+}
+function cleanWeekly(w) {
+  const out = {};
+  for (const [wd, r] of Object.entries(w && typeof w === "object" ? w : {})) {
+    const range = /^[0-6]$/.test(wd) && cleanRange(r);
+    if (range) out[wd] = range;
+  }
+  return out;
+}
+const safeDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const safeIso = (v) => typeof v === "string" && v.length < 40 && !Number.isNaN(Date.parse(v));
+
+function cleanStore(data) {
+  const employees = (Array.isArray(data.employees) ? data.employees : [])
+    .filter((e) => e && safeId(e.id) && typeof e.name === "string" && e.name.trim())
+    .map((e) => ({
+      ...e,
+      name: e.name.slice(0, 40),
+      color: e.color ? cssColor(e.color) : e.color,
+      weekly: cleanWeekly(e.weekly),
+      ...(e.weeklyBase ? { weeklyBase: cleanWeekly(e.weeklyBase) } : {}),
+      ...(Array.isArray(e.weeklyHistory)
+        ? { weeklyHistory: e.weeklyHistory.filter((h) => h && safeDate(h.from)).map((h) => ({ from: h.from, weekly: cleanWeekly(h.weekly) })) }
+        : {}),
+    }));
+  const records = (Array.isArray(data.records) ? data.records : []).filter(
+    (r) => r && safeId(r.id) && safeId(r.employeeId) && safeDate(r.date) && safeIso(r.clockIn) && (!r.clockOut || safeIso(r.clockOut)),
+  );
+  const shifts = {};
+  for (const [date, byEmp] of Object.entries(data.shifts && typeof data.shifts === "object" ? data.shifts : {})) {
+    if (!safeDate(date)) continue;
+    const day = {};
+    for (const [id, r] of Object.entries(byEmp && typeof byEmp === "object" ? byEmp : {})) {
+      const range = safeId(id) && cleanRange(r);
+      if (range) day[id] = range;
+    }
+    shifts[date] = day;
+  }
+  return { ...data, employees, records, shifts };
+}
+
 function parse(json, fallback) {
   try {
     return JSON.parse(json) ?? fallback;
@@ -3026,7 +3103,7 @@ function storeFromRemote() {
       return { weekly: {}, ...e, phone: p.phone ?? null, hourlyWage: p.hourlyWage ?? DEFAULT_WAGE };
     });
   const main = priv ? parse(priv.main, {}) : store;
-  return {
+  return cleanStore({
     employees,
     records: Object.values(pub.records ?? {}).map((json) => parse(json, null)).filter(Boolean),
     shifts: Object.fromEntries(Object.entries(pub.shifts ?? {}).map(([d, json]) => [d, parse(json, {})])),
@@ -3035,7 +3112,7 @@ function storeFromRemote() {
     allowances: main.allowances,
     scheduleDraft: main.scheduleDraft,
     absent: main.absent,
-  };
+  });
 }
 
 const remoteHasData = () => Boolean(remote.pub?.employees);
