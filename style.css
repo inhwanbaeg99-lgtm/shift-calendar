@@ -4315,3 +4315,16 @@ td.name {
     white-space: nowrap;
   }
 }
+
+/* 근무 상세: 근무표에 있는데 출근 기록이 없는 날은 빨간 점 */
+.timesheet td.miss {
+  text-align: center;
+}
+.miss-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  vertical-align: middle;
+}
