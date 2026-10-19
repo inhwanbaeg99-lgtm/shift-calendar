@@ -252,6 +252,7 @@ function diffClass(emp, date, worked) {
 
 function setShift(empId, date, start, end) {
   store.shifts[date] = { ...store.shifts[date], [empId]: { start, end } };
+  if (ADMIN_SITE && store.absent) delete store.absent[`${empId}|${date}`];
 }
 
 // 근무 요일에 해당하는 직원 + 그날만 추가로 등록된 직원
@@ -259,7 +260,7 @@ function scheduledOn(date) {
   const wd = weekdayOf(date);
   const extra = store.shifts[date] ?? {};
   return store.employees
-    .filter((e) => e.active && !isManager(e) && (weeklyOn(e, date)[wd] || extra[e.id]))
+    .filter((e) => e.active && !isManager(e) && (weeklyOn(e, date)[wd] || extra[e.id]) && !store.absent?.[`${e.id}|${date}`])
     .sort((a, b) => (shiftFor(a, date).start < shiftFor(b, date).start ? -1 : 1));
 }
 
@@ -3002,6 +3003,7 @@ function flattenStore(withPrivate) {
     if (withPrivate) out[`private/employees/${e.id}`] = JSON.stringify({ phone: e.phone ?? null, hourlyWage: e.hourlyWage ?? DEFAULT_WAGE });
   }
   out["public/order"] = JSON.stringify(store.employees.map((e) => e.id));
+  if (ADMIN_SITE) out["public/absent"] = JSON.stringify(store.absent ?? {});
   for (const r of store.records) out[`public/records/${r.id}`] = JSON.stringify(r);
   for (const [date, byEmp] of Object.entries(store.shifts ?? {})) {
     if (Object.keys(byEmp ?? {}).length) out[`public/shifts/${date}`] = JSON.stringify(byEmp);
@@ -3024,6 +3026,7 @@ function flattenRemote() {
   walk("public/records", pub.records);
   walk("public/shifts", pub.shifts);
   if (pub.order) out["public/order"] = pub.order;
+  if (pub.absent) out["public/absent"] = pub.absent;
   if (remote.privLoaded) {
     const priv = remote.priv ?? {};
     walk("private/employees", priv.employees);
@@ -3082,7 +3085,11 @@ function cleanStore(data) {
     }
     shifts[date] = day;
   }
-  return { ...data, employees, records, shifts };
+  const absent = {};
+  for (const [k, v] of Object.entries(data.absent && typeof data.absent === "object" ? data.absent : {})) {
+    if (v && /^[A-Za-z0-9_-]{1,64}\|\d{4}-\d{2}-\d{2}$/.test(k)) absent[k] = true;
+  }
+  return { ...data, employees, records, shifts, absent };
 }
 
 function parse(json, fallback) {
@@ -3116,7 +3123,7 @@ function storeFromRemote() {
     settings: main.settings,
     allowances: main.allowances,
     scheduleDraft: main.scheduleDraft,
-    absent: main.absent,
+    absent: parse(pub.absent, null) ?? main.absent,
   });
 }
 
@@ -3132,7 +3139,7 @@ function pushChanges() {
   const updates = {};
   for (const [k, v] of Object.entries(now)) if (remote.last[k] !== v) updates[k] = v;
   for (const k of Object.keys(remote.last)) {
-    if (!(k in now) && (withPrivate || !k.startsWith("private/"))) updates[k] = null;
+    if (!(k in now) && (withPrivate || !(k.startsWith("private/") || k === "public/absent"))) updates[k] = null;
   }
   if (!Object.keys(updates).length) return;
   for (const [k, v] of Object.entries(updates)) {
