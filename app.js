@@ -236,11 +236,12 @@ function shiftFor(emp, date) {
   return store.shifts[date]?.[emp.id] ?? weeklyOn(emp, date)[weekdayOf(date)] ?? { start: "09:00", end: "18:00" };
 }
 
-// 그날 일정상 근무 시간(시간 단위). 근무 요일이 아니고 그날만 추가된 것도 아니면 0.
+// 그날 근무표(요일별 고정 근무)상 근무 시간(시간 단위). 근무 요일이 아니면 0.
+// 달력에서 그날 시간만 바꾼 것(store.shifts)은 "원래 시간"이 아니므로 비교 기준에 넣지 않는다.
 function plannedOn(emp, date) {
-  if (!store.shifts[date]?.[emp.id] && !weeklyOn(emp, date)[weekdayOf(date)]) return 0;
-  const { start, end } = shiftFor(emp, date);
-  return hoursBetween(kstIso(date, start), endIso(date, start, end));
+  const shift = weeklyOn(emp, date)[weekdayOf(date)];
+  if (!shift) return 0;
+  return hoursBetween(kstIso(date, shift.start), endIso(date, shift.start, shift.end));
 }
 
 // 실제 근무 시간을 일정과 비교: 많으면 " over"(파랑), 적으면 " under"(빨강), 같으면 ""(검정)
@@ -2080,7 +2081,12 @@ function route() {
 // 달력 첫 화면 주소 (직원용은 #/, 관리자는 #/calendar)
 const homeHash = () => (ADMIN_SITE ? "#/calendar" : "#/");
 
+// 다시 그릴 때 입력 중이던 시간 칸 값을 지키는 칸들 (편집이 끝나면 칸이 사라지므로 그대로 남지 않는다)
+const KEEP_FIELDS = ["edit-start", "edit-end", "extra-name", "extra-start", "extra-end"];
+
 function render() {
+  const kept = KEEP_FIELDS.map((id) => [id, document.getElementById(id)?.value]).filter(([, v]) => v);
+  const focusedId = document.activeElement?.id;
   const r = route();
   if (r.name === "lock") app.innerHTML = renderLock();
   else if (r.name === "pick") app.innerHTML = renderPick();
@@ -2090,6 +2096,12 @@ function render() {
   else if (r.name === "records") app.innerHTML = renderRecords();
   else if (r.name === "schedule") app.innerHTML = renderSchedule();
   else app.innerHTML = renderHome();
+
+  for (const [id, value] of kept) {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.value = value;
+  }
+  if (KEEP_FIELDS.includes(focusedId)) document.getElementById(focusedId)?.focus({ preventScroll: true });
 
   const period = document.querySelector(".sc-period");
   if (period) fitPeriod(period);
@@ -2624,20 +2636,19 @@ function queueToast(text, kind = "ok") {
   state.toast = text;
   state.toastKind = kind;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    state.toast = "";
-    render();
-  }, 2200);
+  toastTimer = setTimeout(hideToast, 2200);
+}
+// 알림만 지운다. 화면 전체를 다시 그리면 입력 중인 칸이 비워지므로 render() 하지 않는다.
+function hideToast() {
+  state.toast = "";
+  document.querySelector(".toast")?.remove();
 }
 function showToast(text, kind = "") {
   state.toast = text;
   state.toastKind = kind;
   render();
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    state.toast = "";
-    render();
-  }, 2200);
+  toastTimer = setTimeout(hideToast, 2200);
 }
 const blockDemo = (e) => {
   e.preventDefault();
