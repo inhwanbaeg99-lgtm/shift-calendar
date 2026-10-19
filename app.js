@@ -286,6 +286,7 @@ function clockIn(employeeId) {
     clockIn: kstIso(date, start),
     clockOut: scheduledEnd(emp, date),
     createdAt: new Date().toISOString(),
+    ...(emp.trainee ? { training: true } : {}),
   });
   save();
   return null;
@@ -298,8 +299,15 @@ function setRecordTimes(empId, date, start, end) {
   const clockOut = endIso(date, start, end);
   const rec = recordFor(empId, date);
   if (rec) Object.assign(rec, { clockIn, clockOut, edited: true });
-  else store.records.push({ id: uid(), employeeId: empId, date, clockIn, clockOut, createdAt: new Date().toISOString(), edited: true });
+  else store.records.push({ id: uid(), employeeId: empId, date, clockIn, clockOut, createdAt: new Date().toISOString(), edited: true, ...(employeeById(empId)?.trainee ? { training: true } : {}) });
   if (store.absent) delete store.absent[`${empId}|${date}`];
+}
+
+// 교육생(직원용 달력 + 로 처음 들어온 사람) · 교육으로 일한 기록은 이름 옆에 (교육)
+const isTrainingRec = (r) => Boolean(r?.training);
+function nameLabel(emp, rec) {
+  const training = rec ? isTrainingRec(rec) : emp.trainee;
+  return `${esc(emp.name)}${training ? `<span class="train-tag"> (교육)</span>` : ""}`;
 }
 
 // 관리자가 대신 출근 처리: 그날 근무 시간(근무표 또는 그날 바꾼 시간) 그대로 기록한다
@@ -307,7 +315,7 @@ function adminClockIn(empId, date) {
   const emp = employeeById(empId);
   if (!emp || recordFor(empId, date)) return;
   const { start } = shiftFor(emp, date);
-  store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: kstIso(date, start), clockOut: scheduledEnd(emp, date), createdAt: new Date().toISOString() });
+  store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: kstIso(date, start), clockOut: scheduledEnd(emp, date), createdAt: new Date().toISOString(), ...(emp.trainee ? { training: true } : {}) });
   if (store.absent) delete store.absent[`${empId}|${date}`];
   save();
 }
@@ -593,7 +601,7 @@ function renderCalendar() {
         ...entries.slice(0, MAX_VISIBLE).map((r) => {
           const emp = employeeById(r.employeeId);
           const diff = diffClass(emp, date, hoursBetween(r.clockIn, r.clockOut));
-          return `<span class="chip">${esc(emp.name)} <span class="chip-time${diff}">${formatTime(r.clockIn)}~${formatTime(r.clockOut)}</span></span>`;
+          return `<span class="chip">${nameLabel(emp, r)} <span class="chip-time${diff}">${formatTime(r.clockIn)}~${formatTime(r.clockOut)}</span></span>`;
         }),
         entries.length > MAX_VISIBLE ? `<span class="chip more">+${entries.length - MAX_VISIBLE}명</span>` : "",
       ].join("");
@@ -634,7 +642,7 @@ function renderDateBox(date, { closable }) {
       (r) => `
         <li class="in-item${r.id === state.justAddedId ? " new" : ""}">
           <div class="in-row">
-            <span class="in-name">${esc(employeeById(r.employeeId).name)}</span>
+            <span class="in-name">${nameLabel(employeeById(r.employeeId), r)}</span>
             <span class="in-time${diffClass(employeeById(r.employeeId), date, hoursBetween(r.clockIn, r.clockOut))}">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span>
           </div>
         </li>`,
@@ -686,7 +694,7 @@ function renderStaffItem(emp, date) {
   return `
     <li class="staff-item${expanded ? " expanded" : ""}">
       <button type="button" class="staff-name-btn" data-action="toggle-staff" data-id="${emp.id}"${editable ? "" : " disabled"}>
-        <span class="staff-name">${esc(emp.name)}</span>
+        <span class="staff-name">${nameLabel(emp, rec)}</span>
         ${done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
         <span class="staff-time${ADMIN_SITE && rec ? diffClass(emp, date, hoursBetween(rec.clockIn, rec.clockOut)) : ""}">${start} ~ ${end}</span>
       </button>
@@ -779,7 +787,7 @@ function renderHome() {
 
 // 관리자 달력: 직원용 달력과 같은 화면. 출근 버튼은 없고 지난 날짜도 근무 시간을 고칠 수 있다.
 function renderAdminCalendar() {
-  return renderAdminShell("calendar", `${isDesktop() ? "" : mHead("달력")}<div class="admin-cal">${renderCalendarCard()}</div>`, { center: true, wide: true });
+  return renderAdminShell("calendar", `${isDesktop() ? "" : mHead("달력") + renderTodayCard()}<div class="admin-cal">${renderCalendarCard()}</div>`, { center: true, wide: true });
 }
 
 function renderDayPage(date) {
@@ -846,7 +854,7 @@ function renderEmployees() {
     .map(
       (e, i) => `
       <tr style="--i:${i}">
-        <td class="name"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${esc(e.name)}</span><div class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</div></td>
+        <td class="name"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${nameLabel(e)}</span><div class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</div></td>
         ${order
           .map(
             (wd) =>
@@ -855,7 +863,11 @@ function renderEmployees() {
           .join("")}
         <td class="wage-cell" data-label="시급"><input class="field money" style="width:88px;padding:4px 8px" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /></td>
         <td><button type="button" class="status${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button></td>
-        <td><button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저는 근무표에만 나오고 출근·급여 계산에서 빠져요">${isManager(e) ? "매니저" : "알바"}</button></td>
+        <td>${
+          e.trainee
+            ? `<button type="button" class="status train" data-action="promote-trainee" data-id="${e.id}" title="교육을 마치면 직원으로 등록해요. 그 전 교육 근무는 계속 교육수당으로 계산돼요">직원 등록</button>`
+            : `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저는 근무표에만 나오고 출근·급여 계산에서 빠져요">${isManager(e) ? "매니저" : "알바"}</button>`
+        }</td>
         <td><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
       </tr>`,
     )
@@ -923,6 +935,7 @@ function renderMobileShell(active, content) {
       ${demoLoaded ? `<a class="m-login" href="#/login">로그인</a>` : `<button type="button" class="m-logout" data-action="logout">로그아웃</button>`}
     </header>
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. <a href="#/signup">매장 등록</a> · <a href="#/login">로그인</a></p>` : ""}
+    ${renderInstallHint()}
     <main class="m-main${state.pageEnter ? " page-enter" : ""}">${content}</main>
     <nav class="m-tabbar" aria-label="관리자 메뉴">
       ${tab("employees", "직원")}${tab("schedule", "근무표")}${tab("calendar", "달력")}${tab("records", "급여")}
@@ -969,7 +982,7 @@ function renderEmployeesMobile() {
       <button type="button" class="m-row" style="--i:${i}" data-action="open-sheet" data-sheet="emp" data-id="${e.id}">
         <span class="swatch big" style="background:${cssColor(e.color)}"></span>
         <span class="m-row-body">
-          <b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}${e.active ? "" : `<em class="m-chip off">비활성</em>`}</b>
+          <b>${esc(e.name)}${e.trainee ? `<em class="m-chip train">교육</em>` : ""}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}${e.active ? "" : `<em class="m-chip off">비활성</em>`}</b>
           <small>${esc(weeklySummary(e))}</small>
         </span>
         <span class="m-chev">${ICON_CHEVRON}</span>
@@ -1015,7 +1028,11 @@ function renderEmpSheet(e) {
     <div class="m-wage"><input id="m-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /><span>원</span></div>
     <div class="m-toggles">
       <button type="button" class="m-toggle${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button>
-      <button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>
+      ${
+        e.trainee
+          ? `<button type="button" class="m-toggle train" data-action="promote-trainee" data-id="${e.id}">직원으로 등록</button>`
+          : `<button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>`
+      }
     </div>
     <p class="sheet-note">매니저는 근무표에만 나오고 출근·급여 계산에서 빠져요.</p>
     <div class="sheet-actions">
@@ -1226,7 +1243,7 @@ function weeklyAllowance(emp, ym) {
     const sun = d;
     const mon = addDays(sun, -6);
     const days = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
-    const recs = store.records.filter((r) => r.employeeId === emp.id && r.date >= mon && r.date <= sun);
+    const recs = store.records.filter((r) => r.employeeId === emp.id && r.date >= mon && r.date <= sun && !isTrainingRec(r));
     const hours = recs.reduce((sum, r) => sum + hoursBetween(r.clockIn, r.clockOut), 0);
     if (!recs.length) continue;
     const planned = plannedHours(emp, days);
@@ -1254,6 +1271,14 @@ function allowancesFor(ym, empId) {
   return store.allowances?.[ym]?.[empId] ?? [{ name: "교육수당", amount: 0 }];
 }
 
+// 입력한 수당 목록의 교육수당에 교육 근무 금액을 더한 목록 (저장된 수당은 그대로 두고 계산할 때만 더한다)
+function withTrainingPay(list, trainPay) {
+  if (!trainPay) return list;
+  const i = list.findIndex((a) => (a.name || "").trim() === "교육수당");
+  if (i < 0) return [{ name: "교육수당", amount: trainPay, auto: trainPay }, ...list];
+  return list.map((a, j) => (j === i ? { ...a, amount: (Number(a.amount) || 0) + trainPay, auto: trainPay } : a));
+}
+
 function setAllowances(ym, empId, list) {
   store.allowances = store.allowances ?? {};
   store.allowances[ym] = { ...store.allowances[ym], [empId]: list };
@@ -1262,9 +1287,12 @@ function setAllowances(ym, empId, list) {
 function payrollRow(emp, ym, recs, allowanceOverride) {
   const mine = recs.filter((r) => r.employeeId === emp.id);
   const hours = mine.reduce((sum, r) => sum + hoursBetween(r.clockIn, r.clockOut), 0);
-  const base = Math.round(hours * emp.hourlyWage);
+  // 교육으로 일한 시간은 기본급이 아니라 교육수당으로 (시간 × 시급)
+  const trainHours = mine.filter(isTrainingRec).reduce((sum, r) => sum + hoursBetween(r.clockIn, r.clockOut), 0);
+  const trainPay = Math.round(trainHours * emp.hourlyWage);
+  const base = Math.round((hours - trainHours) * emp.hourlyWage);
   const weekly = weeklyAllowance(emp, ym);
-  const allowances = allowanceOverride ?? allowancesFor(ym, emp.id);
+  const allowances = withTrainingPay(allowanceOverride ?? allowancesFor(ym, emp.id), trainPay);
   const extra = allowances.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
   const gross = base + weekly.total + extra;
   const tax = taxes(gross);
@@ -1309,9 +1337,9 @@ function monthDays(ym) {
 
 // 월별 근무표: 한 사람이 한 줄, 1일~말일 칸에 그날 근무시간
 // includeAll: 기록이 없어도 재직 중인 알바는 줄을 보여준다 (화면에서 시간을 직접 입력할 수 있게)
-function timesheet(ym, employeeId, { includeAll = false } = {}) {
+function timesheet(ym, employeeId, { includeAll = false, excludeTraining = false } = {}) {
   const days = monthDays(ym);
-  const recs = monthRecords(ym, employeeId);
+  const recs = monthRecords(ym, employeeId).filter((r) => !(excludeTraining && isTrainingRec(r)));
   const ids = new Set(recs.map((r) => r.employeeId));
   const people = store.employees.filter(
     (e) => ids.has(e.id) || (includeAll && e.active && !isManager(e) && (!employeeId || e.id === employeeId)),
@@ -1348,7 +1376,7 @@ function renderTimesheet(ym, employeeId) {
             .map(
               (r) => `
             <tr>
-              <td class="ts-name">${esc(r.emp.name)}</td>
+              <td class="ts-name">${nameLabel(r.emp)}</td>
               ${r.cells.map((_, j) => cell(r, j)).join("")}
               <td class="ts-total">${r.total.toFixed(1)}</td>
             </tr>`,
@@ -1453,13 +1481,15 @@ function renderPayslipModal() {
   const emp = employeeById(empId);
   // 명세서 창에서는 저장 전까지 수정 중인 수당(state.allowDraft)으로 미리 계산
   const r = payrollRow(emp, month, monthRecords(month, empId), state.allowDraft);
-  const list = r.allowances;
+  const list = state.allowDraft ?? allowancesFor(month, empId);
+  const auto = r.allowances.find((a) => a.auto)?.auto ?? 0;
   return `
     <div class="ps-backdrop${state.modalEnter ? " enter" : ""}" data-action="close-payslip">
       <div class="ps-dialog" data-stop>
         <div class="ps-side">
           <p class="staff-title">${esc(emp.name)} · ${Number(month.slice(5, 7))}월 명세서</p>
           <p class="sub">수당을 입력하면 지급액과 세금이 다시 계산돼요. 저장한 뒤 근무 기록의 <b>명세서 PDF</b>로 한꺼번에 받을 수 있어요.</p>
+          ${auto ? `<p class="ps-train-note">교육 근무 <b>${won(auto)}</b>은 교육수당에 자동으로 더해져요.</p>` : ""}
           <div class="ps-allow">
             ${list
               .map(
@@ -1619,7 +1649,7 @@ function exportXlsx(button) {
     const blue = { fill: { patternType: "solid", fgColor: { rgb: "DCE9F7" } } };
 
     // 근무표 시트: 사진처럼 No. / 성명 / 요일·날짜 / 시간
-    const ts = timesheet(month, employeeId);
+    const ts = timesheet(month, employeeId, { excludeTraining: true });
     const isWeekend = (d) => [0, 6].includes(weekdayOf(d));
     const head1 = ["No.", "성명", ...ts.days.map((d) => WEEKDAYS[weekdayOf(d)]), "시간"];
     const head2 = ["", "", ...ts.days.map((d) => Number(d.slice(8))), ""];
@@ -2376,13 +2406,21 @@ app.addEventListener("click", (e) => {
 
   switch (action) {
     case "prev-month":
-    case "next-month": {
-      const m = state.month + (action === "prev-month" ? -1 : 1);
-      state.monthDir = action === "prev-month" ? "prev" : "next";
-      state.year += m < 1 ? -1 : m > 12 ? 1 : 0;
-      state.month = m < 1 ? 12 : m > 12 ? 1 : m;
+    case "next-month":
+      moveMonth(action === "prev-month" ? -1 : 1);
       break;
-    }
+    case "open-today":
+      navigate(`#/day/${todayDateString()}`);
+      return;
+    case "install-app":
+      installEvent?.prompt();
+      installEvent = null;
+      break;
+    case "dismiss-install":
+      try {
+        localStorage.setItem(INSTALL_HINT_KEY, "1");
+      } catch {}
+      break;
     case "close-panel":
       closePanel();
       return;
@@ -2450,6 +2488,14 @@ app.addEventListener("click", (e) => {
     case "cancel-add":
       state.adding = false;
       break;
+    case "promote-trainee": {
+      const emp = employeeById(id);
+      if (!window.confirm(`${emp.name}님을 직원으로 등록할까요?\n지금까지 교육으로 일한 날은 계속 교육수당으로 계산돼요.`)) return;
+      delete emp.trainee;
+      save();
+      queueToast(`${emp.name}님을 직원으로 등록했어요`);
+      break;
+    }
     case "admin-clock-in": {
       // 관리자: 출근을 못 찍은 직원을 그날 근무 시간대로 출근 처리 (오늘·지난 날짜)
       const date = activeDate();
@@ -2682,17 +2728,167 @@ function countUp(cells) {
   }
 }
 
+// ---------- 휴대폰 전용: 진동 · 밀어서 넘기기 · 창 끌어내리기 · 오늘 카드 · 홈 화면에 추가 ----------
+// 짧은 진동 (안드로이드. 아이폰 브라우저는 지원하지 않아 조용히 넘어간다)
+const haptic = (ms = 10) => {
+  if (!isDesktop() && !reducedMotion()) navigator.vibrate?.(ms);
+};
+
+function moveMonth(delta) {
+  const m = state.month + delta;
+  state.monthDir = delta < 0 ? "prev" : "next";
+  state.year += m < 1 ? -1 : m > 12 ? 1 : 0;
+  state.month = m < 1 ? 12 : m > 12 ? 1 : m;
+}
+
+// 근무표 요일 칩 순서 (월 ~ 일)
+function moveSchedDay(delta) {
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  const now = state.schedDay ?? weekdayOf(todayDateString());
+  state.schedDay = order[(order.indexOf(now) + delta + 7) % 7];
+  state.dayListEnter = true;
+}
+
+// 달력은 좌우로 밀면 달이, 근무표 근무자 목록은 요일이 넘어간다
+let swipe = null;
+app.addEventListener(
+  "touchstart",
+  (e) => {
+    if (isDesktop() || e.touches.length !== 1) return;
+    swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, target: e.target };
+  },
+  { passive: true },
+);
+app.addEventListener(
+  "touchend",
+  (e) => {
+    if (!swipe) return;
+    const { x, y, target } = swipe;
+    swipe = null;
+    const dx = e.changedTouches[0].clientX - x;
+    const dy = e.changedTouches[0].clientY - y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (target.closest(".sheet, input, select, textarea, .sched-scroll, .ts-mobile, .m-tabbar")) return;
+    if (target.closest(".cal-wrap")) {
+      moveMonth(dx < 0 ? 1 : -1);
+    } else if (target.closest("#sched-day-list, .m-days")) {
+      moveSchedDay(dx < 0 ? 1 : -1);
+    } else return;
+    haptic(8);
+    render();
+  },
+  { passive: true },
+);
+
+// 아래에서 올라온 창은 아래로 끌어내리면 닫힌다
+let sheetDrag = null;
+app.addEventListener(
+  "touchstart",
+  (e) => {
+    const sheet = e.target.closest?.(".sheet");
+    if (!sheet || isDesktop()) return;
+    if (sheet.scrollTop > 0 && !e.target.closest(".sheet-grip")) return;
+    sheetDrag = { sheet, y: e.touches[0].clientY, dy: 0 };
+  },
+  { passive: true },
+);
+app.addEventListener(
+  "touchmove",
+  (e) => {
+    if (!sheetDrag) return;
+    const dy = e.touches[0].clientY - sheetDrag.y;
+    sheetDrag.dy = dy;
+    if (dy > 0) {
+      sheetDrag.sheet.style.transition = "none";
+      sheetDrag.sheet.style.transform = `translateY(${dy}px)`;
+    }
+  },
+  { passive: true },
+);
+app.addEventListener("touchend", () => {
+  if (!sheetDrag) return;
+  const { sheet, dy } = sheetDrag;
+  sheetDrag = null;
+  sheet.style.transition = "transform 0.2s ease";
+  if (dy > 110) {
+    sheet.style.transform = "translateY(100%)";
+    setTimeout(() => sheet.closest(".sheet-backdrop")?.click(), 180); // 바깥을 누른 것과 같게 닫기
+  } else {
+    sheet.style.transform = "";
+  }
+});
+
+// 달력 탭 맨 위: 오늘 근무자와 출근 현황
+function renderTodayCard() {
+  const today = todayDateString();
+  const planned = scheduledOn(today);
+  const extra = recordsOn(today)
+    .map((r) => employeeById(r.employeeId))
+    .filter((e) => e && !planned.includes(e));
+  const people = [...planned, ...extra];
+  const done = (e) => Boolean(recordFor(e.id, today)?.clockIn);
+  const [, m, d] = today.split("-").map(Number);
+  return `
+    <button type="button" class="m-today" data-action="open-today">
+      <span class="m-today-head">
+        <b>오늘 ${m}/${d} (${WEEKDAYS[weekdayOf(today)]})</b>
+        <span>근무 ${people.length}명 · 출근 <em>${people.filter(done).length}</em>명</span>
+      </span>
+      <span class="m-today-people">
+        ${
+          people
+            .map((e) => {
+              const { start, end } = shiftFor(e, today);
+              return `<span class="m-pp${done(e) ? " on" : ""}"><i style="background:${cssColor(e.color)}"></i>${nameLabel(e)}<small>${shortTime(start)}~${shortTime(end)}</small></span>`;
+            })
+            .join("") || `<span class="m-pp-empty">오늘 근무자가 없어요</span>`
+        }
+      </span>
+    </button>`;
+}
+
+// 홈 화면에 추가 안내 (한 번 닫으면 다시 안 뜬다)
+const INSTALL_HINT_KEY = "pum:installHintClosed";
+let installEvent = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  installEvent = e;
+  if (!isDesktop()) requestRender();
+});
+function renderInstallHint() {
+  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  let closed = false;
+  try {
+    closed = localStorage.getItem(INSTALL_HINT_KEY) === "1";
+  } catch {}
+  if (isDesktop() || standalone || closed) return "";
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const how = installEvent
+    ? "추가하면 앱처럼 바로 열 수 있어요."
+    : ios
+      ? "Safari 공유 버튼 → '홈 화면에 추가'를 누르면 앱처럼 쓸 수 있어요."
+      : "브라우저 메뉴 → '홈 화면에 추가'를 누르면 앱처럼 쓸 수 있어요.";
+  return `
+    <div class="m-install">
+      <span class="logo" aria-hidden="true">품</span>
+      <div><b>홈 화면에 추가하기</b><small>${how}</small></div>
+      ${installEvent ? `<button type="button" class="pill" data-action="install-app">추가</button>` : ""}
+      <button type="button" class="m-install-x" data-action="dismiss-install" aria-label="닫기">${ICON_CLOSE}</button>
+    </div>`;
+}
+
 // ---------- 둘러보기(로그인 전): 보기만, 고치는 동작은 막는다 ----------
 // 화면을 옮겨 다니고 펼쳐 보는 동작만 허용. 나머지(추가·수정·삭제·저장·내보내기)는 안내만 띄운다.
 const DEMO_ALLOWED = new Set([
   "prev-month", "next-month", "close-panel", "go-home", "toggle-staff", "toggle-help",
   "payroll-prev", "payroll-next", "open-payslip", "close-payslip",
-  "open-sheet", "close-sheet", "sched-day",
+  "open-sheet", "close-sheet", "sched-day", "open-today", "install-app", "dismiss-install",
 ]);
 
 let toastTimer = null;
 // 다음 그리기에 알림을 띄운다 (처리 뒤에 어차피 다시 그리는 곳에서 사용)
 function queueToast(text, kind = "ok") {
+  if (kind === "ok") haptic(12);
   state.toast = text;
   state.toastKind = kind;
   clearTimeout(toastTimer);
@@ -2704,6 +2900,7 @@ function hideToast() {
   document.querySelector(".toast")?.remove();
 }
 function showToast(text, kind = "") {
+  if (kind === "ok") haptic(12);
   state.toast = text;
   state.toastKind = kind;
   render();
@@ -2878,10 +3075,10 @@ function addExtra() {
     return;
   }
   let emp = store.employees.find((x) => x.active && x.name === name);
-  // 오타로 직원이 새로 생기지 않게: 처음 보는 이름이면 한 번 묻는다
-  if (!emp && !window.confirm(`'${name}'님은 등록된 직원이 아니에요. 새 직원으로 등록할까요?`)) return;
+  // 처음 보는 이름은 직원이 아니라 교육생 (교육)으로 넣는다. 직원 등록은 관리자가 직원 화면에서.
+  if (!emp && !window.confirm(`'${name}'님은 등록된 직원이 아니에요. 교육(교육생)으로 등록할까요?\n직원 등록은 사장님이 해요.`)) return;
   if (!emp) {
-    emp = { id: uid(), name, phone: null, hourlyWage: DEFAULT_WAGE, active: true, weekly: {} };
+    emp = { id: uid(), name, phone: null, hourlyWage: DEFAULT_WAGE, active: true, weekly: {}, trainee: true };
     store.employees.push(emp);
     ensureColors();
   }
@@ -3002,7 +3199,7 @@ const storePath = (sub) => `stores/${storeId}/${sub}`;
 var cloud = null; // { auth, db } — SDK 를 못 불러오면 이 기기에만 저장
 var remote = { pub: null, priv: null, pubLoaded: false, privLoaded: false, last: {}, seedAsked: false };
 
-const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory"];
+const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory", "trainee"];
 
 // store → { "경로": "JSON 문자열" }
 function flattenStore(withPrivate) {
