@@ -260,7 +260,7 @@ function scheduledOn(date) {
   const wd = weekdayOf(date);
   const extra = store.shifts[date] ?? {};
   return store.employees
-    .filter((e) => e.active && !isManager(e) && (weeklyOn(e, date)[wd] || extra[e.id]) && !store.absent?.[`${e.id}|${date}`])
+    .filter((e) => e.active && !isManager(e) && (weeklyOn(e, date)[wd] || extra[e.id]))
     .sort((a, b) => (shiftFor(a, date).start < shiftFor(b, date).start ? -1 : 1));
 }
 
@@ -316,6 +316,12 @@ function adminClockIn(empId, date) {
 function removeRecord(empId, date) {
   store.records = store.records.filter((r) => !(r.employeeId === empId && r.date === date));
   store.absent = { ...store.absent, [`${empId}|${date}`]: true };
+  // 근무표(요일별 고정 근무)에 없던 사람(+ 로 추가)이면 그날 근무 예정에서도 뺀다
+  const emp = employeeById(empId);
+  if (emp && !weeklyOn(emp, date)[weekdayOf(date)] && store.shifts[date]?.[empId]) {
+    const { [empId]: _gone, ...rest } = store.shifts[date];
+    store.shifts[date] = rest;
+  }
 }
 
 // 관리자 = Firebase 에 로그인했고, 그 계정의 매장을 열어 둔 상태 (관리자 사이트에서만)
