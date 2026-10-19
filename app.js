@@ -1418,7 +1418,7 @@ function renderPayslip(r, ym) {
       <p class="ps-meta">시급 ${won(r.emp.hourlyWage)} · 근무 ${r.days}일 · 총 ${Number(r.hours.toFixed(2))}시간</p>
 
       <div class="ps-net">
-        <span>이번 달 받으실 금액</span>
+        <span>지급 금액</span>
         <strong>${won(r.net)}</strong>
       </div>
 
