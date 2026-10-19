@@ -4328,3 +4328,8 @@ td.name {
   background: var(--red);
   vertical-align: middle;
 }
+/* 출근 기록 없는 날: 빨간 점 대신 빨간 0 */
+.timesheet td.miss {
+  color: var(--red);
+  font-weight: 700;
+}

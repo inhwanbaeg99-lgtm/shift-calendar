@@ -1363,9 +1363,9 @@ function renderTimesheet(ym, employeeId) {
     const d = days[j];
     const saved = r.cells[j];
     if (d > today) return `<td class="ts-day"></td>`;
-    // 근무표에 있는데 출근 기록이 없는 지난 날: 빨간 점 (화면에만 — 엑셀은 숫자만 쓰므로 빈칸 그대로)
+    // 근무표에 있는데 출근 기록이 없는 지난 날: 빨간 0 (화면에만 — 엑셀은 숫자만 쓰므로 빈칸 그대로)
     if (!saved && d < today && r.emp.active && plannedOn(r.emp, d) > 0) {
-      return `<td class="ts-day miss" title="근무표에 있는데 출근 기록이 없어요"><span class="miss-dot" aria-label="출근 기록 없음"></span></td>`;
+      return `<td class="ts-day miss" title="근무표에 있는데 출근 기록이 없어요">0</td>`;
     }
     // 오늘인데 아직 기록이 없으면 결근으로 보지 않는다
     const diff = d === today && !saved ? "" : diffClass(r.emp, d, saved);
