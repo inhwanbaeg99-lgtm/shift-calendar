@@ -431,7 +431,12 @@ function parseRange(text) {
 const formatRange = (r) => (r ? `${r.start}~${r.end}` : "");
 // 직원 표의 요일 칸: 휴대폰에서는 칸이 좁아 "07:00~12:00" → "7~12", "18:00~22:30" → "18~22:30"
 const shortTime = (t) => t.replace(/^0/, "").replace(/:00$/, "");
-const rangeLabel = (r) => (!r ? "" : isDesktop() ? formatRange(r) : `${shortTime(r.start)}~${shortTime(r.end)}`);
+// 직원 표: 넓은 화면(1200px 이상)만 "07:00~12:00", 그보다 좁으면 "7~12" (표가 상자 안에 다 들어가게)
+const wideTable = () => window.matchMedia("(min-width: 1200px)").matches;
+const rangeLabel = (r) => (!r ? "" : wideTable() ? formatRange(r) : `${shortTime(r.start)}~${shortTime(r.end)}`);
+window.matchMedia("(min-width: 1200px)").addEventListener("change", () => {
+  if (route().name === "employees") render();
+});
 
 // 비워 두면 placeholder(기존 시간)를 그대로 쓴다. 형식이 틀리면 null.
 function readTime(id) {

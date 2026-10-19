@@ -4276,3 +4276,42 @@ td.name {
     --more: #4b96ff;
   }
 }
+
+/* 직원 표: 상자 안에서 옆으로 스크롤하지 않게, 요일 칸이 상자 너비에 맞춰 줄어든다 */
+@media (min-width: 768px) {
+  .table-wrap:has(> table.schedule) {
+    overflow: visible;
+  }
+  table.schedule {
+    table-layout: auto;
+    width: 100%;
+  }
+  table.schedule th,
+  table.schedule td {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  table.schedule th:first-child,
+  table.schedule td.name {
+    padding-left: 16px;
+  }
+  table.schedule th:last-child,
+  table.schedule td:last-child {
+    padding-right: 14px;
+  }
+  table.schedule td.name {
+    white-space: nowrap;
+  }
+  table.schedule .field.range {
+    width: 100%;
+    min-width: 0;
+    padding: 6px 2px;
+    font-size: 13px;
+  }
+  table.schedule .wage-cell input {
+    width: 80px !important;
+  }
+  table.schedule .status {
+    white-space: nowrap;
+  }
+}
