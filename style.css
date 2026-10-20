@@ -4526,7 +4526,7 @@ td.name {
   transform: translateX(-100%);
 }
 .tl-row {
-  padding: 18px 0;
+  padding: 32px 0;
   border-top: 1px solid var(--line);
 }
 .tl-day {
@@ -4680,7 +4680,7 @@ td.name {
   column-gap: 4px;
 }
 .tl.compact .tl-row {
-  padding: 11px 0;
+  padding: 16px 0;
 }
 .tl.compact .tl-hours span {
   font-size: 10px;
