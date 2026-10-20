@@ -1214,8 +1214,8 @@ function renderPaySheet(emp) {
 }
 
 // ---------- 급여 계산 ----------
-// 주휴수당 (근로기준법 제55조): 월~일 한 주의 소정근로시간(근무표의 요일별 고정 근무 시간 합계)이
-//   15시간 이상이고 근무표상 근무일에 모두 출근했으면
+// 주휴수당 (근로기준법 제55조): 월~일 한 주(휴일 포함 7일, 제2조)에 근무표상 근무일을 모두 출근했고,
+//   그 주까지 4주 동안 평균한 1주 소정근로시간이 15시간 이상이면 (제18조 3항, 일한 지 4주가 안 됐으면 그 기간 평균)
 //   (소정근로시간 ÷ 40) × 8시간 × 시급  (40시간 이상이면 8시간분)
 //   대타·추가 근무처럼 근무표에 없던 시간은 소정근로시간에 넣지 않는다.
 //   주가 끝나는 일요일이 속한 달에 넣고, 아직 끝나지 않은 주는 계산하지 않는다.
@@ -1245,6 +1245,17 @@ function plannedHours(emp, days) {
   }, 0);
 }
 
+// 4주(그 주 포함, 28일) 평균 1주 소정근로시간. 처음 일한 주부터 4주가 안 됐으면 그 기간으로 평균
+function avgPlannedHours(emp, sun) {
+  const firstWork = store.records.filter((r) => r.employeeId === emp.id && !isTrainingRec(r)).reduce((min, r) => (r.date < min ? r.date : min), sun);
+  const firstMon = addDays(firstWork, -((weekdayOf(firstWork) + 6) % 7)); // 처음 일한 주의 월요일
+  let from = addDays(sun, -27);
+  if (firstMon > from) from = firstMon;
+  const days = [];
+  for (let d = from; d <= sun; d = addDays(d, 1)) days.push(d);
+  return plannedHours(emp, days) / (days.length / 7);
+}
+
 function weeklyAllowance(emp, ym) {
   const today = todayDateString();
   const [y, m] = ym.split("-").map(Number);
@@ -1260,9 +1271,10 @@ function weeklyAllowance(emp, ym) {
     const hours = recs.reduce((sum, r) => sum + hoursBetween(r.clockIn, r.clockOut), 0);
     if (!recs.length) continue;
     const planned = plannedHours(emp, days);
+    const avg = avgPlannedHours(emp, sun);
     let reason = "";
     if (sun >= today) reason = "주가 아직 안 끝남";
-    else if (planned < 15) reason = "소정근로 15시간 미만";
+    else if (avg < 15) reason = "4주 평균 소정근로 15시간 미만";
     else if (days.some((x) => weeklyOn(emp, x)[weekdayOf(x)] && !recordFor(emp.id, x))) reason = "결근 있음";
     const allowHours = reason ? 0 : Math.min(planned, 40) / 5;
     weeks.push({ mon, sun, hours, planned, reason, allowHours, amount: Math.round(allowHours * emp.hourlyWage) });
@@ -1606,7 +1618,7 @@ function renderRecords() {
     </div>
     ${helpToggle(
       "records",
-      `주휴수당: 월~일 한 주의 소정근로시간(근무표의 고정 근무 시간)이 15시간 이상이고 근무표상 근무일에 모두 출근하면 (소정근로시간 ÷ 40) × 8시간 × 시급. 대타·추가 근무 시간은 넣지 않아요. 그 주가 끝나는 일요일이 속한 달에 포함되고, 아직 끝나지 않은 주는 빠져요. 금액에 마우스를 올리면 주별 내역이 보여요.<br />
+      `주휴수당: 월~일 한 주 동안 근무표상 근무일에 모두 출근했고, 그 주까지 4주 평균 1주 소정근로시간(근무표의 고정 근무 시간)이 15시간 이상이면 (소정근로시간 ÷ 40) × 8시간 × 시급. 대타·추가 근무 시간은 넣지 않아요. 그 주가 끝나는 일요일이 속한 달에 포함되고, 아직 끝나지 않은 주는 빠져요. 금액에 마우스를 올리면 주별 내역이 보여요.<br />
       수당(교육수당·특근수당 등)은 이름 옆 <b>명세서</b>를 눌러 입력해요.<br />
       ${taxOn ? "세금: 소득세 3% + 지방소득세(소득세의 10%), 10원 미만 절사. 소득세가 1,000원 미만이면 공제하지 않아요." : "세금을 공제하지 않고 계산했어요."}`,
     )}
