@@ -5101,6 +5101,7 @@ td.name {
 }
 .tl-edit #slot-emp {
   min-width: 170px;
+  margin-right: 14px; /* 직원 선택과 시간 입력 사이 */
 }
 .tl-edit .edit-row {
   display: flex;
