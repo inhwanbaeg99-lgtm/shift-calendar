@@ -4540,7 +4540,7 @@ td.name {
   min-height: var(--lh);
 }
 .tl-day b {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 700;
 }
 .tl-day small {
@@ -4548,9 +4548,6 @@ td.name {
   font-weight: 600;
   color: var(--ink-sub);
   font-variant-numeric: tabular-nums;
-}
-.tl-row.sat .tl-day b {
-  color: #3182f6;
 }
 .tl-row.sun .tl-day b {
   color: var(--red);
@@ -4690,7 +4687,7 @@ td.name {
   font-size: 10px;
 }
 .tl.compact .tl-day b {
-  font-size: 13px;
+  font-size: 15px;
 }
 .tl.compact .tl-day small {
   font-size: 10px;
