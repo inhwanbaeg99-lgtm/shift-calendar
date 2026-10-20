@@ -4597,7 +4597,6 @@ td.name {
   inset: 4px 2px;
   border-radius: 10px;
   background: var(--c);
-  box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.16), 0 1px 2px rgb(0 0 0 / 0.06);
   transition: box-shadow 0.15s;
 }
 .tl-bar b,
@@ -4627,7 +4626,7 @@ td.name {
 }
 .tl-bar:hover::before,
 .tl-bar.sc-editing::before {
-  box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.16), 0 0 0 2px var(--accent), 0 6px 16px rgb(0 0 0 / 0.12);
+  box-shadow: 0 0 0 2px var(--accent), 0 6px 16px rgb(0 0 0 / 0.12);
 }
 .tl-bar:focus-visible {
   outline: none;
@@ -4698,7 +4697,6 @@ td.name {
 .tl.compact .tl-bar::before {
   inset: 3px 1px;
   border-radius: 6px;
-  box-shadow: inset 2px 0 0 rgb(0 0 0 / 0.16);
 }
 .tl.compact .tl-bar b {
   padding-left: 6px;
