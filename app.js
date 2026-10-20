@@ -2735,8 +2735,6 @@ function promoteDueTrainees() {
 }
 
 // 근무표: 가로 타임라인 — 요일이 줄, 시간이 가로. 겹치는 근무는 그 요일 아래에 한 줄씩 더 쌓는다
-const shiftHours = (r) => hoursBetween(kstIso("2026-01-05", r.start), endIso("2026-01-05", r.start, r.end));
-const hoursText = (n) => `${Number(n.toFixed(1))}h`;
 
 // 요일 하나의 근무를 줄(lane)에 나눠 담는다: 시작 순으로, 앞 근무가 끝난 줄에 이어 붙인다
 function placeShifts(list) {
@@ -2756,7 +2754,6 @@ function renderScheduleSheet({ wide = false } = {}) {
   const compact = !wide && !isDesktop();
   const ed = state.slotEdit;
   const people = store.employees.filter((e) => e.active);
-  const week = new Map(people.map((e) => [e.id, 0]));
   const days = SCHEDULE_DAYS.map((wd) => {
     const list = people
       .map((e) => ({ e, r: effWeekly(e)[wd] }))
@@ -2765,11 +2762,9 @@ function renderScheduleSheet({ wide = false } = {}) {
         const start = toMin(r.start);
         let end = toMin(r.end);
         if (end <= start) end += 24 * 60; // 자정을 넘기는 근무
-        const h = shiftHours(r);
-        week.set(e.id, week.get(e.id) + h);
-        return { e, r, start, end, h };
+        return { e, r, start, end };
       });
-    return { wd, ...placeShifts(list), hours: list.reduce((sum, it) => sum + it.h, 0) };
+    return { wd, ...placeShifts(list) };
   });
   const all = days.flatMap((d) => d.items);
   const first = all.length ? Math.floor(Math.min(...all.map((it) => it.start)) / 60) : 9;
@@ -2810,10 +2805,6 @@ function renderScheduleSheet({ wide = false } = {}) {
         </div>${inlineEdit && String(ed.wd) === String(wd) ? `<div class="tl-edit" id="tl-edit" data-html2canvas-ignore>${renderSlotPanel()}</div>` : ""}`;
     })
     .join("");
-  const legend = people
-    .filter((e) => week.get(e.id))
-    .map((e) => `<li><i style="background:${cssColor(e.color)}"></i>${esc(e.name)}<small>${hoursText(week.get(e.id))}</small></li>`)
-    .join("");
   const actions = `
         <div class="sc-actions" data-html2canvas-ignore>
           <button type="button" class="pill plain-dark" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
@@ -2835,7 +2826,6 @@ function renderScheduleSheet({ wide = false } = {}) {
         <div class="tl-axis"><div></div><div class="tl-hours">${axis}</div></div>
         ${rows}
       </div>
-      ${legend ? `<ul class="wk-legend">${legend}</ul>` : ""}
       ${compact ? actions : ""}
       <p class="sc-brand">${esc(storeName())} · ${todayDateString().replaceAll("-", ".")} 출력 · 품</p>
     </div>`;

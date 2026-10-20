@@ -4638,38 +4638,6 @@ td.name {
   box-shadow: none;
 }
 
-/* 직원별 한 주 시간 */
-.wk-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 16px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.wk-legend li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--bg);
-  font-size: 13px;
-  font-weight: 700;
-}
-.wk-legend i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
-}
-.wk-legend small {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-sub);
-  font-variant-numeric: tabular-nums;
-}
-
 /* 휴대폰: 한 화면 너비에 맞게 */
 .tl.compact {
   --lh: 32px;
@@ -4706,10 +4674,6 @@ td.name {
   padding-left: 6px;
   font-size: 11px;
   line-height: calc(var(--lh) - 6px);
-}
-.tl.compact ~ .wk-legend li {
-  padding: 4px 8px;
-  font-size: 12px;
 }
 
 /* 안내 · 확인 창 (브라우저 기본 창 대신) */
