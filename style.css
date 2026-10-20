@@ -5063,12 +5063,19 @@ td.name {
 
 /* 근무표: 누른 요일 바로 아래에 나오는 근무 입력칸 (컴퓨터) — 제목 한 줄, 입력·버튼 한 줄, 가운데 정렬 */
 .tl-edit {
-  margin: 2px 0 12px calc(var(--day) + 10px);
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 2px auto 12px;
   padding: 22px 24px 24px;
   border-radius: 16px;
   background: var(--paper);
   box-shadow: 0 0 0 2px var(--accent), 0 10px 28px rgb(0 0 0 / 0.08);
   animation: tl-edit-in 0.18s ease-out;
+}
+/* 상자 너비는 입력·버튼 줄에 맞추고, 제목은 그 위 가운데에 얹는다 */
+.tl-edit {
+  position: relative;
 }
 .tl-edit .slot-form {
   flex-direction: row;
@@ -5076,10 +5083,14 @@ td.name {
   align-items: center;
   justify-content: center;
   gap: 12px;
+  padding-top: 38px;
 }
 .tl-edit .staff-title {
-  flex-basis: 100%;
-  margin: 0 0 4px;
+  position: absolute;
+  top: 22px;
+  left: 0;
+  right: 0;
+  margin: 0;
   text-align: center;
   font-size: 17px;
 }
@@ -5112,7 +5123,7 @@ td.name {
   font-size: 15px;
   font-weight: 700;
 }
-.tl-edit .error {
+.tl-edit .slot-form > .error {
   flex-basis: 100%;
   order: 9;
   margin: 0;
