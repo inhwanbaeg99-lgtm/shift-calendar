@@ -2778,13 +2778,15 @@ function renderScheduleSheet({ wide = false } = {}) {
   const pct = (min) => `${(((min - first * 60) / span) * 100).toFixed(3)}%`;
   const hours = Array.from({ length: last - first }, (_, i) => first + i);
   const step = compact ? 2 : 1; // 휴대폰은 2시간마다 글자
+  // 컴퓨터: 근무 입력칸은 누른 요일 바로 아래에 (휴대폰은 아래에서 올라오는 창)
+  const inlineEdit = Boolean(ed) && !wide && isDesktop();
 
   const axis = [...hours, last]
     .map((h, i) => (i % step ? "" : `<span style="left:${pct(h * 60)}">${h % 24}${compact ? "" : ":00"}</span>`))
     .join("");
   const lines = hours.slice(1).map((h) => `<i style="left:${pct(h * 60)}"></i>`).join("");
   const rows = days
-    .map(({ wd, items, lanes, hours: h }) => {
+    .map(({ wd, items, lanes }) => {
       // 빈 곳을 누르면 그 시각으로 추가
       const slots = hours
         .map((hh) => `<div class="tl-slot" data-action="edit-slot" data-wd="${wd}" data-start="${(hh % 24) * 60}" aria-label="${WEEKDAYS[wd]}요일 ${hh % 24}시 근무자 추가"></div>`)
@@ -2803,9 +2805,9 @@ function renderScheduleSheet({ wide = false } = {}) {
         .join("");
       return `
         <div class="tl-row${wd === 0 ? " sun" : wd === 6 ? " sat" : ""}">
-          <div class="tl-day"><b>${WEEKDAYS[wd]}</b><small>${items.length ? (compact ? `${items.length}명` : `${items.length}명 · ${hoursText(h)}`) : "-"}</small></div>
+          <div class="tl-day"><b>${WEEKDAYS[wd]}</b></div>
           <div class="tl-track" style="--lanes:${lanes}"><div class="tl-lines">${lines}</div><div class="tl-slots">${slots}</div>${bars}</div>
-        </div>`;
+        </div>${inlineEdit && String(ed.wd) === String(wd) ? `<div class="tl-edit" id="tl-edit" data-html2canvas-ignore>${renderSlotPanel()}</div>` : ""}`;
     })
     .join("");
   const legend = people
@@ -2855,12 +2857,10 @@ function revealSlotPanel() {
     document.getElementById(state.slotEdit?.empId || state.slotEdit?.fixedEmp ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
     return;
   }
-  const panel = document.querySelector(".sched-panel");
+  const panel = document.getElementById("tl-edit");
   if (!panel) return;
   const { top, bottom } = panel.getBoundingClientRect();
-  // 패널이 표 아래에 있으면(좁은 화면) 항상 제목이 맨 위로 오게 — 키보드가 올라와도 입력칸이 가리지 않게
-  const below = window.matchMedia("(max-width: 1099px)").matches;
-  if (below || top < 0 || bottom > window.innerHeight) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (top < 0 || bottom > window.innerHeight) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   document.getElementById(state.slotEdit?.empId || state.slotEdit?.fixedEmp ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
 }
 
@@ -2876,15 +2876,10 @@ function renderSchedule() {
   return renderAdminShell(
     "schedule",
     `
-    <div class="sched-layout">
-      <div class="sched-main">
-        <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
-        ${isDesktop() ? schedHelp() : ""}
-      </div>
-      <div class="sched-side${state.slotEdit ? " editing" : ""}">
-        <div id="sched-status">${renderSchedStatus()}</div>
-        <aside class="sched-panel">${renderSlotPanel()}</aside>
-      </div>
+    <div class="sched-main">
+      <div id="sched-status">${renderSchedStatus()}</div>
+      <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
+      ${schedHelp()}
     </div>`,
     { center: true, wide: true },
   );
@@ -2971,7 +2966,19 @@ function liveSlot({ final = false } = {}) {
 
 function refreshSchedule() {
   const scroll = document.getElementById("sched-scroll");
-  if (scroll) scroll.innerHTML = renderScheduleSheet();
+  if (scroll) {
+    // 요일 아래 입력칸은 그대로 옮겨 붙인다 (다시 그리면 입력 중인 글자·커서가 사라지므로)
+    const form = document.getElementById("tl-edit");
+    const focused = form?.contains(document.activeElement) ? document.activeElement : null;
+    const caret = focused && "selectionStart" in focused ? [focused.selectionStart, focused.selectionEnd] : null;
+    scroll.innerHTML = renderScheduleSheet();
+    const slot = document.getElementById("tl-edit");
+    if (form && slot) {
+      slot.replaceWith(form);
+      focused?.focus({ preventScroll: true });
+      if (caret) focused.setSelectionRange(...caret);
+    }
+  }
   const dayList = document.getElementById("sched-day-list");
   if (dayList) dayList.innerHTML = renderDayShifts();
   const status = document.getElementById("sched-status");

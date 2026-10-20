@@ -5056,3 +5056,74 @@ td.name {
   }
 }
 
+
+/* 근무표: 누른 요일 바로 아래에 나오는 근무 입력칸 (컴퓨터) */
+.tl-edit {
+  margin: 0 0 8px calc(var(--day) + 10px);
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 0 0 0 2px var(--accent), 0 8px 24px rgb(0 0 0 / 0.08);
+  animation: tl-edit-in 0.18s ease-out;
+}
+.tl-edit .slot-form {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.tl-edit .staff-title {
+  margin: 0 6px 0 0;
+  font-size: 15px;
+}
+.tl-edit .slot-form .field {
+  width: auto;
+}
+.tl-edit #slot-emp {
+  min-width: 140px;
+}
+.tl-edit .edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 230px;
+}
+.tl-edit .action-row {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+}
+.tl-edit .slot-form .field {
+  height: 42px;
+}
+.tl-edit .action-row button,
+.tl-edit .slot-remove {
+  width: auto;
+  height: 42px;
+  padding: 0 22px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.sched-main > #sched-status .sched-status {
+  margin: 0 4px 10px;
+}
+.tl-edit .slot-remove {
+  margin-left: auto;
+}
+.tl-edit .error {
+  flex-basis: 100%;
+  order: 9;
+  margin: 0;
+}
+@keyframes tl-edit-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-edit {
+    animation: none;
+  }
+}
