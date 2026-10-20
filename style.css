@@ -4492,168 +4492,154 @@ td.name {
   }
 }
 
-/* ---------- 근무표: 주간 캘린더 (위 요일, 왼쪽 시각, 근무는 블록) ---------- */
-.wk {
-  --hh: 44px; /* 한 시간 높이 */
-  --gut: 52px;
+/* ---------- 근무표: 가로 타임라인 (요일이 줄, 시간이 가로) ---------- */
+.tl {
+  --lh: 46px; /* 근무 한 줄 높이 */
+  --day: 76px;
   color: var(--ink);
   letter-spacing: 0;
 }
-.wk-head,
-.wk-body,
-.wk-memo {
+.tl-axis,
+.tl-row {
   display: grid;
-  grid-template-columns: var(--gut) repeat(7, minmax(0, 1fr));
-  column-gap: 6px;
+  grid-template-columns: var(--day) minmax(0, 1fr);
+  column-gap: 10px;
 }
-.wk-day {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 0 10px;
+.tl-hours {
+  position: relative;
+  height: 24px;
 }
-.wk-day b {
-  font-size: 15px;
-  font-weight: 700;
-}
-.wk-day small {
+.tl-hours span {
+  position: absolute;
+  bottom: 6px;
+  transform: translateX(-50%);
   font-size: 12px;
   font-weight: 600;
   color: var(--ink-sub);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.wk-day.sat b {
-  color: #3182f6;
-}
-.wk-day.sun b {
-  color: var(--red);
-}
-.wk-body {
-  position: relative;
-  height: calc(var(--hh) * var(--rows));
-}
-.wk-gutter {
-  position: relative;
-}
-.wk-gutter span {
-  display: block;
-  height: var(--hh);
-  padding-right: 8px;
-  transform: translateY(-0.6em);
-  text-align: right;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-sub);
-  font-variant-numeric: tabular-nums;
-}
-.wk-gutter span:first-child {
+.tl-hours span:first-child {
   transform: none;
 }
-.wk-col {
+.tl-hours span:last-child {
+  transform: translateX(-100%);
+}
+.tl-row {
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+}
+.tl-day {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--lh);
+}
+.tl-day b {
+  font-size: 16px;
+  font-weight: 700;
+}
+.tl-day small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  font-variant-numeric: tabular-nums;
+}
+.tl-row.sat .tl-day b {
+  color: #3182f6;
+}
+.tl-row.sun .tl-day b {
+  color: var(--red);
+}
+.tl-track {
   position: relative;
+  height: calc(var(--lh) * var(--lanes));
   border-radius: 12px;
   background: var(--bg);
-  overflow: hidden;
 }
-.wk-slot {
-  height: var(--hh);
-  border-top: 1px solid var(--line);
+.tl-lines i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+.tl-slots {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.tl-slot {
+  flex: 1;
   cursor: pointer;
   transition: background 0.15s;
 }
-.wk-slot:first-child {
-  border-top: 0;
+.tl-slot:first-child {
+  border-radius: 12px 0 0 12px;
 }
-.wk-slot:hover {
+.tl-slot:last-child {
+  border-radius: 0 12px 12px 0;
+}
+.tl-slot:hover {
   background: var(--accent-soft);
 }
-.wk-shift {
+.tl-bar {
   position: absolute;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 3px 3px 0;
+  height: var(--lh);
+  padding: 4px 2px;
   box-sizing: border-box;
   cursor: pointer;
 }
-.wk-shift::before {
+.tl-bar::before {
   content: "";
   position: absolute;
-  inset: 3px;
-  border-radius: 9px;
+  inset: 4px 2px;
+  border-radius: 10px;
   background: var(--c);
   box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.16), 0 1px 2px rgb(0 0 0 / 0.06);
-  transition: box-shadow 0.15s, transform 0.15s;
+  transition: box-shadow 0.15s;
 }
-.wk-shift b,
-.wk-shift small {
+.tl-bar b,
+.tl-bar small {
   position: relative;
-  padding: 0 6px 0 10px;
-  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: calc(var(--lh) - 8px);
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
-.wk-shift b {
-  margin-top: 5px;
+.tl-bar b {
+  padding-left: 12px;
   font-size: 15px;
   font-weight: 700;
 }
-.wk-shift small {
+.tl-bar small {
+  padding-left: 8px;
   font-size: 13px;
   font-weight: 600;
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
 }
-.wk-shift.short {
-  flex-direction: row;
-  align-items: center;
-  gap: 0;
+.tl-bar {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.wk-shift.short b {
-  margin-top: 0;
-}
-.wk-shift.short small {
-  padding-left: 0;
-}
-.wk-shift:hover::before,
-.wk-shift.sc-editing::before {
+.tl-bar:hover::before,
+.tl-bar.sc-editing::before {
   box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.16), 0 0 0 2px var(--accent), 0 6px 16px rgb(0 0 0 / 0.12);
 }
-.wk-shift:focus-visible {
+.tl-bar:focus-visible {
   outline: none;
 }
-.wk-shift:focus-visible::before {
+.tl-bar:focus-visible::before {
   box-shadow: 0 0 0 2px var(--accent);
 }
-.wk-memo {
-  margin-top: 8px;
-  align-items: center;
+.sched-sheet.capturing .tl-bar::before {
+  box-shadow: none;
 }
-.wk-memo span {
-  padding-right: 8px;
-  text-align: right;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-sub);
-}
-.wk-note {
-  min-width: 0;
-  width: 100%;
-  box-sizing: border-box;
-  border: 0;
-  border-radius: 8px;
-  padding: 7px 4px;
-  background: var(--bg);
-  font: inherit;
-  font-size: 12px;
-  text-align: center;
-  color: var(--ink);
-  outline: none;
-}
-.wk-note:focus {
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
+
+/* 직원별 한 주 시간 */
 .wk-legend {
   display: flex;
   flex-wrap: wrap;
@@ -4684,93 +4670,42 @@ td.name {
   color: var(--ink-sub);
   font-variant-numeric: tabular-nums;
 }
-.sched-sheet.capturing .wk-note {
-  background: none;
-}
-.sched-sheet.capturing .wk-shift::before {
-  box-shadow: none;
-}
-
-/* 겹친 근무: 반 칸이면 시간을 두 줄로, 1/3 칸 이하면 이름만 (두 줄까지) */
-.wk-shift.n2 small,
-.wk-shift.n3 small {
-  display: flex;
-  flex-direction: column;
-}
-.wk-shift.n2 b {
-  font-size: 14px;
-}
-.wk-shift.n2 b,
-.wk-shift.n2 small {
-  padding-left: 9px;
-  padding-right: 4px;
-  text-overflow: clip;
-}
-.wk-shift.n2 small {
-  font-size: 12px;
-}
-.wk-shift.n3 small {
-  display: none;
-}
-.wk-shift.n3 b {
-  padding: 0 0 0 6px;
-  font-size: 12px;
-  white-space: normal;
-  word-break: break-all;
-  line-height: 1.2;
-}
-.wk-shift.short.n2 small,
-.wk-shift.short.n3 small {
-  display: none;
-}
 
 /* 휴대폰: 한 화면 너비에 맞게 */
-.wk.compact {
-  --hh: 30px;
-  --gut: 22px;
+.tl.compact {
+  --lh: 32px;
+  --day: 30px;
 }
-.wk.compact .wk-head,
-.wk.compact .wk-body,
-.wk.compact .wk-memo {
-  column-gap: 3px;
+.tl.compact .tl-axis,
+.tl.compact .tl-row {
+  column-gap: 4px;
 }
-.wk.compact .wk-day b {
-  font-size: 13px;
-}
-.wk.compact .wk-day small,
-.wk.compact .wk-gutter span,
-.wk.compact .wk-memo span {
+.tl.compact .tl-hours span {
   font-size: 10px;
 }
-.wk.compact .wk-gutter span {
-  padding-right: 4px;
+.tl.compact .tl-day b {
+  font-size: 13px;
 }
-.wk.compact .wk-col {
+.tl.compact .tl-day small {
+  font-size: 10px;
+}
+.tl.compact .tl-track {
   border-radius: 8px;
 }
-.wk.compact .wk-shift {
-  padding: 2px 1px 0;
+.tl.compact .tl-bar {
+  padding: 3px 1px;
 }
-.wk.compact .wk-shift::before {
-  inset: 2px 1px;
+.tl.compact .tl-bar::before {
+  inset: 3px 1px;
   border-radius: 6px;
   box-shadow: inset 2px 0 0 rgb(0 0 0 / 0.16);
 }
-.wk.compact .wk-shift b {
-  margin-top: 3px;
-  padding: 0 2px 0 5px;
+.tl.compact .tl-bar b {
+  padding-left: 6px;
   font-size: 11px;
-  text-overflow: clip;
+  line-height: calc(var(--lh) - 6px);
 }
-.wk.compact .wk-memo span {
-  padding-right: 2px;
-  font-size: 9px;
-}
-.wk.compact .wk-note {
-  padding: 5px 0;
-  font-size: 10px;
-}
-.wk.compact ~ .wk-legend li {
+.tl.compact ~ .wk-legend li {
   padding: 4px 8px;
   font-size: 12px;
 }
@@ -5123,13 +5058,3 @@ td.name {
   }
 }
 
-
-/* 휴대폰 근무표: 나란히 놓인 좁은 블록은 이름을 줄바꿈해서 다 보이게 */
-.wk.compact .wk-shift.n2 b,
-.wk.compact .wk-shift.n3 b {
-  padding: 0 0 0 4px;
-  font-size: 10px;
-  white-space: normal;
-  word-break: break-all;
-  line-height: 1.15;
-}

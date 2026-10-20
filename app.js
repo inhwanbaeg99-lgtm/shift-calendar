@@ -2734,38 +2734,21 @@ function promoteDueTrainees() {
   if (due.length) save();
 }
 
-// 근무표: 주간 캘린더 모양 — 위는 요일, 왼쪽은 시각, 근무는 시간 길이만큼의 둥근 블록
+// 근무표: 가로 타임라인 — 요일이 줄, 시간이 가로. 겹치는 근무는 그 요일 아래에 한 줄씩 더 쌓는다
 const shiftHours = (r) => hoursBetween(kstIso("2026-01-05", r.start), endIso("2026-01-05", r.start, r.end));
 const hoursText = (n) => `${Number(n.toFixed(1))}h`;
 
-// 요일 하나의 근무를 겹치는 묶음마다 나란히 놓는다 (lane = 몇 번째 줄, lanes = 그 묶음의 줄 수)
+// 요일 하나의 근무를 줄(lane)에 나눠 담는다: 시작 순으로, 앞 근무가 끝난 줄에 이어 붙인다
 function placeShifts(list) {
   const items = list.slice().sort((a, b) => a.start - b.start || b.end - a.end);
-  let group = [];
-  let groupEnd = -1;
-  const flush = () => {
-    const ends = [];
-    for (const it of group) {
-      let lane = ends.findIndex((end) => end <= it.start);
-      if (lane < 0) lane = ends.length;
-      ends[lane] = it.end;
-      it.lane = lane;
-    }
-    for (const it of group) {
-      it.lanes = ends.length;
-      // 오른쪽 줄들이 이 시간에 비어 있으면 그만큼 넓힌다
-      it.span = 1;
-      while (it.lane + it.span < it.lanes && !group.some((o) => o.lane === it.lane + it.span && o.start < it.end && o.end > it.start)) it.span += 1;
-    }
-    group = [];
-  };
+  const ends = [];
   for (const it of items) {
-    if (group.length && it.start >= groupEnd) flush();
-    group.push(it);
-    groupEnd = Math.max(groupEnd, it.end);
+    let lane = ends.findIndex((end) => end <= it.start);
+    if (lane < 0) lane = ends.length;
+    ends[lane] = it.end;
+    it.lane = lane;
   }
-  flush();
-  return items;
+  return { items, lanes: Math.max(1, ends.length) };
 }
 
 function renderScheduleSheet({ wide = false } = {}) {
@@ -2786,45 +2769,45 @@ function renderScheduleSheet({ wide = false } = {}) {
         week.set(e.id, week.get(e.id) + h);
         return { e, r, start, end, h };
       });
-    return { wd, items: placeShifts(list), hours: list.reduce((sum, it) => sum + it.h, 0) };
+    return { wd, ...placeShifts(list), hours: list.reduce((sum, it) => sum + it.h, 0) };
   });
   const all = days.flatMap((d) => d.items);
   const first = all.length ? Math.floor(Math.min(...all.map((it) => it.start)) / 60) : 9;
   const last = all.length ? Math.ceil(Math.max(...all.map((it) => it.end)) / 60) : 18;
+  const span = (last - first) * 60;
+  const pct = (min) => `${(((min - first * 60) / span) * 100).toFixed(3)}%`;
   const hours = Array.from({ length: last - first }, (_, i) => first + i);
-  const at = (min) => (min / 60 - first).toFixed(3);
+  const step = compact ? 2 : 1; // 휴대폰은 2시간마다 글자
 
-  const head = days
-    .map(({ wd, items, hours: h }) => `
-        <div class="wk-day${wd === 0 ? " sun" : wd === 6 ? " sat" : ""}">
-          <b>${WEEKDAYS[wd]}</b><small>${items.length ? (compact ? `${items.length}명` : `${items.length}명 · ${hoursText(h)}`) : "-"}</small>
-        </div>`)
+  const axis = [...hours, last]
+    .map((h, i) => (i % step ? "" : `<span style="left:${pct(h * 60)}">${h % 24}${compact ? "" : ":00"}</span>`))
     .join("");
-  const cols = days
-    .map(({ wd, items }) => {
+  const lines = hours.slice(1).map((h) => `<i style="left:${pct(h * 60)}"></i>`).join("");
+  const rows = days
+    .map(({ wd, items, lanes, hours: h }) => {
+      // 빈 곳을 누르면 그 시각으로 추가
       const slots = hours
-        .map((h) => `<div class="wk-slot" data-action="edit-slot" data-wd="${wd}" data-start="${(h % 24) * 60}" aria-label="${WEEKDAYS[wd]}요일 ${h % 24}시 근무자 추가"></div>`)
+        .map((hh) => `<div class="tl-slot" data-action="edit-slot" data-wd="${wd}" data-start="${(hh % 24) * 60}" aria-label="${WEEKDAYS[wd]}요일 ${hh % 24}시 근무자 추가"></div>`)
         .join("");
-      const blocks = items
+      const bars = items
         .map((it) => {
           const bg = cssColor(it.e.color);
           const editing = ed && String(ed.wd) === String(wd) && (ed.empId ?? ed.addEmpId) === it.e.id;
-          const short = it.end - it.start < 90;
-          // 같은 시간에 여러 명이면 나란히 나눠 쓴다 (좁으면 시간을 두 줄로, 아주 좁으면 이름만)
-          const frac = it.span / it.lanes;
-          const narrow = frac <= 1 / 3 ? " n3" : frac <= 1 / 2 ? " n2" : "";
+          const tight = (it.end - it.start) / span < (compact ? 0.2 : 0.14); // 짧은 근무는 이름만
           return `
-            <div class="wk-shift${editing ? " sc-editing" : ""}${short ? " short" : ""}${narrow}" role="button" tabindex="0" data-action="edit-slot" data-wd="${wd}" data-id="${it.e.id}" data-start="${it.start}"
-              style="top:calc(var(--hh) * ${at(it.start)});height:calc(var(--hh) * ${((it.end - it.start) / 60).toFixed(3)});left:${(it.lane / it.lanes) * 100}%;width:${frac * 100}%;--c:${bg};color:${textOn(bg)}"
-              title="${esc(it.e.name)} ${it.r.start}~${it.r.end}">
-              <b>${esc(it.e.name)}</b>${compact ? "" : `<small><span>${it.r.start}</span><span>~${it.r.end}</span></small>`}
+            <div class="tl-bar${editing ? " sc-editing" : ""}" role="button" tabindex="0" data-action="edit-slot" data-wd="${wd}" data-id="${it.e.id}" data-start="${it.start}"
+              style="left:${pct(it.start)};width:${pct(it.end - it.start + first * 60)};top:calc(var(--lh) * ${it.lane});--c:${bg};color:${textOn(bg)}" title="${esc(it.e.name)} ${it.r.start}~${it.r.end}">
+              <b>${esc(it.e.name)}</b>${compact || tight ? "" : `<small>${it.r.start}~${it.r.end}</small>`}
             </div>`;
         })
         .join("");
-      return `<div class="wk-col${wd === 0 || wd === 6 ? " weekend" : ""}">${slots}${blocks}</div>`;
+      return `
+        <div class="tl-row${wd === 0 ? " sun" : wd === 6 ? " sat" : ""}">
+          <div class="tl-day"><b>${WEEKDAYS[wd]}</b><small>${items.length ? (compact ? `${items.length}명` : `${items.length}명 · ${hoursText(h)}`) : "-"}</small></div>
+          <div class="tl-track" style="--lanes:${lanes}"><div class="tl-lines">${lines}</div><div class="tl-slots">${slots}</div>${bars}</div>
+        </div>`;
     })
     .join("");
-  const gutter = hours.map((h) => `<span>${h % 24}${compact ? "" : ":00"}</span>`).join("");
   const legend = people
     .filter((e) => week.get(e.id))
     .map((e) => `<li><i style="background:${cssColor(e.color)}"></i>${esc(e.name)}<small>${hoursText(week.get(e.id))}</small></li>`)
@@ -2846,9 +2829,9 @@ function renderScheduleSheet({ wide = false } = {}) {
         ${compact ? "" : actions}
       </div>
       ${compact ? `<div class="sc-help" data-html2canvas-ignore>${schedHelp()}</div>` : ""}
-      <div class="wk${compact ? " compact" : ""}" style="--rows:${hours.length}">
-        <div class="wk-head"><div class="wk-corner"></div>${head}</div>
-        <div class="wk-body"><div class="wk-gutter">${gutter}</div>${cols}</div>
+      <div class="tl${compact ? " compact" : ""}">
+        <div class="tl-axis"><div></div><div class="tl-hours">${axis}</div></div>
+        ${rows}
       </div>
       ${legend ? `<ul class="wk-legend">${legend}</ul>` : ""}
       ${compact ? actions : ""}
@@ -2859,7 +2842,7 @@ function renderScheduleSheet({ wide = false } = {}) {
 function schedHelp() {
   return helpToggle(
     "schedule",
-    `근무 블록을 누르면 수정·삭제, 빈 곳을 누르면 그 시각에 근무자를 추가해요. ${isDesktop() ? "옆에서" : "아래에서"} 입력하면 표에 바로 보여요.<br />
+    `근무 막대를 누르면 수정·삭제, 빈 곳을 누르면 그 시각에 근무자를 추가해요. ${isDesktop() ? "옆에서" : "아래에서"} 입력하면 표에 바로 보여요.<br />
     <b>저장</b>하면 직원 관리·달력·근무 기록에 반영되고, <b>임시저장</b>은 반영하지 않고 고친 내용만 보관해요.<br />
     지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간도 눌러서 고칠 수 있어요.`,
   );
@@ -2912,7 +2895,7 @@ function renderSlotPanel() {
   if (!ed) {
     return `
       <p class="staff-title">근무 수정</p>
-      <p class="sub">근무표에서 근무 블록이나 빈 곳을 누르면 여기서 시간을 입력할 수 있어요.</p>`;
+      <p class="sub">근무표에서 근무 막대나 빈 곳을 누르면 여기서 시간을 입력할 수 있어요.</p>`;
   }
   const empId = ed.empId ?? ed.addEmpId;
   const emp = empId ? employeeById(empId) : null;
