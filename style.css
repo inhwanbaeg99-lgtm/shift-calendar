@@ -4491,3 +4491,215 @@ td.name {
     margin-bottom: 16px;
   }
 }
+
+/* ---------- 근무표: 줄 = 직원, 칸 = 요일 ---------- */
+.roster {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.roster th,
+.roster td {
+  padding: 4px;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.roster thead th {
+  height: 36px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-sub);
+  border-bottom: 2px solid var(--line);
+}
+.roster thead th.sat {
+  color: #3182f6;
+}
+.roster thead th.sun {
+  color: var(--red);
+}
+.roster .rs-corner,
+.roster tbody th,
+.roster tfoot th {
+  width: 116px;
+  text-align: left;
+  padding-left: 6px;
+}
+.roster .rs-week {
+  width: 64px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.roster tbody th.rs-name {
+  height: 52px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.roster tbody th.rs-name {
+  text-overflow: ellipsis;
+}
+.rs-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+}
+.rs-name em {
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+.roster td.rs-cell {
+  cursor: pointer;
+}
+.rs-chip {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  height: 42px;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.05);
+  transition: box-shadow 0.15s;
+}
+.rs-chip b {
+  font-size: 13px;
+  font-weight: 700;
+}
+.rs-chip small {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.rs-plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px dashed transparent;
+  font-size: 18px;
+  font-weight: 500;
+  color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.roster td.rs-cell:hover .rs-chip,
+.roster td.sc-editing .rs-chip {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.roster td.rs-off:hover .rs-plus,
+.roster td.rs-off.sc-editing .rs-plus {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.roster tfoot th,
+.roster tfoot td {
+  height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  font-variant-numeric: tabular-nums;
+}
+.roster tfoot .rs-total th,
+.roster tfoot .rs-total td {
+  border-top: 1px solid var(--line);
+}
+.roster tfoot .rs-total .rs-week {
+  color: var(--ink);
+}
+.roster tfoot tr:last-child th,
+.roster tfoot tr:last-child td {
+  border-bottom: 0;
+}
+.roster .sc-note input {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 4px;
+  background: var(--bg);
+  font: inherit;
+  text-align: center;
+  color: var(--ink);
+  outline: none;
+}
+.roster .sc-note input:focus {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.rs-none {
+  height: 80px;
+  color: var(--ink-sub);
+}
+.sched-sheet.capturing .rs-plus {
+  display: none;
+}
+.sched-sheet.capturing .sc-note input {
+  background: none;
+}
+.sched-sheet.capturing .rs-chip {
+  box-shadow: none !important;
+}
+
+/* 휴대폰: 한 화면 너비에 맞게 줄임 */
+.roster.compact {
+  font-size: 11px;
+}
+.roster.compact th,
+.roster.compact td {
+  padding: 3px 1px;
+}
+.roster.compact thead th {
+  height: 28px;
+  font-size: 12px;
+}
+.roster.compact .rs-corner,
+.roster.compact tbody th,
+.roster.compact tfoot th {
+  width: 52px;
+  padding-left: 2px;
+}
+.roster.compact .rs-week {
+  width: 36px;
+  font-size: 11px;
+}
+.roster.compact tbody th.rs-name {
+  height: 44px;
+  font-size: 12px;
+}
+.roster.compact .rs-dot {
+  display: none;
+}
+.roster.compact .rs-chip,
+.roster.compact .rs-plus {
+  height: 36px;
+  border-radius: 7px;
+}
+.roster.compact .rs-chip b {
+  font-size: 11px;
+}
+.roster.compact tfoot th,
+.roster.compact tfoot td {
+  font-size: 10px;
+}
+.roster.compact .sc-note input {
+  padding: 4px 0;
+  font-size: 10px;
+}

@@ -1816,82 +1816,56 @@ function commitSchedule() {
   save();
 }
 
-function scheduleLayout() {
-  const order = new Map(store.employees.map((e, i) => [e.id, i]));
-  const days = SCHEDULE_DAYS.map((wd) => {
-    const people = store.employees
-      .map((e) => ({ e, w: effWeekly(e)[wd] }))
-      .filter(({ e, w }) => e.active && w)
-      .map(({ e, w }) => ({ emp: e, start: toMin(w.start), end: toMin(w.end) }))
-      .sort((a, b) => a.start - b.start || order.get(a.emp.id) - order.get(b.emp.id));
-    const cols = [];
-    for (const p of people) {
-      const col = cols.find((c) => c[c.length - 1].end <= p.start);
-      if (col) col.push(p);
-      else cols.push([p]);
-    }
-    while (cols.length < 2) cols.push([]);
-    return { wd, cols };
-  });
-
-  // 행 경계: 정시 + 누군가 시작/끝나는 시각
-  const all = days.flatMap((d) => d.cols.flat());
-  const first = Math.floor(Math.min(...all.map((p) => p.start), 7 * 60) / 60) * 60;
-  const last = Math.max(...all.map((p) => p.end), 23 * 60);
-  const marks = new Set();
-  for (let t = first; t <= last; t += 60) marks.add(t);
-  all.forEach((p) => marks.add(p.start).add(p.end));
-  marks.add(last);
-  const bounds = [...marks].filter((t) => t <= last).sort((a, b) => a - b);
-  const rows = bounds.slice(0, -1).map((start, i) => ({ start, end: bounds[i + 1] }));
-  return { days, rows };
-}
+// 근무표: 줄 = 직원, 칸 = 요일 (많이 쓰는 주간 근무표 모양)
+const shiftHours = (r) => hoursBetween(kstIso("2026-01-05", r.start), endIso("2026-01-05", r.start, r.end));
+const hoursText = (n) => `${Number(n.toFixed(1))}h`;
 
 function renderScheduleSheet() {
-  const { days, rows } = scheduleLayout();
   const meta = schedMeta();
   const compact = !isDesktop();
-  const occupant = (col, row) => col.find((p) => p.start <= row.start && p.end >= row.end);
-  // 같은 정시(예: 22:00~22:30, 22:30~23:00)에 속한 행들은 같은 사람이면 한 칸으로 합친다
-  const hourOf = (row) => Math.floor(row.start / 60);
+  const ed = state.slotEdit;
+  const people = store.employees.filter((e) => e.active);
+  const dayTotal = Object.fromEntries(SCHEDULE_DAYS.map((wd) => [wd, { n: 0, h: 0 }]));
 
-  const body = rows
-    .map((row, i) => {
-      const cells = days
-        .map((d) =>
-          d.cols
-            .map((col) => {
-              const who = occupant(col, row);
-              const group = rows.filter((r) => hourOf(r) === hourOf(row));
-              const gi = group.indexOf(row);
-              const sameAll = Boolean(who) && group.length > 1 && group.every((r) => occupant(col, r) === who);
-              if (sameAll && gi > 0) return "";
-              const span = sameAll ? ` rowspan="${group.length}"` : "";
-              const slot = `data-action="edit-slot" data-wd="${d.wd}" data-start="${row.start}"`;
-              if (!who) return `<td class="sc-empty" ${slot}${span}></td>`;
-              const bg = cssColor(who.emp.color);
-              const ed = state.slotEdit;
-              const editing = ed && String(ed.wd) === String(d.wd) && (ed.empId ?? ed.addEmpId) === who.emp.id;
-              // 휴대폰: 칸이 좁아 이름 대신 색만 (누구인지는 아래 색 안내)
-              const label = compact ? "" : esc(who.emp.name);
-              return `<td class="sc-name${editing ? " sc-editing" : ""}" ${slot} data-id="${who.emp.id}"${span} style="background:${bg};color:${textOn(bg)}"${compact ? ` title="${esc(who.emp.name)}" aria-label="${esc(who.emp.name)}"` : ""}>${label}</td>`;
-            })
-            .join(""),
-        )
-        .join("");
-      // 시간 칸: "7:00 ~ 8:00" (휴대폰은 칸이 좁아 "7~8")
-      const time = compact ? `${shortTime(fromMin(row.start))}~${shortTime(fromMin(row.end))}` : `${fromMin(row.start)} ~ ${fromMin(row.end)}`;
-      return `<tr><td class="sc-time">${time}</td>${cells}</tr>`;
+  const body = people
+    .map((e) => {
+      const w = effWeekly(e);
+      let week = 0;
+      const cells = SCHEDULE_DAYS.map((wd) => {
+        const r = w[wd];
+        const editing = ed && String(ed.wd) === String(wd) && (ed.empId ?? ed.addEmpId) === e.id;
+        const cls = `${wd === 0 ? " sun" : wd === 6 ? " sat" : ""}${editing ? " sc-editing" : ""}`;
+        if (!r) {
+          return `<td class="rs-cell rs-off${cls}" data-action="edit-slot" data-wd="${wd}" data-add="${e.id}" data-start="540" aria-label="${esc(e.name)} ${WEEKDAYS[wd]}요일 근무 추가"><span class="rs-plus">+</span></td>`;
+        }
+        const h = shiftHours(r);
+        week += h;
+        dayTotal[wd].n += 1;
+        dayTotal[wd].h += h;
+        const bg = cssColor(e.color);
+        const label = compact
+          ? `<b>${shortTime(r.start)}</b><b>${shortTime(r.end)}</b>`
+          : `<b>${r.start}~${r.end}</b><small>${hoursText(h)}</small>`;
+        return `<td class="rs-cell${cls}" data-action="edit-slot" data-wd="${wd}" data-id="${e.id}" data-start="${toMin(r.start)}"><span class="rs-chip" style="background:${bg};color:${textOn(bg)}">${label}</span></td>`;
+      }).join("");
+      return `
+        <tr>
+          <th scope="row" class="rs-name"><span class="rs-dot" style="background:${cssColor(e.color)}"></span><span>${esc(e.name)}${isManager(e) && !compact ? `<em>매니저</em>` : ""}</span></th>
+          ${cells}
+          <td class="rs-week">${week ? hoursText(week) : "-"}</td>
+        </tr>`;
     })
     .join("");
 
-  const head = days
-    .map((d) => `<th colspan="${d.cols.length}" class="${d.wd === 0 || d.wd === 6 ? "sc-rest" : ""}">${WEEKDAYS[d.wd]}</th>`)
-    .join("");
-  const notes = days
-    .map((d) => `<td colspan="${d.cols.length}" class="sc-note"><input value="${esc(meta.notes?.[d.wd] ?? "")}" data-note="${d.wd}" aria-label="${WEEKDAYS[d.wd]}요일 비고" /></td>`)
-    .join("");
-  // 휴대폰에서는 표·색 안내 아래에
+  const head = SCHEDULE_DAYS.map((wd) => `<th class="${wd === 0 ? "sun" : wd === 6 ? "sat" : ""}">${WEEKDAYS[wd]}</th>`).join("");
+  const totals = SCHEDULE_DAYS.map((wd) => {
+    const t = dayTotal[wd];
+    return `<td>${t.n ? (compact ? `${t.n}명` : `${t.n}명 · ${hoursText(t.h)}`) : "-"}</td>`;
+  }).join("");
+  const allHours = SCHEDULE_DAYS.reduce((sum, wd) => sum + dayTotal[wd].h, 0);
+  const notes = SCHEDULE_DAYS.map(
+    (wd) => `<td class="sc-note"><input value="${esc(meta.notes?.[wd] ?? "")}" data-note="${wd}" aria-label="${WEEKDAYS[wd]}요일 메모" /></td>`,
+  ).join("");
   const actions = `
         <div class="sc-actions" data-html2canvas-ignore>
           <button type="button" class="pill plain-dark" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
@@ -1909,14 +1883,17 @@ function renderScheduleSheet() {
         ${compact ? "" : actions}
       </div>
       ${compact ? `<div class="sc-help" data-html2canvas-ignore>${schedHelp()}</div>` : ""}
-      <table class="sched modern${compact ? " compact" : ""}">
-        <thead><tr><th>시간</th>${head}</tr></thead>
+      <table class="roster${compact ? " compact" : ""}">
+        <thead><tr><th class="rs-corner">직원</th>${head}<th class="rs-week">주간</th></tr></thead>
         <tbody>
-          ${body}
-          <tr class="sc-foot"><td>비고</td>${notes}</tr>
+          ${body || `<tr><td class="rs-none" colspan="9">직원 관리에서 직원을 먼저 등록해주세요.</td></tr>`}
         </tbody>
+        <tfoot>
+          <tr class="rs-total"><th scope="row">근무 인원</th>${totals}<td class="rs-week">${allHours ? hoursText(allHours) : "-"}</td></tr>
+          <tr class="rs-memo"><th scope="row">메모</th>${notes}<td></td></tr>
+        </tfoot>
       </table>
-      ${compact ? renderSchedLegend(days) + actions : ""}
+      ${compact ? actions : ""}
       <p class="sc-brand">${esc(storeName())} · ${todayDateString().replaceAll("-", ".")} 출력 · 품</p>
     </div>`;
 }
@@ -1924,9 +1901,9 @@ function renderScheduleSheet() {
 function schedHelp() {
   return helpToggle(
     "schedule",
-    `${isDesktop() ? "이름 칸을 누르면 시간 수정·삭제, 회색 빈 칸을 누르면 근무자 추가예요. 옆에서 입력하면 표에 바로 보여요." : "색 칸을 누르면 시간 수정·삭제, 회색 빈 칸을 누르면 근무자 추가예요. 아래에서 입력하면 표에 바로 보여요."}<br />
+    `시간 칸을 누르면 수정·삭제, 빈 칸(+)을 누르면 그 직원의 근무를 추가해요. ${isDesktop() ? "옆에서" : "아래에서"} 입력하면 표에 바로 보여요.<br />
     <b>저장</b>하면 직원 관리·달력·근무 기록에 반영되고, <b>임시저장</b>은 반영하지 않고 고친 내용만 보관해요.<br />
-    지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간과 비고 칸도 눌러서 고칠 수 있어요.`,
+    지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간과 메모 칸도 눌러서 고칠 수 있어요.`,
   );
 }
 
@@ -1934,7 +1911,7 @@ function schedHelp() {
 // (패널이 표 아래에 있는 좁은 화면에서 눌러도 안 보이는 일이 없게)
 function revealSlotPanel() {
   if (!isDesktop()) {
-    document.getElementById(state.slotEdit?.empId ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
+    document.getElementById(state.slotEdit?.empId || state.slotEdit?.fixedEmp ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
     return;
   }
   const panel = document.querySelector(".sched-panel");
@@ -1943,18 +1920,7 @@ function revealSlotPanel() {
   // 패널이 표 아래에 있으면(좁은 화면) 항상 제목이 맨 위로 오게 — 키보드가 올라와도 입력칸이 가리지 않게
   const below = window.matchMedia("(max-width: 1099px)").matches;
   if (below || top < 0 || bottom > window.innerHeight) panel.scrollIntoView({ behavior: "smooth", block: "start" });
-  document.getElementById(state.slotEdit?.empId ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
-}
-
-// 휴대폰 근무표 아래 색 안내: 근무표에 나오는 사람만
-function renderSchedLegend(days) {
-  const ids = new Set(days.flatMap((d) => d.cols.flatMap((col) => col.map((p) => p.emp.id))));
-  const people = store.employees.filter((e) => ids.has(e.id));
-  if (!people.length) return "";
-  return `
-    <ul class="sc-legend">
-      ${people.map((e) => `<li><span class="sc-swatch" style="background:${cssColor(e.color)}"></span>${esc(e.name)}</li>`).join("")}
-    </ul>`;
+  document.getElementById(state.slotEdit?.empId || state.slotEdit?.fixedEmp ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
 }
 
 function renderSchedStatus() {
@@ -1988,11 +1954,12 @@ function renderSlotPanel() {
   if (!ed) {
     return `
       <p class="staff-title">근무 수정</p>
-      <p class="sub">${isDesktop() ? "근무표에서 이름 칸이나 회색 빈 칸을" : "근무표에서 색 칸이나 회색 빈 칸을"} 누르면 여기서 시간을 입력할 수 있어요.</p>`;
+      <p class="sub">근무표에서 시간 칸이나 빈 칸(+)을 누르면 여기서 시간을 입력할 수 있어요.</p>`;
   }
   const empId = ed.empId ?? ed.addEmpId;
   const emp = empId ? employeeById(empId) : null;
-  const shift = emp ? effWeekly(emp)[ed.wd] : null;
+  // 새로 넣는 칸은 그 직원의 다른 요일 시간을 먼저 채워 둔다
+  const shift = emp ? effWeekly(emp)[ed.wd] ?? Object.values(effWeekly(emp))[0] : null;
   const start = shift?.start ?? fromMin(ed.start).padStart(5, "0");
   const end = shift?.end ?? fromMin(Math.min(ed.start + 6 * 60, 23 * 60)).padStart(5, "0");
   // 추가할 때 고를 수 있는 사람: 이 칸을 열 때 그 요일 근무가 없던 사람
@@ -2000,10 +1967,12 @@ function renderSlotPanel() {
   const choices = store.employees.filter((e) => e.active && (!before(e) || e.id === ed.addEmpId));
   return `
     <form class="slot-form" id="slot-form">
-      <p class="staff-title">${WEEKDAYS[ed.wd]}요일 · ${ed.empId ? esc(emp.name) : "근무자 추가"}</p>
+      <p class="staff-title">${WEEKDAYS[ed.wd]}요일 · ${ed.empId ? esc(emp.name) : ed.fixedEmp ? `${esc(emp.name)} 근무 추가` : "근무자 추가"}</p>
       ${
         ed.empId
           ? ""
+          : ed.fixedEmp
+          ? `<input type="hidden" id="slot-emp" value="${ed.addEmpId}" />`
           : `<select id="slot-emp" class="field" aria-label="직원">
               <option value="">직원 선택</option>
               ${choices.map((e) => `<option value="${e.id}"${e.id === ed.addEmpId ? " selected" : ""}>${esc(e.name)}${isManager(e) ? " (매니저)" : ""}</option>`).join("")}
@@ -2624,7 +2593,8 @@ app.addEventListener("click", (e) => {
       state.slotEdit = {
         wd: el.dataset.wd,
         empId: el.dataset.id ?? null,
-        addEmpId: null,
+        addEmpId: el.dataset.add ?? null,
+        fixedEmp: Boolean(el.dataset.add), // 그 직원 줄의 빈 칸을 눌렀으면 직원을 고를 필요 없음
         start: Number(el.dataset.start),
         snapshot: structuredClone(schedWork().weekly),
       };
