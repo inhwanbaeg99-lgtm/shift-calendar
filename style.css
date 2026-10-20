@@ -4583,7 +4583,7 @@ td.name {
   inset: 3px;
   border-radius: 9px;
   background: var(--c);
-  box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.16), 0 0 0 1.5px var(--bg);
+  box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.16), 0 1px 2px rgb(0 0 0 / 0.06);
   transition: box-shadow 0.15s, transform 0.15s;
 }
 .wk-shift b,
@@ -4689,6 +4689,39 @@ td.name {
 }
 .sched-sheet.capturing .wk-shift::before {
   box-shadow: none;
+}
+
+/* 겹친 근무: 반 칸이면 시간을 두 줄로, 1/3 칸 이하면 이름만 (두 줄까지) */
+.wk-shift.n2 small,
+.wk-shift.n3 small {
+  display: flex;
+  flex-direction: column;
+}
+.wk-shift.n2 b {
+  font-size: 14px;
+}
+.wk-shift.n2 b,
+.wk-shift.n2 small {
+  padding-left: 9px;
+  padding-right: 4px;
+  text-overflow: clip;
+}
+.wk-shift.n2 small {
+  font-size: 12px;
+}
+.wk-shift.n3 small {
+  display: none;
+}
+.wk-shift.n3 b {
+  padding: 0 0 0 6px;
+  font-size: 12px;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.2;
+}
+.wk-shift.short.n2 small,
+.wk-shift.short.n3 small {
+  display: none;
 }
 
 /* 휴대폰: 한 화면 너비에 맞게 */
@@ -5090,3 +5123,13 @@ td.name {
   }
 }
 
+
+/* 휴대폰 근무표: 나란히 놓인 좁은 블록은 이름을 줄바꿈해서 다 보이게 */
+.wk.compact .wk-shift.n2 b,
+.wk.compact .wk-shift.n3 b {
+  padding: 0 0 0 4px;
+  font-size: 10px;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.15;
+}

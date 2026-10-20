@@ -2751,7 +2751,12 @@ function placeShifts(list) {
       ends[lane] = it.end;
       it.lane = lane;
     }
-    for (const it of group) it.lanes = ends.length;
+    for (const it of group) {
+      it.lanes = ends.length;
+      // 오른쪽 줄들이 이 시간에 비어 있으면 그만큼 넓힌다
+      it.span = 1;
+      while (it.lane + it.span < it.lanes && !group.some((o) => o.lane === it.lane + it.span && o.start < it.end && o.end > it.start)) it.span += 1;
+    }
     group = [];
   };
   for (const it of items) {
@@ -2762,9 +2767,6 @@ function placeShifts(list) {
   flush();
   return items;
 }
-
-// 겹친 근무는 구글 캘린더처럼 살짝 겹쳐 넓게 (이름이 잘리지 않게), 맨 오른쪽 줄만 딱 맞게
-const laneWidth = (it) => (it.lane === it.lanes - 1 ? 1 / it.lanes : Math.min(1 - it.lane / it.lanes, 1.7 / it.lanes));
 
 function renderScheduleSheet({ wide = false } = {}) {
   const meta = schedMeta();
@@ -2808,11 +2810,14 @@ function renderScheduleSheet({ wide = false } = {}) {
           const bg = cssColor(it.e.color);
           const editing = ed && String(ed.wd) === String(wd) && (ed.empId ?? ed.addEmpId) === it.e.id;
           const short = it.end - it.start < 90;
+          // 같은 시간에 여러 명이면 나란히 나눠 쓴다 (좁으면 시간을 두 줄로, 아주 좁으면 이름만)
+          const frac = it.span / it.lanes;
+          const narrow = frac <= 1 / 3 ? " n3" : frac <= 1 / 2 ? " n2" : "";
           return `
-            <div class="wk-shift${editing ? " sc-editing" : ""}${short ? " short" : ""}" role="button" tabindex="0" data-action="edit-slot" data-wd="${wd}" data-id="${it.e.id}" data-start="${it.start}"
-              style="top:calc(var(--hh) * ${at(it.start)});height:calc(var(--hh) * ${((it.end - it.start) / 60).toFixed(3)});left:${(it.lane / it.lanes) * 100}%;width:${laneWidth(it) * 100}%;--c:${bg};color:${textOn(bg)}"
+            <div class="wk-shift${editing ? " sc-editing" : ""}${short ? " short" : ""}${narrow}" role="button" tabindex="0" data-action="edit-slot" data-wd="${wd}" data-id="${it.e.id}" data-start="${it.start}"
+              style="top:calc(var(--hh) * ${at(it.start)});height:calc(var(--hh) * ${((it.end - it.start) / 60).toFixed(3)});left:${(it.lane / it.lanes) * 100}%;width:${frac * 100}%;--c:${bg};color:${textOn(bg)}"
               title="${esc(it.e.name)} ${it.r.start}~${it.r.end}">
-              <b>${esc(it.e.name)}</b>${compact ? "" : `<small>${it.r.start}~${it.r.end}</small>`}
+              <b>${esc(it.e.name)}</b>${compact ? "" : `<small><span>${it.r.start}</span><span>~${it.r.end}</span></small>`}
             </div>`;
         })
         .join("");
