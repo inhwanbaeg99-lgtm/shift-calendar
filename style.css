@@ -4492,216 +4492,254 @@ td.name {
   }
 }
 
-/* ---------- 근무표: 줄 = 직원, 칸 = 요일 ---------- */
-.roster {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  table-layout: fixed;
-  font-size: 13px;
+/* ---------- 근무표: 주간 캘린더 (위 요일, 왼쪽 시각, 근무는 블록) ---------- */
+.wk {
+  --hh: 44px; /* 한 시간 높이 */
+  --gut: 52px;
+  color: var(--ink);
   letter-spacing: 0;
-  color: var(--ink);
 }
-.roster th,
-.roster td {
-  padding: 4px;
-  border-top: 0;
-  border-bottom: 1px solid var(--line);
-  text-align: center;
-  vertical-align: middle;
-  white-space: nowrap;
-  overflow: hidden;
+.wk-head,
+.wk-body,
+.wk-memo {
+  display: grid;
+  grid-template-columns: var(--gut) repeat(7, minmax(0, 1fr));
+  column-gap: 6px;
 }
-.roster thead th {
-  height: 36px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink-sub);
-  border-bottom: 2px solid var(--line);
-}
-.roster thead th.sat {
-  color: #3182f6;
-}
-.roster thead th.sun {
-  color: var(--red);
-}
-.roster .rs-corner,
-.roster tbody th,
-.roster tfoot th {
-  width: 116px;
-  text-align: left;
-  padding-left: 6px;
-}
-.roster .rs-week {
-  width: 64px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.roster tbody th.rs-name {
-  height: 52px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.roster tbody th.rs-name {
-  text-overflow: ellipsis;
-}
-.rs-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 8px;
-  border-radius: 50%;
-  vertical-align: 1px;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
-}
-.rs-name em {
-  margin-left: 6px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: var(--bg);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 600;
-  color: var(--ink-sub);
-}
-.roster td.rs-cell {
-  cursor: pointer;
-}
-.rs-chip {
+.wk-day {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 1px;
-  height: 42px;
-  border-radius: 10px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.15;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.05);
-  transition: box-shadow 0.15s;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0 10px;
 }
-.rs-chip b {
-  font-size: 13px;
+.wk-day b {
+  font-size: 15px;
   font-weight: 700;
 }
-.rs-chip small {
-  font-size: 11px;
-  font-weight: 600;
-  opacity: 0.75;
-}
-.rs-plus {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 42px;
-  border-radius: 10px;
-  border: 1px dashed transparent;
-  font-size: 18px;
-  font-weight: 500;
-  color: transparent;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.roster td.rs-cell:hover .rs-chip,
-.roster td.sc-editing .rs-chip {
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-.roster td.rs-off:hover .rs-plus,
-.roster td.rs-off.sc-editing .rs-plus {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.roster tfoot th,
-.roster tfoot td {
-  height: 36px;
+.wk-day small {
   font-size: 12px;
   font-weight: 600;
   color: var(--ink-sub);
   font-variant-numeric: tabular-nums;
 }
-.roster tfoot .rs-total th,
-.roster tfoot .rs-total td {
+.wk-day.sat b {
+  color: #3182f6;
+}
+.wk-day.sun b {
+  color: var(--red);
+}
+.wk-body {
+  position: relative;
+  height: calc(var(--hh) * var(--rows));
+}
+.wk-gutter {
+  position: relative;
+}
+.wk-gutter span {
+  display: block;
+  height: var(--hh);
+  padding-right: 8px;
+  transform: translateY(-0.6em);
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  font-variant-numeric: tabular-nums;
+}
+.wk-gutter span:first-child {
+  transform: none;
+}
+.wk-col {
+  position: relative;
+  border-radius: 12px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.wk-slot {
+  height: var(--hh);
   border-top: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.15s;
 }
-.roster tfoot .rs-total .rs-week {
-  color: var(--ink);
+.wk-slot:first-child {
+  border-top: 0;
 }
-.roster tfoot tr:last-child th,
-.roster tfoot tr:last-child td {
-  border-bottom: 0;
+.wk-slot:hover {
+  background: var(--accent-soft);
 }
-.roster .sc-note input {
+.wk-shift {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 3px 0;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+.wk-shift::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 9px;
+  background: var(--c);
+  box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.16), 0 0 0 1.5px var(--bg);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.wk-shift b,
+.wk-shift small {
+  position: relative;
+  padding: 0 6px 0 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.wk-shift b {
+  margin-top: 5px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.wk-shift small {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.wk-shift.short {
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+}
+.wk-shift.short b {
+  margin-top: 0;
+}
+.wk-shift.short small {
+  padding-left: 0;
+}
+.wk-shift:hover::before,
+.wk-shift.sc-editing::before {
+  box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.16), 0 0 0 2px var(--accent), 0 6px 16px rgb(0 0 0 / 0.12);
+}
+.wk-shift:focus-visible {
+  outline: none;
+}
+.wk-shift:focus-visible::before {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.wk-memo {
+  margin-top: 8px;
+  align-items: center;
+}
+.wk-memo span {
+  padding-right: 8px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+.wk-note {
+  min-width: 0;
   width: 100%;
+  box-sizing: border-box;
   border: 0;
   border-radius: 8px;
-  padding: 6px 4px;
+  padding: 7px 4px;
   background: var(--bg);
   font: inherit;
+  font-size: 12px;
   text-align: center;
   color: var(--ink);
   outline: none;
 }
-.roster .sc-note input:focus {
+.wk-note:focus {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
-.rs-none {
-  height: 80px;
+.wk-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.wk-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 13px;
+  font-weight: 700;
+}
+.wk-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
+}
+.wk-legend small {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--ink-sub);
+  font-variant-numeric: tabular-nums;
 }
-.sched-sheet.capturing .rs-plus {
-  display: none;
-}
-.sched-sheet.capturing .sc-note input {
+.sched-sheet.capturing .wk-note {
   background: none;
 }
-.sched-sheet.capturing .rs-chip {
-  box-shadow: none !important;
+.sched-sheet.capturing .wk-shift::before {
+  box-shadow: none;
 }
 
-/* 휴대폰: 한 화면 너비에 맞게 줄임 */
-.roster.compact {
-  font-size: 11px;
+/* 휴대폰: 한 화면 너비에 맞게 */
+.wk.compact {
+  --hh: 30px;
+  --gut: 22px;
 }
-.roster.compact th,
-.roster.compact td {
-  padding: 3px 1px;
+.wk.compact .wk-head,
+.wk.compact .wk-body,
+.wk.compact .wk-memo {
+  column-gap: 3px;
 }
-.roster.compact thead th {
-  height: 28px;
-  font-size: 12px;
+.wk.compact .wk-day b {
+  font-size: 13px;
 }
-.roster.compact .rs-corner,
-.roster.compact tbody th,
-.roster.compact tfoot th {
-  width: 52px;
-  padding-left: 2px;
-}
-.roster.compact .rs-week {
-  width: 36px;
-  font-size: 11px;
-}
-.roster.compact tbody th.rs-name {
-  height: 44px;
-  font-size: 12px;
-}
-.roster.compact .rs-dot {
-  display: none;
-}
-.roster.compact .rs-chip,
-.roster.compact .rs-plus {
-  height: 36px;
-  border-radius: 7px;
-}
-.roster.compact .rs-chip b {
-  font-size: 11px;
-}
-.roster.compact tfoot th,
-.roster.compact tfoot td {
+.wk.compact .wk-day small,
+.wk.compact .wk-gutter span,
+.wk.compact .wk-memo span {
   font-size: 10px;
 }
-.roster.compact .sc-note input {
-  padding: 4px 0;
+.wk.compact .wk-gutter span {
+  padding-right: 4px;
+}
+.wk.compact .wk-col {
+  border-radius: 8px;
+}
+.wk.compact .wk-shift {
+  padding: 2px 1px 0;
+}
+.wk.compact .wk-shift::before {
+  inset: 2px 1px;
+  border-radius: 6px;
+  box-shadow: inset 2px 0 0 rgb(0 0 0 / 0.16);
+}
+.wk.compact .wk-shift b {
+  margin-top: 3px;
+  padding: 0 2px 0 5px;
   font-size: 10px;
+  text-overflow: clip;
+}
+.wk.compact .wk-memo span {
+  padding-right: 2px;
+  font-size: 9px;
+}
+.wk.compact .wk-note {
+  padding: 5px 0;
+  font-size: 10px;
+}
+.wk.compact ~ .wk-legend li {
+  padding: 4px 8px;
+  font-size: 12px;
 }
 
 /* 안내 · 확인 창 (브라우저 기본 창 대신) */
