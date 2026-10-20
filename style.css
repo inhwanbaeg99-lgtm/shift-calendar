@@ -4596,11 +4596,11 @@ td.name {
 }
 .wk-shift b {
   margin-top: 5px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 .wk-shift small {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
@@ -4726,7 +4726,7 @@ td.name {
 .wk.compact .wk-shift b {
   margin-top: 3px;
   padding: 0 2px 0 5px;
-  font-size: 10px;
+  font-size: 11px;
   text-overflow: clip;
 }
 .wk.compact .wk-memo span {

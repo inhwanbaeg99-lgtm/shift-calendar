@@ -2820,9 +2820,6 @@ function renderScheduleSheet({ wide = false } = {}) {
     })
     .join("");
   const gutter = hours.map((h) => `<span>${h % 24}${compact ? "" : ":00"}</span>`).join("");
-  const notes = days
-    .map(({ wd }) => `<input class="wk-note" value="${esc(meta.notes?.[wd] ?? "")}" data-note="${wd}" aria-label="${WEEKDAYS[wd]}요일 메모" />`)
-    .join("");
   const legend = people
     .filter((e) => week.get(e.id))
     .map((e) => `<li><i style="background:${cssColor(e.color)}"></i>${esc(e.name)}<small>${hoursText(week.get(e.id))}</small></li>`)
@@ -2847,7 +2844,6 @@ function renderScheduleSheet({ wide = false } = {}) {
       <div class="wk${compact ? " compact" : ""}" style="--rows:${hours.length}">
         <div class="wk-head"><div class="wk-corner"></div>${head}</div>
         <div class="wk-body"><div class="wk-gutter">${gutter}</div>${cols}</div>
-        <div class="wk-memo"><span>메모</span>${notes}</div>
       </div>
       ${legend ? `<ul class="wk-legend">${legend}</ul>` : ""}
       ${compact ? actions : ""}
@@ -2860,7 +2856,7 @@ function schedHelp() {
     "schedule",
     `근무 블록을 누르면 수정·삭제, 빈 곳을 누르면 그 시각에 근무자를 추가해요. ${isDesktop() ? "옆에서" : "아래에서"} 입력하면 표에 바로 보여요.<br />
     <b>저장</b>하면 직원 관리·달력·근무 기록에 반영되고, <b>임시저장</b>은 반영하지 않고 고친 내용만 보관해요.<br />
-    지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간과 메모 칸도 눌러서 고칠 수 있어요.`,
+    지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간도 눌러서 고칠 수 있어요.`,
   );
 }
 
