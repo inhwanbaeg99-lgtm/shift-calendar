@@ -4703,3 +4703,352 @@ td.name {
   padding: 4px 0;
   font-size: 10px;
 }
+
+/* 안내 · 확인 창 (브라우저 기본 창 대신) */
+.ui-back {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  animation: ui-fade 0.18s ease-out;
+}
+.ui-back.leave {
+  animation: ui-fade 0.16s ease-in reverse forwards;
+}
+.ui-box {
+  width: min(360px, 100%);
+  padding: 26px 20px 18px;
+  border-radius: 20px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  animation: ui-pop 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+.ui-back.leave .ui-box {
+  animation: ui-pop 0.16s ease-in reverse forwards;
+}
+.ui-msg {
+  margin: 0 4px 22px;
+  font-size: 16px;
+  line-height: 1.55;
+  white-space: pre-line;
+  word-break: keep-all;
+}
+.ui-actions {
+  display: flex;
+  gap: 8px;
+}
+.ui-btn {
+  flex: 1;
+  height: 48px;
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    filter 0.15s ease,
+    transform 0.1s ease;
+}
+.ui-btn:active {
+  transform: scale(0.97);
+}
+.ui-no {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+.ui-yes {
+  background: var(--accent);
+  color: #ffffff;
+}
+.ui-yes.danger {
+  background: var(--red);
+}
+.ui-btn:hover {
+  filter: brightness(0.96);
+}
+.ui-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@keyframes ui-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ui-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-back,
+  .ui-box {
+    animation: none !important;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .ui-back {
+    background: rgba(0, 0, 0, 0.62);
+  }
+  .ui-box {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* 달력 + 이름 입력칸: 오늘 근무자 이름과 같은 글자 (15px 굵게), 안내 글(placeholder)은 보통 굵기 */
+#extra-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+#extra-name::placeholder {
+  font-weight: 400;
+}
+/* 안내 · 확인 창 문구도 같은 글자 */
+.ui-msg {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* 로그인: 비밀번호 보기 */
+.pw-wrap {
+  position: relative;
+}
+.pw-wrap .field {
+  width: 100%;
+  padding-right: 48px;
+}
+.pw-eye {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink-sub);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+.pw-eye:hover,
+.pw-eye[aria-pressed="true"] {
+  color: var(--accent);
+}
+
+
+/* 근무 상세 사진 (카톡으로 보내기): 종이처럼 흰 바탕 고정 */
+.tsc {
+  width: 720px;
+  padding: 36px 32px 28px;
+  background: #ffffff;
+  color: #191f28;
+  font-family:
+    "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", -apple-system, sans-serif;
+}
+.tsc-store {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: #8b95a1;
+}
+.tsc h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+.tsc-sum {
+  margin: 10px 0 22px;
+  font-size: 18px;
+  color: #4e5968;
+}
+.tsc-sum b {
+  color: #191f28;
+}
+.tsc-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-top: 1px solid #e5e8eb;
+  border-left: 1px solid #e5e8eb;
+}
+.tsc-wd,
+.tsc-cell {
+  border-right: 1px solid #e5e8eb;
+  border-bottom: 1px solid #e5e8eb;
+}
+.tsc-wd {
+  padding: 8px 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  background: #f9fafb;
+}
+.tsc-cell {
+  min-height: 84px;
+  padding: 6px 6px 8px;
+  text-align: center;
+}
+.tsc-cell.blank,
+.tsc-cell.future {
+  background: #fbfbfc;
+}
+.tsc-dn {
+  display: block;
+  text-align: left;
+  font-size: 14px;
+  color: #8b95a1;
+}
+.tsc .sun {
+  color: #f04452;
+}
+.tsc-cell b {
+  display: block;
+  margin-top: 4px;
+  font-size: 24px;
+  font-weight: 700;
+}
+.tsc-cell small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #8b95a1;
+}
+.tsc .over {
+  color: #3182f6;
+}
+.tsc .under {
+  color: #f04452;
+}
+.tsc-legend {
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: #8b95a1;
+}
+
+.share-back {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+.share-box {
+  width: min(480px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--paper);
+}
+.share-box img {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+.share-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.share-actions button {
+  flex: 1;
+}
+.share-tip {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-sub);
+}
+.m-share {
+  width: 100%;
+  margin-top: 12px;
+}
+.share-actions .btn-primary {
+  flex: 1.4;
+}
+.tsc-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+.tsc-dot.over {
+  background: #3182f6;
+}
+.tsc-dot.under {
+  background: #f04452;
+}
+
+/* 휴대폰에서 카톡으로 보낼 근무표: 화면 밖에 PC 크기로 그린다 */
+.sc-wide-stage {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1100px;
+}
+
+/* 카톡 복사 후 다음 직원으로 넘어갈 때 */
+#r-emp.next-flash {
+  animation: next-ring 1.2s ease-out calc(0ms - var(--flash-t, 0ms)) both;
+}
+.ts-desktop.next-flash {
+  animation: next-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) calc(0ms - var(--flash-t, 0ms)) both;
+}
+[data-action="share-ts-image"].next-flash {
+  animation: next-beat 0.6s ease-in-out calc(350ms - var(--flash-t, 0ms)) 3 both;
+}
+@keyframes next-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+    transform: scale(1);
+  }
+  20% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 35%, transparent);
+    transform: scale(1.06);
+  }
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+    transform: scale(1);
+  }
+}
+@keyframes next-slide {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes next-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .next-flash {
+    animation: none !important;
+  }
+}
+

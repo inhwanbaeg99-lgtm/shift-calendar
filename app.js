@@ -286,7 +286,7 @@ function clockIn(employeeId) {
     clockIn: kstIso(date, start),
     clockOut: scheduledEnd(emp, date),
     createdAt: new Date().toISOString(),
-    ...(emp.trainee ? { training: true } : {}),
+    ...(traineeOn(emp, date) ? { training: true } : {}),
   });
   save();
   return null;
@@ -299,14 +299,17 @@ function setRecordTimes(empId, date, start, end) {
   const clockOut = endIso(date, start, end);
   const rec = recordFor(empId, date);
   if (rec) Object.assign(rec, { clockIn, clockOut, edited: true });
-  else store.records.push({ id: uid(), employeeId: empId, date, clockIn, clockOut, createdAt: new Date().toISOString(), edited: true, ...(employeeById(empId)?.trainee ? { training: true } : {}) });
+  else store.records.push({ id: uid(), employeeId: empId, date, clockIn, clockOut, createdAt: new Date().toISOString(), edited: true, ...(traineeOn(employeeById(empId), date) ? { training: true } : {}) });
   if (store.absent) delete store.absent[`${empId}|${date}`];
 }
 
 // 교육생(직원용 달력 + 로 처음 들어온 사람) · 교육으로 일한 기록은 이름 옆에 (교육)
 const isTrainingRec = (r) => Boolean(r?.training);
+// 그날 교육생인지: 근무표에 넣으면서 "근무표 시작일부터 직원"으로 정해 둔 사람(promoteFrom)은 그날부터 직원
+const traineeOn = (emp, date) => Boolean(emp?.trainee) && !(emp.promoteFrom && date >= emp.promoteFrom);
+const monthDay = (date) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}`;
 function nameLabel(emp, rec) {
-  const training = rec ? isTrainingRec(rec) : emp.trainee;
+  const training = rec ? isTrainingRec(rec) : traineeOn(emp, todayDateString());
   return `${esc(emp.name)}${training ? `<span class="train-tag"> (교육)</span>` : ""}`;
 }
 
@@ -315,7 +318,7 @@ function adminClockIn(empId, date) {
   const emp = employeeById(empId);
   if (!emp || recordFor(empId, date)) return;
   const { start } = shiftFor(emp, date);
-  store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: kstIso(date, start), clockOut: scheduledEnd(emp, date), createdAt: new Date().toISOString(), ...(emp.trainee ? { training: true } : {}) });
+  store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: kstIso(date, start), clockOut: scheduledEnd(emp, date), createdAt: new Date().toISOString(), ...(traineeOn(emp, date) ? { training: true } : {}) });
   if (store.absent) delete store.absent[`${empId}|${date}`];
   save();
 }
@@ -413,6 +416,9 @@ const ADMIN_SITE = document.body.dataset.site === "admin";
 const isDesktop = () => window.matchMedia("(min-width: 768px)").matches;
 
 // ---------- 아이콘 ----------
+
+const ICON_EYE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const ICON_EYE_OFF = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.9 0 3.6-.6 5-1.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`;
 
 const svg = (size, d, stroke = 2.25) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -536,7 +542,10 @@ function renderLock() {
         <form class="lock-form" id="signup-form">
           <input id="signup-store" class="field" maxlength="40" autocomplete="organization" placeholder="매장 이름" aria-label="매장 이름" required />
           <input id="login-email" class="field" type="email" autocomplete="username" placeholder="관리자 이메일" aria-label="관리자 이메일" required />
-          <input id="login-password" class="field" type="password" minlength="6" autocomplete="new-password" placeholder="비밀번호 (6자 이상)" aria-label="비밀번호" required />
+          <div class="pw-wrap">
+            <input id="login-password" class="field" type="password" minlength="6" autocomplete="new-password" placeholder="비밀번호 (6자 이상)" aria-label="비밀번호" required />
+            <button type="button" class="pw-eye" data-action="toggle-password" aria-label="비밀번호 보기" aria-pressed="false">${ICON_EYE}</button>
+          </div>
           <button type="submit" class="btn-primary"${busy ? " disabled" : ""}>${busy ? "등록 중…" : "매장 등록"}</button>
           ${errorLine()}
         </form>
@@ -549,7 +558,10 @@ function renderLock() {
       ${title}
       <form class="lock-form" id="login-form">
         <input id="login-email" class="field" type="email" autocomplete="username" placeholder="이메일" aria-label="이메일" required />
-        <input id="login-password" class="field" type="password" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호" required />
+        <div class="pw-wrap">
+          <input id="login-password" class="field" type="password" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호" required />
+          <button type="button" class="pw-eye" data-action="toggle-password" aria-label="비밀번호 보기" aria-pressed="false">${ICON_EYE}</button>
+        </div>
         <button type="submit" class="btn-primary"${busy ? " disabled" : ""}>${busy ? "로그인 중…" : "로그인"}</button>
         ${errorLine()}
         ${state.notice ? `<p class="lock-note ok">${esc(state.notice)}</p>` : ""}
@@ -865,7 +877,7 @@ function renderEmployees() {
         <td><button type="button" class="status${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button></td>
         <td>${
           e.trainee
-            ? `<button type="button" class="status train" data-action="promote-trainee" data-id="${e.id}" title="교육을 마치면 직원으로 등록해요. 그 전 교육 근무는 계속 교육수당으로 계산돼요">직원 등록</button>`
+            ? `<button type="button" class="status train" data-action="promote-trainee" data-id="${e.id}" title="교육을 마치면 직원으로 등록해요. 그 전 교육 근무는 계속 교육수당으로 계산돼요">${e.promoteFrom ? `${monthDay(e.promoteFrom)}부터 직원` : "직원 등록"}</button>`
             : `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저는 근무표에만 나오고 출근·급여 계산에서 빠져요">${isManager(e) ? "매니저" : "알바"}</button>`
         }</td>
         <td><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
@@ -1030,7 +1042,7 @@ function renderEmpSheet(e) {
       <button type="button" class="m-toggle${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button>
       ${
         e.trainee
-          ? `<button type="button" class="m-toggle train" data-action="promote-trainee" data-id="${e.id}">직원으로 등록</button>`
+          ? `<button type="button" class="m-toggle train" data-action="promote-trainee" data-id="${e.id}">${e.promoteFrom ? `${monthDay(e.promoteFrom)}부터 직원 · 지금 등록` : "직원으로 등록"}</button>`
           : `<button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>`
       }
     </div>
@@ -1092,7 +1104,7 @@ function renderScheduleMobile() {
     ${mHead("근무표", `<div class="m-help">${schedHelp()}</div>`)}
     <label class="m-period">
       <span>기간</span>
-      <input class="sc-period" value="${esc(meta.period ?? "")}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~ 2026.07.05" aria-label="기간" />
+      <input class="sc-period" value="${esc(normalizePeriod(meta.period ?? ""))}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~" aria-label="기간" />
     </label>
     <div class="m-days" role="tablist">
       ${[1, 2, 3, 4, 5, 6, 0]
@@ -1113,7 +1125,7 @@ function renderScheduleMobile() {
     <div class="m-savebar">
       <button type="button" class="btn-ghost" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
       <button type="button" class="btn-primary" data-action="schedule-save"${hasDraft() ? "" : " disabled"}>저장</button>
-      <button type="button" class="btn-ghost" data-action="schedule-pdf">PDF</button>
+      <button type="button" class="btn-ghost" data-action="schedule-share">카톡 전송</button>
     </div>`,
   );
 }
@@ -1194,6 +1206,7 @@ function renderPaySheet(emp) {
     </ul>
     <p class="sheet-label">날짜별 근무</p>
     <ul class="m-days-list">${days || `<li><span>근무 기록이 없어요</span></li>`}</ul>
+    <button type="button" class="btn-ghost m-share" data-action="share-ts-image" data-id="${emp.id}">카카오톡 전송하기</button>
     <div class="sheet-actions">
       <button type="button" class="btn-ghost" data-action="open-payslip" data-id="${emp.id}">수당 · 명세서</button>
       <button type="button" class="btn-primary" data-action="payslip-pdf-one" data-id="${emp.id}">명세서 PDF</button>
@@ -1567,6 +1580,8 @@ function renderRecords() {
     <div class="section-head">
       <h3>근무 상세</h3>
       <div class="head-actions">
+        ${employeeId ? `<button type="button" class="pill" data-action="share-ts-image" data-id="${employeeId}">카카오톡 전송하기</button>` : ""}
+        <button type="button" class="pill plain-dark" data-action="fill-template-xlsx"${recs.length ? "" : " disabled"} title="처음 한 번 고른 매장 엑셀 양식에 이 달 근무를 채워 저장해요 (PC Chrome·Edge)">기본양식으로 저장</button>
         <button type="button" class="pill plain-dark" data-action="export-xlsx"${recs.length ? "" : " disabled"}>엑셀 다운로드</button>
       </div>
     </div>
@@ -1605,6 +1620,7 @@ const LIBS = {
   xlsx: { src: "https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js", ready: () => window.XLSX },
   html2canvas: { src: "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js", ready: () => window.html2canvas },
   jspdf: { src: "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js", ready: () => window.jspdf?.jsPDF },
+  fflate: { src: "https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js", ready: () => window.fflate },
 };
 
 function loadLib(name) {
@@ -1619,6 +1635,60 @@ function loadLib(name) {
   });
 }
 
+// ---------- 안내 · 확인 창 (브라우저 기본 alert / confirm 대신 앱 디자인으로) ----------
+// uiAlert(문구) → 확인만, uiConfirm(문구, { ok, danger }) → 확인이면 true
+function uiDialog({ message, ok = "확인", cancel = null, danger = false }) {
+  return new Promise((resolve) => {
+    const prev = document.activeElement;
+    const back = document.createElement("div");
+    back.className = "ui-back";
+    back.innerHTML = `
+      <div class="ui-box" role="alertdialog" aria-modal="true" aria-describedby="ui-msg">
+        <p class="ui-msg" id="ui-msg"></p>
+        <div class="ui-actions">
+          ${cancel ? `<button type="button" class="ui-btn ui-no" data-ui="no">${esc(cancel)}</button>` : ""}
+          <button type="button" class="ui-btn ui-yes${danger ? " danger" : ""}" data-ui="yes">${esc(ok)}</button>
+        </div>
+      </div>`;
+    back.querySelector(".ui-msg").textContent = message;
+    const buttons = [...back.querySelectorAll("button")];
+    let closed = false;
+    const close = (value) => {
+      if (closed) return;
+      closed = true;
+      document.removeEventListener("keydown", onKey, true);
+      back.classList.add("leave");
+      setTimeout(() => back.remove(), reducedMotion() ? 0 : 160);
+      if (prev && document.contains(prev)) prev.focus({ preventScroll: true });
+      resolve(value);
+    };
+    // Esc = 취소, Enter = 지금 선택된 버튼 (처음엔 확인), Tab 은 창 안에서만
+    const onKey = (e) => {
+      if (e.key === "Escape") close(false);
+      else if (e.key === "Enter") close(document.activeElement?.dataset.ui !== "no");
+      else if (e.key === "Tab") {
+        const i = buttons.indexOf(document.activeElement);
+        buttons[(i + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+      } else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    back.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ui]");
+      if (b) close(b.dataset.ui === "yes");
+      else if (e.target === back) close(!cancel); // 바깥을 누르면: 확인 창은 취소, 안내 창은 닫기
+    });
+    document.body.appendChild(back);
+    // 창을 연 키 입력(Enter 등)이 바로 창을 닫지 않게 다음 순간부터 키를 받는다
+    setTimeout(() => {
+      document.addEventListener("keydown", onKey, true);
+      back.querySelector(".ui-yes").focus({ preventScroll: true });
+    });
+  });
+}
+const uiAlert = (message) => uiDialog({ message });
+const uiConfirm = (message, options = {}) => uiDialog({ message, cancel: "취소", ...options });
+
 async function withBusy(button, text, task) {
   const label = button.textContent;
   button.disabled = true;
@@ -1626,7 +1696,7 @@ async function withBusy(button, text, task) {
   try {
     await task();
   } catch (err) {
-    window.alert(err.message);
+    uiAlert(err.message);
   } finally {
     button.disabled = false;
     button.textContent = label;
@@ -1724,6 +1794,699 @@ function exportXlsx(button) {
   });
 }
 
+// ---------- 엑셀: 기본양식으로 저장 ----------
+// 매장마다 처음 한 번 고른 기본양식(빈 엑셀, "N월 근로현황" 시트가 있는 양식)에 이 달 근무시간·수당·근무표를 채워 새 파일로 저장한다 (Chrome/Edge PC 전용).
+
+// days[i]가 속한 주(일~토, 월 경계는 안 넘음)의 [시작 인덱스, 끝 인덱스] 목록
+function weekDayIndexRanges(days) {
+  const ranges = [];
+  let i = 0;
+  while (i < days.length) {
+    const toSat = (6 - weekdayOf(days[i]) + 7) % 7;
+    const end = Math.min(i + toSat, days.length - 1);
+    ranges.push([i, end]);
+    i = end + 1;
+  }
+  return ranges;
+}
+
+function idbHandle(mode, key, value) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("pum-fs", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("handles");
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const tx = req.result.transaction("handles", mode);
+      const store = tx.objectStore("handles");
+      const op = mode === "readwrite" ? store.put(value, key) : store.get(key);
+      op.onsuccess = () => resolve(op.result);
+      op.onerror = () => reject(op.error);
+    };
+  });
+}
+
+// 한 번 고른 파일을 key 이름으로 브라우저가 기억한다 (지금은 "baseTemplate" = 기본양식).
+async function getTemplateHandle(key, mode) {
+  if (!window.showOpenFilePicker) throw new Error("이 기능은 PC의 Chrome 또는 Edge 브라우저에서만 쓸 수 있어요.");
+  const saved = await idbHandle("readonly", key).catch(() => null);
+  if (saved) {
+    try {
+      const perm = (await saved.queryPermission({ mode })) === "granted" || (await saved.requestPermission({ mode })) === "granted";
+      if (perm) {
+        await saved.getFile(); // 옮겨지거나 지워졌으면 여기서 실패 -> 다시 고르기
+        return saved;
+      }
+    } catch {
+      // 다시 고르기
+    }
+  }
+  const [handle] = await window.showOpenFilePicker({ types: [XLSX_TYPE] });
+  await idbHandle("readwrite", key, handle);
+  return handle;
+}
+
+// 엑셀 파일(zip) 안에서 날짜 칸의 <v>만 바꿔치기한다 (SheetJS로 전체를 다시 조립하면 서식이 깨지거나
+// 용량이 크게 불어나는 경우가 있어서, 건드릴 칸만 문자열로 직접 패치하고 나머지는 원본 그대로 둔다).
+
+const escRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function colToIndex(letters) {
+  let n = 0;
+  for (let i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
+  return n;
+}
+function indexToCol(n) {
+  let s = "";
+  while (n > 0) {
+    s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+function splitCellRef(ref) {
+  const m = ref.match(/^([A-Z]+)(\d+)$/);
+  return { col: colToIndex(m[1]), row: Number(m[2]) };
+}
+function excelSerialToIso(serial) {
+  const d = new Date(Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+function decodeXmlText(s) {
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+}
+// 칸의 글자 내용을 꺼낸다 (t="s"는 공유 문자열 색인, t="str"/"inlineStr"는 수식이 돌려준 글자 자체)
+function cellText(cell, strings) {
+  if (!cell) return null;
+  if (cell.type === "s") return strings[Number(cell.raw)];
+  if ((cell.type === "str" || cell.type === "inlineStr") && cell.raw != null) return decodeXmlText(cell.raw);
+  return null;
+}
+function parseSharedStrings(xml) {
+  const out = [];
+  for (const si of xml.matchAll(/<si>([\s\S]*?)<\/si>/g)) {
+    let text = "";
+    for (const t of si[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)) text += t[1];
+    out.push(decodeXmlText(text));
+  }
+  return out;
+}
+
+// <row>들을 {r, startIndex, endIndex, inner} 목록으로 쪼갠다
+function parseRows(xml) {
+  const rows = [];
+  for (const m of xml.matchAll(/<row r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
+    rows.push({ r: Number(m[1]), inner: m[2], start: m.index, end: m.index + m[0].length, innerStart: m.index + m[0].indexOf(">") + 1 });
+  }
+  return rows;
+}
+// 행 안의 <c>들을 {ref, col, type, raw} 목록으로 쪼갠다
+function parseCells(rowInner) {
+  const cells = [];
+  for (const m of rowInner.matchAll(/<c r="([A-Z]+)(\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+    const tMatch = m[3].match(/\st="(\w+)"/);
+    const vMatch = (m[4] || "").match(/<v>([\s\S]*?)<\/v>/);
+    cells.push({ ref: m[1] + m[2], col: colToIndex(m[1]), type: tMatch ? tMatch[1] : null, raw: vMatch ? vMatch[1] : null, start: m.index, end: m.index + m[0].length, attrs: m[3] });
+  }
+  return cells;
+}
+
+// 시트 전체에서 글자가 label과 정확히 같은 칸을 찾는다 (헤더 위치 찾기용)
+function findLabelCell(rowsWithCells, strings, label) {
+  for (const row of rowsWithCells) {
+    for (const c of row.cells) {
+      if (cellText(c, strings) === label) return { row: row.r, col: c.col };
+    }
+  }
+  return null;
+}
+
+// row.inner 안에서 ref 칸을 새 값(숫자)으로 바꾸거나(value!=null) 비운다(value==null). 칸이 없으면 알맞은 위치에 새로 끼워 넣는다.
+function patchCell(rowInner, cells, ref, col, value) {
+  const existing = cells.find((c) => c.ref === ref);
+  const newXml = value == null ? `<c r="${ref}"${existing ? existing.attrs.replace(/\st="\w+"/, "") : ""}/>` : `<c r="${ref}"${existing ? existing.attrs.replace(/\st="\w+"/, "") : ""}><v>${value}</v></c>`;
+  if (existing) return rowInner.slice(0, existing.start) + newXml + rowInner.slice(existing.end);
+  if (value == null) return rowInner; // 원래 없던 칸이면 비울 것도 없음
+  const next = cells.find((c) => c.col > col);
+  const at = next ? next.start : rowInner.length;
+  return rowInner.slice(0, at) + newXml + rowInner.slice(at);
+}
+
+function xmlEsc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+const attrsOf = (s) => Object.fromEntries([...s.matchAll(/([\w:]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+const styleOf = (cell) => cell?.attrs.match(/\ss="(\d+)"/)?.[1];
+
+// 칸을 통째로 새로 쓴다: v(값, t="s"면 공유 문자열 번호) 또는 f(수식). 둘 다 없으면 서식만 남긴 빈칸.
+function putCell(rowInner, cells, ref, col, { v = null, t = null, f = null } = {}) {
+  const existing = cells.find((c) => c.ref === ref);
+  const attrs = existing ? existing.attrs.replace(/\st="\w+"/, "") : "";
+  const tAttr = t ? ` t="${t}"` : "";
+  const xml = f != null ? `<c r="${ref}"${attrs}${tAttr}><f>${xmlEsc(f)}</f></c>` : v != null ? `<c r="${ref}"${attrs}${tAttr}><v>${v}</v></c>` : `<c r="${ref}"${attrs}/>`;
+  if (existing) return rowInner.slice(0, existing.start) + xml + rowInner.slice(existing.end);
+  if (v == null && f == null) return rowInner;
+  const next = cells.find((c) => c.col > col);
+  const at = next ? next.start : rowInner.length;
+  return rowInner.slice(0, at) + xml + rowInner.slice(at);
+}
+
+// 시트의 행마다 fn(row, api)를 불러 고친다. 뒤 행부터 고쳐서 앞 행들의 위치가 안 틀어지게 한다.
+function editSheetRows(xml, fn) {
+  const rows = parseRows(xml).map((row) => ({ ...row, cells: parseCells(row.inner) }));
+  for (const row of [...rows].sort((a, b) => b.r - a.r)) {
+    let inner = row.inner;
+    let cells = row.cells;
+    const cellAt = (col) => cells.find((c) => c.col === col);
+    const api = {
+      cellAt,
+      hasF: (col) => { const c = cellAt(col); return Boolean(c && inner.slice(c.start, c.end).includes("<f")); },
+      put: (col, opts) => { inner = putCell(inner, cells, indexToCol(col) + row.r, col, opts); cells = parseCells(inner); },
+      restyle: (col, s) => {
+        const c = cellAt(col);
+        if (!c) return;
+        const cx = inner.slice(c.start, c.end);
+        const nx = /\ss="\d+"/.test(c.attrs) ? cx.replace(/^(<c\b[^>]*?)\ss="\d+"/, `$1 s="${s}"`) : cx.replace(/^<c r="([A-Z]+\d+)"/, `<c r="$1" s="${s}"`);
+        inner = inner.slice(0, c.start) + nx + inner.slice(c.end);
+        cells = parseCells(inner);
+      },
+    };
+    fn(row, api);
+    if (inner !== row.inner) xml = xml.slice(0, row.innerStart) + inner + xml.slice(row.innerStart + row.inner.length);
+  }
+  return xml;
+}
+
+// 공유 수식에서 원본 칸(ref가 있는 칸)이 사라진 참조 수 — 하나라도 있으면 엑셀이 파일을 못 연다
+function orphanSharedRefs(xml) {
+  const masters = new Set();
+  const kids = [];
+  for (const m of xml.matchAll(/<f\b([^>]*?)\/?>/g)) {
+    const a = attrsOf(m[1]);
+    if (a.t !== "shared") continue;
+    if (a.ref) masters.add(a.si);
+    else kids.push(a.si);
+  }
+  return kids.filter((si) => !masters.has(si)).length;
+}
+
+function assertWorkbookIntact(fflate, zip) {
+  for (const name of Object.keys(zip)) {
+    if (/^xl\/worksheets\/sheet\d+\.xml$/.test(name) && orphanSharedRefs(fflate.strFromU8(zip[name]))) {
+      throw new Error("엑셀 파일 구조가 예상과 달라서 저장을 멈췄어요. 원본 파일은 그대로예요.");
+    }
+  }
+}
+
+function sharedStringIndex(sst, text) {
+  let i = sst.strings.indexOf(text);
+  if (i >= 0) return i;
+  i = sst.strings.length;
+  sst.strings.push(text);
+  sst.xml = sst.xml.replace("</sst>", `<si><t>${xmlEsc(text)}</t></si></sst>`).replace(/uniqueCount="\d+"/, `uniqueCount="${sst.strings.length}"`);
+  return i;
+}
+
+const isSerialCell = (c) => !c.type && c.raw && Number(c.raw) > 30000 && Number(c.raw) < 60000;
+const serialOf = (iso) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000);
+};
+
+// 날짜 열(firstCol부터 31칸)에서 양식 달의 주말/평일 서식을 보고, 새 달의 주말 위치에 맞게 서식을 바꾼다
+// 날짜 열(firstCol부터 31칸)의 색칠을 새 달에 맞게 옮긴다. 양식에 어느 달 날짜가 있든 상관없이
+// 줄마다 가장 많이 쓴 서식 = 안 칠한 칸, 두 번째로 많이 쓴 서식(4칸 이상) = 칠한 칸으로 본다.
+// shaded(i)가 참인 칸을 칠한다. 첫 칸 테두리처럼 둘 다 아닌 특별 서식은 그대로 둔다.
+function restyleDayColumns(xml, firstCol, shaded) {
+  return editSheetRows(xml, (row, api) => {
+    const count = {};
+    for (let i = 0; i < 31; i++) {
+      const s = styleOf(api.cellAt(firstCol + i));
+      if (s) count[s] = (count[s] || 0) + 1;
+    }
+    const ranked = Object.entries(count).sort((a, b) => b[1] - a[1]);
+    if (ranked.length < 2 || ranked[1][1] < 4) return;
+    const [plain, marked] = [ranked[0][0], ranked[1][0]];
+    for (let i = 0; i < 31; i++) {
+      const s = styleOf(api.cellAt(firstCol + i));
+      if (s !== plain && s !== marked) continue;
+      const want = shaded(i) ? marked : plain;
+      if (s !== want) api.restyle(firstCol + i, want);
+    }
+  });
+}
+// 근로현황: 토·일 칸을 칠함
+const restyleWeekends = (xml, firstCol, days) => restyleDayColumns(xml, firstCol, (i) => Boolean(days[i]) && [0, 6].includes(weekdayOf(days[i])));
+// 알바(사업소득): 주휴수당 주(일~토) 구간을 한 주 걸러 칠함 (2·4·6째 주)
+const restyleWeekBands = (xml, firstCol, days) => {
+  const segs = weekDayIndexRanges(days);
+  return restyleDayColumns(xml, firstCol, (i) => segs.findIndex(([s, e]) => i >= s && i <= e) % 2 === 1);
+};
+
+// 기본양식(다른 달 기준)을 이 달에 맞게 바꾼다: 근로현황 시트 이름·수식 참조, 날짜·요일, 주말 서식,
+// 알바(사업소득)의 요일·날짜 번호·주휴수당 주 구간 수식, "N월" 표시 글자
+function adaptWorkbookMonth(fflate, zip, month) {
+  const dec = (name) => fflate.strFromU8(zip[name]);
+  let wbXml = dec("xl/workbook.xml");
+  // 양식의 달은 숫자("9월 근로현황")거나, 달을 비워둔 양식이면 "○"("○월 근로현황")
+  const found = wbXml.match(/<sheet name="(\d+|○)월 근로현황"/);
+  if (!found || !zip["xl/sharedStrings.xml"]) throw new Error('기본양식에서 "N월 근로현황" 시트를 찾지 못했어요. 기본양식 파일을 다시 골라주세요.');
+  const oldM = found[1] === "○" ? "○" : Number(found[1]);
+  const newM = Number(month.slice(5, 7));
+  const oldName = `${oldM}월 근로현황`;
+  const newName = `${newM}월 근로현황`;
+  const days = monthDays(month);
+  const rels = dec("xl/_rels/workbook.xml.rels");
+  const pathOf = (name) => {
+    const tag = wbXml.match(new RegExp(`<sheet name="${escRe(name)}"[^>]*r:id="(rId\\d+)"`));
+    return tag ? "xl/" + rels.match(new RegExp(`<Relationship Id="${tag[1]}"[^>]*Target="([^"]+)"`))[1] : null;
+  };
+  const rootPath = pathOf(oldName);
+  const albaPath = pathOf("알바(사업소득)");
+  const sst = { xml: dec("xl/sharedStrings.xml") };
+  sst.strings = parseSharedStrings(sst.xml);
+
+  if (oldM !== newM) {
+    const swap = (s) => s.split(`'${oldName}'!`).join(`'${newName}'!`).split(`&apos;${oldName}&apos;!`).join(`&apos;${newName}&apos;!`);
+    wbXml = swap(wbXml).replace(`<sheet name="${oldName}"`, `<sheet name="${newName}"`);
+    zip["xl/workbook.xml"] = fflate.strToU8(wbXml);
+    for (const name of Object.keys(zip)) if (/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) zip[name] = fflate.strToU8(swap(dec(name)));
+    if (zip["docProps/app.xml"]) zip["docProps/app.xml"] = fflate.strToU8(dec("docProps/app.xml").split(`>${oldName}<`).join(`>${newName}<`));
+    // "9월", "[9월 급여명세서(정미진)]" 같은 글자 속 달 표시 (앞이 숫자인 "19월" 같은 건 제외)
+    const monthToken = new RegExp(`(^|[^0-9])${escRe(String(oldM))}월`, "g");
+    sst.xml = sst.xml.replace(/<si>([\s\S]*?)<\/si>/g, (all, inner) => {
+      const text = decodeXmlText([...inner.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((x) => x[1]).join(""));
+      if (!new RegExp(monthToken.source).test(text)) return all;
+      return `<si><t xml:space="preserve">${xmlEsc(text.replace(monthToken, `$1${newM}월`))}</t></si>`;
+    });
+    sst.strings = parseSharedStrings(sst.xml);
+  }
+  const weekdayIdx = WEEKDAYS.map((w) => sharedStringIndex(sst, w));
+
+  // 근로현황: 날짜 행과 바로 아래 요일 행. 날짜가 들어 있으면 엑셀 날짜 숫자가 가장 많은 행,
+  // 날짜를 비워둔 양식이면 "구분" 머리글이 있는 행에서 같은 서식이 28칸 이상 이어지는 구간을 날짜 칸으로 본다.
+  let rootXml = dec(rootPath);
+  const rootRows = parseRows(rootXml).map((row) => ({ ...row, cells: parseCells(row.inner) }));
+  let dateRow = null;
+  let firstCol = null;
+  let best = 0;
+  for (const row of rootRows.slice(0, 10)) {
+    const n = row.cells.filter(isSerialCell).length;
+    if (n > best) { best = n; dateRow = row; }
+  }
+  if (dateRow) firstCol = Math.min(...dateRow.cells.filter(isSerialCell).map((c) => c.col));
+  else {
+    const label = findLabelCell(rootRows, sst.strings, "구분");
+    dateRow = label && rootRows.find((row) => row.r === label.row);
+    const cells = (dateRow?.cells ?? []).filter((c) => c.col > label.col).sort((a, b) => a.col - b.col);
+    for (let i = 0; i < cells.length; ) {
+      let j = i;
+      while (j + 1 < cells.length && cells[j + 1].col === cells[j].col + 1 && styleOf(cells[j + 1]) === styleOf(cells[i])) j++;
+      if (j - i + 1 >= 28) { firstCol = cells[i].col; break; }
+      i = j + 1;
+    }
+  }
+  if (!dateRow || firstCol == null) throw new Error("기본양식의 근로현황 시트에서 날짜 칸을 찾지 못했어요.");
+  rootXml = restyleWeekends(rootXml, firstCol, days);
+  rootXml = editSheetRows(rootXml, (row, api) => {
+    if (row.r === dateRow.r) for (let i = 0; i < 31; i++) api.put(firstCol + i, days[i] ? { v: serialOf(days[i]) } : {});
+    if (row.r === dateRow.r + 1) for (let i = 0; i < 31; i++) api.put(firstCol + i, days[i] ? { v: weekdayIdx[weekdayOf(days[i])], t: "s" } : {});
+  });
+  zip[rootPath] = fflate.strToU8(rootXml);
+
+  // 알바(사업소득): 성명 행의 요일, 그 아래 날짜 번호, 주휴수당 1~5주 수식
+  if (albaPath) {
+    let x = dec(albaPath);
+    const rows = parseRows(x).map((row) => ({ ...row, cells: parseCells(row.inner) }));
+    const nameHdr = findLabelCell(rows, sst.strings, "성명");
+    const wageHdr = findLabelCell(rows, sst.strings, "시급");
+    const weekHdr = findLabelCell(rows, sst.strings, "주휴수당");
+    if (nameHdr) {
+      const first = nameHdr.col + 1;
+      const segs = weekDayIndexRanges(days);
+      x = restyleWeekBands(x, first, days);
+      x = editSheetRows(x, (row, api) => {
+        if (row.r === nameHdr.row) for (let i = 0; i < 31; i++) api.put(first + i, days[i] ? { v: weekdayIdx[weekdayOf(days[i])], t: "s" } : {});
+        if (row.r === nameHdr.row + 1) for (let i = 0; i < 31; i++) api.put(first + i, days[i] ? { v: i + 1 } : {});
+        if (weekHdr && wageHdr && row.r > weekHdr.row && api.hasF(weekHdr.col)) {
+          const wage = indexToCol(wageHdr.col) + row.r;
+          const term = ([s, e]) => {
+            const a = indexToCol(first + s) + row.r;
+            const b = indexToCol(first + e) + row.r;
+            return `ROUNDUP(IF(SUM(${a}:${b})>=15,${wage}*8*SUM(${a}:${b})/40,0),-1)`;
+          };
+          // 칸은 5개(1~5주). 주가 6개로 나뉘는 달은 마지막 칸에 남은 주를 합친다
+          for (let k = 0; k < 5; k++) {
+            const mine = k < 4 ? segs.slice(k, k + 1) : segs.slice(4);
+            api.put(weekHdr.col + k, mine.length ? { f: mine.map(term).join("+") } : { v: 0 });
+          }
+        }
+      });
+      zip[albaPath] = fflate.strToU8(x);
+    }
+  }
+  zip["xl/sharedStrings.xml"] = fflate.strToU8(sst.xml);
+}
+
+// 근무시간표 달력의 마지막 주(L줄)를 하나 더 복제해 붙인다. 원래 마지막 주는 가운데 주 서식으로 바꾸고,
+// 아래 굵은 테두리 같은 마지막 주 서식은 새로 붙인 주가 갖는다. 인쇄 범위도 같이 늘린다.
+function addScheduleWeek(xml, wbXml, sheetName, lastStart, L, labelCol) {
+  const before = parseRows(xml);
+  const byR = Object.fromEntries(before.map((row) => [row.r, row]));
+  const openTag = (row) => xml.slice(row.start, row.innerStart);
+  const clones = [];
+  for (let k = 0; k < L; k++) {
+    const row = byR[lastStart + k];
+    if (!row) continue;
+    const cells = parseCells(row.inner)
+      .map((c) => {
+        const ref = `${indexToCol(c.col)}${row.r + L}`;
+        // 오전/오후/마감 같은 왼쪽 이름표는 그대로, 나머지는 서식만
+        if (c.col === labelCol) return row.inner.slice(c.start, c.end).replace(/^<c r="[A-Z]+\d+"/, `<c r="${ref}"`);
+        return `<c r="${ref}"${c.attrs.replace(/\st="\w+"/, "")}/>`;
+      })
+      .join("");
+    clones.push(`${openTag(row).replace(/<row r="\d+"/, `<row r="${row.r + L}"`)}${cells}</row>`);
+  }
+  const middleOpen = {};
+  for (let k = 0; k < L; k++) if (byR[lastStart - L + k]) middleOpen[lastStart + k] = openTag(byR[lastStart - L + k]).replace(/<row r="\d+"/, `<row r="${lastStart + k}"`);
+  xml = editSheetRows(xml, (row, api) => {
+    if (row.r < lastStart || row.r >= lastStart + L) return;
+    const mid = byR[row.r - L];
+    if (!mid) return;
+    for (const c of parseCells(mid.inner)) {
+      const s = styleOf(c);
+      if (s && api.cellAt(c.col)) api.restyle(c.col, s);
+    }
+  });
+  for (const [r, tag] of Object.entries(middleOpen)) xml = xml.replace(new RegExp(`<row r="${r}"[^>]*>`), tag);
+  const lastRow = parseRows(xml).find((row) => row.r === lastStart + L - 1);
+  xml = xml.slice(0, lastRow.end) + clones.join("") + xml.slice(lastRow.end);
+  xml = xml.replace(/<dimension ref="([A-Z]+\d+):([A-Z]+)(\d+)"/, (_, a, b, n) => `<dimension ref="${a}:${b}${Number(n) + L}"`);
+  wbXml = wbXml.replace(new RegExp(`(<definedName name="_xlnm\\.Print_Area"[^>]*>'?${escRe(sheetName)}'?!\\$[A-Z]+\\$\\d+:\\$[A-Z]+\\$)(\\d+)`), (_, head, n) => head + (Number(n) + L));
+  return { xml, wbXml };
+}
+
+// "N월 근무시간표" 달력 시트(Sheet1)를 앱 근무표로 채운다: 날짜, 그리고 날마다 오전/오후/마감 칸에
+// "이름 시작-끝"(예: 김예은 7-15, 이시헌 15-22.5). 한 칸 줄 수보다 사람이 많으면 마지막 줄에 " / "로 붙인다.
+function fillScheduleSheet(fflate, zip, month) {
+  const dec = (name) => fflate.strFromU8(zip[name]);
+  const sst = { xml: dec("xl/sharedStrings.xml") };
+  sst.strings = parseSharedStrings(sst.xml);
+  const titleIdx = sst.strings.findIndex((s) => /^(\d+|○)월 근무시간표$/.test(s));
+  if (titleIdx < 0) return;
+  let wbXml = dec("xl/workbook.xml");
+  const rels = dec("xl/_rels/workbook.xml.rels");
+  let path = null;
+  let sheetName = null;
+  for (const m of wbXml.matchAll(/<sheet name="([^"]+)"[^>]*r:id="(rId\d+)"/g)) {
+    const p = "xl/" + rels.match(new RegExp(`<Relationship Id="${m[2]}"[^>]*Target="([^"]+)"`))[1];
+    if (new RegExp(`<c r="[A-Z]+\\d+"[^>]*t="s"[^>]*><v>${titleIdx}</v>`).test(dec(p))) {
+      path = p;
+      sheetName = m[1];
+      break;
+    }
+  }
+  if (!path) return;
+
+  let xml = dec(path);
+  const text = (c) => cellText(c, sst.strings);
+  const scan = () => parseRows(xml).map((row) => ({ ...row, cells: parseCells(row.inner) }));
+  let rows = scan();
+  let hdr = null; // 일~토 머리글
+  for (const row of rows) {
+    const sun = row.cells.find((c) => text(c) === "일");
+    if (sun && ["월", "화", "수", "목", "금", "토"].every((w, i) => text(row.cells.find((c) => c.col === sun.col + i + 1)) === w)) {
+      hdr = { r: row.r, col: sun.col };
+      break;
+    }
+  }
+  if (!hdr) return;
+  const labelCol = hdr.col - 1;
+  // 주마다 날짜 줄은 왼쪽 이름표가 비어 있고, 바로 다음 줄에 첫 칸 이름표(오전)가 있는 줄 (날짜를 비워둔 양식이어도 찾을 수 있게)
+  const labelOf = (r) => text(rows.find((row) => row.r === r)?.cells.find((c) => c.col === labelCol))?.trim();
+  const firstLabel = rows.filter((row) => row.r > hdr.r).map((row) => labelOf(row.r)).find(Boolean);
+  let dateRows = rows.filter((row) => row.r > hdr.r && !labelOf(row.r) && firstLabel && labelOf(row.r + 1) === firstLabel).map((row) => row.r);
+  if (dateRows.length < 2) return;
+  const L = dateRows[1] - dateRows[0];
+
+  const days = monthDays(month);
+  const offset = weekdayOf(days[0]);
+  const weeks = Math.ceil((offset + days.length) / 7);
+  while (dateRows.length < weeks) {
+    ({ xml, wbXml } = addScheduleWeek(xml, wbXml, sheetName, dateRows.at(-1), L, labelCol));
+    rows = scan();
+    dateRows = [...dateRows, dateRows.at(-1) + L];
+  }
+
+  // 첫 주 칸을 보고 오전/오후/마감이 각각 몇째 줄인지 알아낸다
+  const byR = Object.fromEntries(rows.map((row) => [row.r, row]));
+  const cats = [];
+  for (let k = 1; k < L; k++) {
+    const label = text(byR[dateRows[0] + k]?.cells.find((c) => c.col === labelCol));
+    if (label) cats.push({ name: label.trim(), lines: [k] });
+    else if (cats.length) cats.at(-1).lines.push(k);
+  }
+  const hourOf = (t) => {
+    const [h, m] = t.split(":").map(Number);
+    return h + m / 60;
+  };
+  const catOf = (start) => (hourOf(start) < 12 ? "오전" : hourOf(start) < 17 ? "오후" : "마감");
+  const entries = (date, cat) =>
+    scheduledOn(date)
+      .map((e) => ({ e, s: shiftFor(e, date) }))
+      .filter(({ s }) => catOf(s.start) === cat)
+      .map(({ e, s }) => `${e.name} ${+hourOf(s.start).toFixed(2)}-${+hourOf(s.end).toFixed(2)}`);
+
+  const title = `${Number(month.slice(5, 7))}월 근무시간표`;
+  xml = editSheetRows(xml, (row, api) => {
+    for (const c of row.cells) if (c.type === "s" && Number(c.raw) === titleIdx) api.put(c.col, { v: sharedStringIndex(sst, title), t: "s" });
+    const w = dateRows.findIndex((r) => row.r >= r && row.r < r + L);
+    if (w < 0) return;
+    const k = row.r - dateRows[w];
+    const cat = cats.find((x) => x.lines.includes(k));
+    for (let d = 0; d < 7; d++) {
+      const col = hdr.col + d;
+      const n = w * 7 + d - offset + 1;
+      const date = n >= 1 && n <= days.length ? days[n - 1] : null;
+      if (k === 0) {
+        api.put(col, date ? { v: n } : {});
+        continue;
+      }
+      if (!cat) continue;
+      const list = date ? entries(date, cat.name) : [];
+      const line = cat.lines.indexOf(k);
+      const value = line === cat.lines.length - 1 ? list.slice(line).join(" / ") : list[line];
+      api.put(col, value ? { v: sharedStringIndex(sst, value), t: "s" } : {});
+    }
+  });
+  zip[path] = fflate.strToU8(xml);
+  zip["xl/workbook.xml"] = fflate.strToU8(wbXml);
+  zip["xl/sharedStrings.xml"] = fflate.strToU8(sst.xml);
+}
+
+// 풀어놓은 기본양식(zip)을 이 달에 맞게 바꾸고, 근무표·근무시간·수당을 채운다.
+function fillWorkbook(fflate, zip, month, employeeId) {
+    const ts = timesheet(month, employeeId, { excludeTraining: true });
+    if (!ts.rows.length) throw new Error("이 달에는 입력할 근무 기록이 없어요.");
+    const dec = (name) => fflate.strFromU8(zip[name]);
+    adaptWorkbookMonth(fflate, zip, month);
+    fillScheduleSheet(fflate, zip, month);
+
+    // 바깥에서 셀 값만 고쳐 넣으면 엑셀이 캐시된 수식 결과를 그대로 보여줄 수 있어서,
+    // 다음에 열 때 전체를 다시 계산하도록 표시해둔다.
+    let workbookXml = dec("xl/workbook.xml");
+    workbookXml = /<calcPr\b[^>]*fullCalcOnLoad=/.test(workbookXml)
+      ? workbookXml
+      : /<calcPr\b[^>]*\/>/.test(workbookXml)
+        ? workbookXml.replace(/<calcPr\b([^>]*)\/>/, '<calcPr$1 fullCalcOnLoad="1"/>')
+        : workbookXml.replace("</workbook>", '<calcPr fullCalcOnLoad="1"/></workbook>');
+    zip["xl/workbook.xml"] = fflate.strToU8(workbookXml);
+
+    // 수식을 값으로 바꾸는 칸이 생기면 calcChain(계산 순서표)이 없는 수식을 가리켜 엑셀이 "복구"를 띄운다.
+    // 지워두면 엑셀이 열 때 다시 만든다.
+    if (zip["xl/calcChain.xml"]) {
+      delete zip["xl/calcChain.xml"];
+      zip["[Content_Types].xml"] = fflate.strToU8(dec("[Content_Types].xml").replace(/<Override[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/, ""));
+      zip["xl/_rels/workbook.xml.rels"] = fflate.strToU8(dec("xl/_rels/workbook.xml.rels").replace(/<Relationship[^>]*Target="calcChain\.xml"[^>]*\/>/, ""));
+    }
+
+    const sheetName = `${Number(month.slice(5, 7))}월 근로현황`;
+    const sheetTag = workbookXml.match(new RegExp(`<sheet name="${escRe(sheetName)}"[^>]*r:id="(rId\\d+)"`));
+    if (!sheetTag) throw new Error(`선택한 파일에서 "${sheetName}" 시트를 찾지 못했어요. 이 달 파일이 맞는지 확인해주세요.`);
+    const relTag = dec("xl/_rels/workbook.xml.rels").match(new RegExp(`<Relationship Id="${sheetTag[1]}"[^>]*Target="([^"]+)"`));
+    const sheetPath = "xl/" + relTag[1];
+    const sheetXml = dec(sheetPath);
+    const strings = zip["xl/sharedStrings.xml"] ? parseSharedStrings(dec("xl/sharedStrings.xml")) : [];
+
+    const rows = parseRows(sheetXml);
+    const rowsWithCells = rows.map((row) => ({ ...row, cells: parseCells(row.inner) }));
+
+    // 날짜(엑셀 serial) 숫자 칸이 가장 많은 행을 "날짜 행"으로 본다
+    let dateRow = null, bestCount = 0;
+    for (const row of rowsWithCells.slice(0, 10)) {
+      const count = row.cells.filter((c) => !c.type && c.raw && Number(c.raw) > 30000 && Number(c.raw) < 60000).length;
+      if (count > bestCount) { bestCount = count; dateRow = row; }
+    }
+    if (!dateRow) throw new Error("시트에서 날짜가 적힌 행을 찾지 못했어요.");
+
+    const colToDate = {};
+    for (const c of dateRow.cells) {
+      if (c.type || !c.raw) continue;
+      const serial = Number(c.raw);
+      if (serial > 30000 && serial < 60000) colToDate[c.col] = excelSerialToIso(serial);
+    }
+    const firstDateCol = Math.min(...Object.keys(colToDate).map(Number));
+    const colForDate = Object.fromEntries(Object.entries(colToDate).map(([c, d]) => [d, Number(c)]));
+
+    // 날짜 행 바로 아래부터 행 번호가 끊기지 않고 이어지는 구간만 "직원 표"로 본다.
+    // 이 시트는 그 아래에 다른 표(날짜별 급여 등)가 또 있어서, 거기까지 다 긁으면
+    // 이름이 겹쳐서 엉뚱한 표에도 값을 써버릴 수 있다.
+    const sortedBelow = rowsWithCells.filter((r) => r.r > dateRow.r).sort((a, b) => a.r - b.r);
+    const dataRows = [];
+    for (let expectR = dateRow.r + 1, i = 0; i < sortedBelow.length && sortedBelow[i].r === expectR; i++, expectR++) {
+      dataRows.push(sortedBelow[i]);
+    }
+
+    // 이름 열: 날짜 열보다 왼쪽에서 글자 칸이 가장 많은 열
+    const strCountByCol = {};
+    for (const row of dataRows) for (const c of row.cells) if (c.col < firstDateCol && cellText(c, strings) != null) strCountByCol[c.col] = (strCountByCol[c.col] || 0) + 1;
+    const nameCol = Number(Object.entries(strCountByCol).sort((a, b) => b[1] - a[1])[0]?.[0]);
+    if (!Number.isFinite(nameCol)) throw new Error("시트에서 이름이 적힌 열을 찾지 못했어요.");
+
+    // 매니저는 출퇴근·급여에서 빠지지만 근로현황 줄은 채운다: 앱 근무표의 그날 일정 시간으로.
+    // 엑셀 표기는 "매니져"일 수 있어서, 이름이 같거나 "매니저/매니져"인 줄을 매니저 줄로 본다.
+    const managers = store.employees.filter((e) => e.active && isManager(e));
+    const managerRow = (name) => {
+      const emp = managers.find((e) => e.name === name) ?? (/^매니[저져]$/.test((name || "").trim()) ? managers[0] : null);
+      return emp ? { emp, cells: ts.days.map((d) => plannedOn(emp, d)) } : null;
+    };
+
+    let patched = sheetXml;
+    const notFound = [];
+    // 뒤에서부터 바꿔야 앞쪽 바뀐 내용이 뒤쪽 인덱스를 틀어지게 만들지 않는다
+    for (const row of [...dataRows].sort((a, b) => b.r - a.r)) {
+      const nameCell = row.cells.find((c) => c.col === nameCol);
+      const name = cellText(nameCell, strings);
+      const empRow = managerRow(name) ?? ts.rows.find((r) => r.emp.name === name);
+      if (!name || !empRow) continue;
+      let inner = row.inner;
+      let cells = row.cells;
+      ts.days.forEach((date, i) => {
+        const col = colForDate[date];
+        if (col === undefined) return;
+        const ref = indexToCol(col) + row.r;
+        // 수식이 든 칸은 건드리지 않는다 (공유 수식의 원본 칸을 덮어쓰면 같은 수식을 쓰던 칸들이 깨져 파일이 안 열림)
+        const target = cells.find((c) => c.ref === ref);
+        if (target && inner.slice(target.start, target.end).includes("<f")) return;
+        // 매니저(역할이 매니저거나 이름이 매니저/매니져)는 근무일이면 항상 8시간으로 적는다
+        const manager = isManager(empRow.emp) || /^매니[저져]$/.test(empRow.emp.name.trim());
+        const hours = manager && empRow.cells[i] > 0 ? 8 : Math.round(empRow.cells[i] * 100) / 100;
+        inner = patchCell(inner, cells, ref, col, hours > 0 ? hours : null);
+        cells = parseCells(inner); // 다음 칸을 위해 인덱스 다시 계산
+      });
+      patched = patched.slice(0, row.innerStart) + inner + patched.slice(row.innerStart + row.inner.length);
+    }
+    for (const empRow of ts.rows) {
+      if (isManager(empRow.emp)) continue;
+      if (!dataRows.some((row) => cellText(row.cells.find((c) => c.col === nameCol), strings) === empRow.emp.name)) {
+        notFound.push(empRow.emp.name);
+      }
+    }
+
+    zip[sheetPath] = fflate.strToU8(patched);
+
+    // "알바(사업소득)" 시트가 있으면 수당도 넣는다: 이름이 "교육수당"인 수당은 교육수당 칸,
+    // 나머지 이름의 수당은 전부 합쳐서 특근수당 칸. 급여액·주휴수당은 시트 안 수식이 계산한다.
+    const albaTag = workbookXml.match(/<sheet name="알바\(사업소득\)"[^>]*r:id="(rId\d+)"/);
+    if (albaTag) {
+      const albaRel = dec("xl/_rels/workbook.xml.rels").match(new RegExp(`<Relationship Id="${albaTag[1]}"[^>]*Target="([^"]+)"`));
+      const albaPath = "xl/" + albaRel[1];
+      const albaXml = dec(albaPath);
+      const albaRows = parseRows(albaXml).map((row) => ({ ...row, cells: parseCells(row.inner) }));
+      const nameHdr = findLabelCell(albaRows, strings, "성명");
+      const eduHdr = findLabelCell(albaRows, strings, "교육수당");
+      const otHdr = findLabelCell(albaRows, strings, "특근수당");
+      if (nameHdr && (eduHdr || otHdr)) {
+        const headerRow = Math.max(nameHdr.row, eduHdr?.row ?? 0, otHdr?.row ?? 0);
+        const albaDataRows = albaRows.filter((r) => r.r > headerRow);
+        const payroll = payrollFor(month, employeeId);
+        const hasFormula = (row, col) => {
+          const c = row.cells.find((x) => x.col === col);
+          return Boolean(c && row.inner.slice(c.start, c.end).includes("<f"));
+        };
+        let albaPatched = albaXml;
+        for (const row of [...albaDataRows].sort((a, b) => b.r - a.r)) {
+          const name = cellText(row.cells.find((c) => c.col === nameHdr.col), strings);
+          const empPayroll = name ? payroll.rows.find((r) => r.emp.name === name) : null;
+          const sumBy = (pick) => (empPayroll ? empPayroll.allowances.filter(pick).reduce((s, a) => s + (Number(a.amount) || 0), 0) : 0);
+          const edu = sumBy((a) => (a.name || "").trim() === "교육수당");
+          const ot = sumBy((a) => (a.name || "").trim() !== "교육수당");
+          let inner = row.inner;
+          let cells = row.cells;
+          const write = (hdr, value) => {
+            inner = patchCell(inner, cells, indexToCol(hdr.col) + row.r, hdr.col, value > 0 ? value : null);
+            cells = parseCells(inner);
+          };
+          // 수당 칸에 원래 있던 수식(공유 수식)은 한 칸만 지우면 같은 수식을 쓰던 칸들이 깨지므로,
+          // 수식이 든 칸은 직원이 매칭되지 않아도 전부 앱 값(없으면 빈칸)으로 바꾼다.
+          if (eduHdr && (empPayroll || hasFormula(row, eduHdr.col))) write(eduHdr, edu);
+          if (otHdr && (empPayroll || hasFormula(row, otHdr.col))) write(otHdr, ot);
+          if (inner !== row.inner) albaPatched = albaPatched.slice(0, row.innerStart) + inner + albaPatched.slice(row.innerStart + row.inner.length);
+        }
+        zip[albaPath] = fflate.strToU8(albaPatched);
+      }
+    }
+
+    return { notFound };
+}
+
+const XLSX_TYPE = { description: "Excel 파일", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } };
+
+// 새 파일로 저장. 저장 위치 고르기 창은 클릭 직후에만 열 수 있어서, 안 되면 내려받기로 대신한다.
+async function saveXlsxBytes(bytes, name) {
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({ suggestedName: name, types: [XLSX_TYPE] });
+      const writable = await handle.createWritable();
+      await writable.write(bytes);
+      await writable.close();
+      return true;
+    } catch (err) {
+      if (err.name === "AbortError") return false;
+    }
+  }
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
+}
+
+// 기본양식으로 저장: 처음 한 번 고른 기본양식(빈 양식)은 그대로 두고, 이 달 내용을 채운 새 파일을 만든다
+function fillTemplateXlsx(button) {
+  return withBusy(button, "만드는 중…", async () => {
+    const fflate = await loadLib("fflate");
+    const { month } = state.payroll;
+    const handle = await getTemplateHandle(`baseTemplate:${storeId}`, "read");
+    const zip = fflate.unzipSync(new Uint8Array(await (await handle.getFile()).arrayBuffer()));
+    let notFound;
+    try {
+      ({ notFound } = fillWorkbook(fflate, zip, month, ""));
+    } catch (err) {
+      if (/기본양식/.test(err.message)) await idbHandle("readwrite", `baseTemplate:${storeId}`, null); // 다음엔 다시 고르게
+      throw err;
+    }
+    assertWorkbookIntact(fflate, zip);
+    const saved = await saveXlsxBytes(fflate.zipSync(zip, { level: 6 }), `${storeName()} ${Number(month.slice(5, 7))}월 근무.xlsx`);
+    if (!saved) return;
+    if (notFound.length) uiAlert(`저장했어요. 다만 "${notFound.join(", ")}" 이름은 기본양식에 줄이 없어서 빠졌어요. 기본양식에 그 직원 줄을 추가해주세요.`);
+    showToast("기본양식에 채워서 저장했어요");
+  });
+}
+
 // ---------- PDF (급여명세서) ----------
 
 async function payslipPdf(button, empIds) {
@@ -1752,6 +2515,136 @@ async function payslipPdf(button, empIds) {
       stage.remove();
     }
   });
+}
+
+// ---------- 근무 상세 사진 (카톡으로 보내기) ----------
+// 직원 한 명의 한 달 근무를 달력 모양 사진으로 만들어 휴대폰은 공유창(카톡), PC는 복사(카톡에 붙여넣기)로 보낸다.
+
+function renderTsCard(emp, ym) {
+  const [y, m] = ym.split("-").map(Number);
+  const { days, rows } = timesheet(ym, emp.id, { includeAll: true });
+  const row = rows[0];
+  const recs = monthRecords(ym, emp.id);
+  const today = todayDateString();
+  const lead = weekdayOf(days[0]);
+  const cells = days.map((d, j) => {
+    const saved = row?.cells[j] || 0;
+    const dayRecs = recs.filter((rec) => rec.date === d && rec.clockIn && rec.clockOut);
+    const range = dayRecs.map((rec) => `${formatTime(rec.clockIn)}~${formatTime(rec.clockOut)}`).join("<br />");
+    const wd = weekdayOf(d);
+    const dn = `<span class="tsc-dn${wd === 0 || HOLIDAYS[d] ? " sun" : ""}">${Number(d.slice(8))}</span>`;
+    if (d > today) return `<div class="tsc-cell future">${dn}</div>`;
+    if (!saved && d < today && emp.active && plannedOn(emp, d) > 0) {
+      return `<div class="tsc-cell">${dn}<b class="under">0</b><small class="under">미출근</small></div>`;
+    }
+    if (!saved) return `<div class="tsc-cell">${dn}</div>`;
+    return `<div class="tsc-cell">${dn}<b class="${diffClass(emp, d, saved).trim()}">${hour1(saved)}</b><small>${range}</small></div>`;
+  });
+  const workDays = row ? row.cells.filter((c) => c > 0).length : 0;
+  return `
+    <div class="tsc">
+      <p class="tsc-store">${esc(storeName())}</p>
+      <h1>${esc(emp.name)} · ${y}년 ${m}월 근무</h1>
+      <p class="tsc-sum">근무 <b>${workDays}일</b> · 총 <b>${row ? row.total.toFixed(1) : "0.0"}시간</b></p>
+      <div class="tsc-grid">
+        ${WEEKDAYS.map((w, i) => `<div class="tsc-wd${i === 0 ? " sun" : ""}">${w}</div>`).join("")}
+        ${'<div class="tsc-cell blank"></div>'.repeat(lead)}
+        ${cells.join("")}
+      </div>
+      <p class="tsc-legend"><i class="tsc-dot over"></i>근무시간보다 많이 · <i class="tsc-dot under"></i>근무시간보다 적게 · 숫자는 근무 시간</p>
+    </div>`;
+}
+
+async function shareTimesheetImage(button, empId) {
+  return withBusy(button, "사진 만드는 중…", async () => {
+    const html2canvas = await loadLib("html2canvas");
+    await document.fonts.ready;
+    const emp = employeeById(empId);
+    const { month } = state.payroll;
+    const stage = document.createElement("div");
+    stage.className = "ps-stage";
+    stage.innerHTML = renderTsCard(emp, month);
+    document.body.appendChild(stage);
+    let blob;
+    try {
+      const canvas = await html2canvas(stage.firstElementChild, { scale: 2, backgroundColor: "#ffffff" });
+      blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    } finally {
+      stage.remove();
+    }
+    if (!blob) throw new Error("사진을 만들지 못했어요. 다시 시도해주세요.");
+    openSharePreview(new File([blob], `${emp.name} ${Number(month.slice(5, 7))}월 근무.png`, { type: "image/png" }), () => {
+      // PC: 복사하면 아직 안 보낸 다음 직원으로 넘긴다 (끝까지 가면 앞에서 안 보낸 사람으로, 다 보내면 전체로)
+      if (state.payroll.employeeId !== empId) return "복사했어요. 카톡 채팅방에 붙여넣기 하세요";
+      if (state.sent?.month !== month) state.sent = { month, ids: new Set() };
+      state.sent.ids.add(empId);
+      const list = store.employees.filter((e) => !isManager(e));
+      const at = list.findIndex((e) => e.id === empId);
+      const next = [...list.slice(at + 1), ...list.slice(0, at)].find((e) => !state.sent.ids.has(e.id));
+      state.payroll.employeeId = next?.id ?? "";
+      if (!next) state.sent = null;
+      state.nextFlashAt = Date.now();
+      render();
+      return next ? `복사했어요. 다음 직원 ${next.name}(으)로 넘어갔어요` : "모두 보냈어요. 전체로 돌아갔어요";
+    });
+  });
+}
+
+// 미리보기 창: 사진을 확인하고 보내기 (공유·복사는 버튼을 누른 순간에 해야 브라우저가 허락한다)
+// onCopied: 복사한 뒤 할 일 (돌려준 글자를 알림으로 띄운다)
+function openSharePreview(file, onCopied) {
+  const url = URL.createObjectURL(file);
+  const canShare = !isDesktop() && navigator.canShare?.({ files: [file] });
+  const canCopy = isDesktop() && window.ClipboardItem && navigator.clipboard?.write;
+  const back = document.createElement("div");
+  back.className = "share-back";
+  back.innerHTML = `
+    <div class="share-box" role="dialog" aria-label="근무 사진 보내기">
+      <img src="${url}" alt="근무 상세 사진" />
+      <div class="share-actions">
+        <button type="button" class="btn-ghost" data-share="close">닫기</button>
+        <button type="button" class="btn-ghost" data-share="save">사진 저장</button>
+        ${canShare ? `<button type="button" class="btn-primary" data-share="send">카카오톡 전송하기</button>` : ""}
+        ${canCopy ? `<button type="button" class="btn-primary" data-share="copy">복사하기</button>` : ""}
+      </div>
+      ${canCopy ? `<p class="share-tip">복사한 뒤 카카오톡 채팅방에서 ${/Mac/.test(navigator.platform) ? "⌘V" : "Ctrl+V"} 로 붙여넣으면 사진으로 보내져요.</p>` : ""}
+    </div>`;
+  const close = () => {
+    back.remove();
+    URL.revokeObjectURL(url);
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (e) => e.key === "Escape" && close();
+  document.addEventListener("keydown", onKey);
+  back.addEventListener("click", async (e) => {
+    if (e.target === back) return close();
+    const kind = e.target.closest("[data-share]")?.dataset.share;
+    if (kind === "close") close();
+    if (kind === "save") {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      a.click();
+    }
+    if (kind === "send") {
+      try {
+        await navigator.share({ files: [file] });
+        close();
+      } catch (err) {
+        if (err.name !== "AbortError") uiAlert("공유를 열지 못했어요. 사진 저장 후 카톡에서 보내주세요.");
+      }
+    }
+    if (kind === "copy") {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": file })]);
+        close();
+        showToast(onCopied?.() || "복사했어요. 카톡 채팅방에 붙여넣기 하세요");
+      } catch {
+        uiAlert("복사하지 못했어요. 사진 저장 후 카톡에 끌어다 놓아주세요.");
+      }
+    }
+  });
+  document.body.appendChild(back);
 }
 
 // ---------- 주간 근무표 (게시용) ----------
@@ -1806,23 +2699,48 @@ function commitSchedule() {
   const work = schedWork();
   if (work.meta) store.scheduleMeta = work.meta; // 기간이 바뀌면 적용 시작일도 바뀌므로 먼저
   pinPeriodYear();
+  // 근무표에 근무 시간을 넣은 교육생은 근무표 시작일부터 직원으로 등록
+  const promoted = store.employees.filter((e) => e.trainee && Object.values(work.weekly[e.id] ?? {}).some(Boolean));
   for (const [empId, days] of Object.entries(work.weekly)) {
     const emp = employeeById(empId);
     if (!emp) continue;
     for (const [wd, range] of Object.entries(days)) setWeekly(emp, wd, range);
   }
+  const start = scheduleStart();
+  const today = todayDateString();
+  for (const emp of promoted) {
+    if (start <= today) {
+      delete emp.trainee;
+      delete emp.promoteFrom;
+    } else emp.promoteFrom = start; // 그 전까지는 교육으로 일하고, 시작일부터 직원
+    // 시작일부터의 근무는 직원 근무 (교육수당이 아니라 기본급)
+    for (const r of store.records) if (r.employeeId === emp.id && r.date >= start) delete r.training;
+  }
   delete store.scheduleDraft;
   state.schedWork = { weekly: {}, meta: null };
   save();
+  return promoted.map((e) => (start <= today ? `${e.name}님을 직원으로 등록했어요` : `${e.name}님은 ${monthDay(start)}부터 직원이에요`));
+}
+
+// 시작일이 된 교육생은 직원으로 (관리자가 열 때)
+function promoteDueTrainees() {
+  if (!ADMIN_SITE || !isAdmin() || demoLoaded) return;
+  const today = todayDateString();
+  const due = store.employees.filter((e) => e.trainee && e.promoteFrom && e.promoteFrom <= today);
+  for (const e of due) {
+    delete e.trainee;
+    delete e.promoteFrom;
+  }
+  if (due.length) save();
 }
 
 // 근무표: 줄 = 직원, 칸 = 요일 (많이 쓰는 주간 근무표 모양)
 const shiftHours = (r) => hoursBetween(kstIso("2026-01-05", r.start), endIso("2026-01-05", r.start, r.end));
 const hoursText = (n) => `${Number(n.toFixed(1))}h`;
 
-function renderScheduleSheet() {
+function renderScheduleSheet({ wide = false } = {}) {
   const meta = schedMeta();
-  const compact = !isDesktop();
+  const compact = !wide && !isDesktop();
   const ed = state.slotEdit;
   const people = store.employees.filter((e) => e.active);
   const dayTotal = Object.fromEntries(SCHEDULE_DAYS.map((wd) => [wd, { n: 0, h: 0 }]));
@@ -1870,16 +2788,16 @@ function renderScheduleSheet() {
         <div class="sc-actions" data-html2canvas-ignore>
           <button type="button" class="pill plain-dark" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
           <button type="button" class="pill" data-action="schedule-save"${hasDraft() ? "" : " disabled"}>저장</button>
-          <button type="button" class="pill plain-dark" data-action="schedule-pdf">PDF 저장</button>
+          <button type="button" class="pill plain-dark" data-action="schedule-share">카카오톡 전송하기</button>
         </div>`;
 
   return `
     <div class="sched-sheet" id="sched-sheet">
       <div class="sc-print-head">
-        <span class="ps-brand">${esc(storeName())} 근무표${meta.period ? `<span class="sc-print-period">${esc(meta.period.trim())}</span>` : ""}</span>
+        <span class="ps-brand">${esc(storeName())} 근무표${meta.period ? `<span class="sc-print-period">${esc(normalizePeriod(meta.period.trim()))}</span>` : ""}</span>
       </div>
       <div class="sc-head">
-        <h2 class="sc-title">[${esc(storeName())} 근무표]( <input class="sc-period" value="${esc(meta.period ?? "")}" size="${Math.max(6, [...(meta.period || "2026.06.04 ~ 2026.07.05")].length)}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~ 2026.07.05" aria-label="기간" /> )</h2>
+        <h2 class="sc-title">[${esc(storeName())} 근무표]( <input class="sc-period" value="${esc(normalizePeriod(meta.period ?? ""))}" size="${Math.max(6, [...(normalizePeriod(meta.period ?? "") || "2026.06.04 ~")].length)}" data-meta="period" inputmode="numeric" placeholder="2026.06.04 ~" aria-label="기간" /> )</h2>
         ${compact ? "" : actions}
       </div>
       ${compact ? `<div class="sc-help" data-html2canvas-ignore>${schedHelp()}</div>` : ""}
@@ -1975,7 +2893,7 @@ function renderSlotPanel() {
           ? `<input type="hidden" id="slot-emp" value="${ed.addEmpId}" />`
           : `<select id="slot-emp" class="field" aria-label="직원">
               <option value="">직원 선택</option>
-              ${choices.map((e) => `<option value="${e.id}"${e.id === ed.addEmpId ? " selected" : ""}>${esc(e.name)}${isManager(e) ? " (매니저)" : ""}</option>`).join("")}
+              ${choices.map((e) => `<option value="${e.id}"${e.id === ed.addEmpId ? " selected" : ""}>${esc(e.name)}${isManager(e) ? " (매니저)" : e.trainee ? " (교육)" : ""}</option>`).join("")}
             </select>`
       }
       <div class="edit-row">
@@ -2049,11 +2967,18 @@ function finishSlot() {
   render();
 }
 
-async function schedulePdf(button) {
-  return withBusy(button, "PDF 만드는 중…", async () => {
-    const [html2canvas, jsPDF] = await Promise.all([loadLib("html2canvas"), loadLib("jspdf")]);
+async function scheduleShare(button) {
+  return withBusy(button, "사진 만드는 중…", async () => {
+    const html2canvas = await loadLib("html2canvas");
     await document.fonts.ready;
-    const sheet = document.getElementById("sched-sheet");
+    // 휴대폰 화면의 표는 이름 없이 색만 있으므로, 화면 밖에 PC용 큰 표를 그려서 찍는다
+    const stage = isDesktop() ? null : document.createElement("div");
+    if (stage) {
+      stage.className = "sc-wide-stage";
+      stage.innerHTML = renderScheduleSheet({ wide: true }).replace('id="sched-sheet"', "");
+      document.body.appendChild(stage);
+    }
+    const sheet = stage ? stage.firstElementChild : document.getElementById("sched-sheet");
     const fold = sheet.closest("details");
     const wasOpen = fold?.open;
     if (fold) fold.open = true;
@@ -2063,21 +2988,18 @@ async function schedulePdf(button) {
     const periodText = document.createElement("span");
     periodText.textContent = period.value;
     period.replaceWith(periodText);
+    let blob;
     try {
       const canvas = await html2canvas(sheet, { scale: 2, backgroundColor: "#ffffff" });
-      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
-      const margin = 8;
-      const w = 297 - margin * 2;
-      const h = Math.min(210 - margin * 2, (canvas.height / canvas.width) * w);
-      const fitW = (canvas.width / canvas.height) * h;
-      // A4 가로 한가운데에 (위아래 여백을 똑같이)
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", (297 - fitW) / 2, (210 - h) / 2, fitW, h);
-      pdf.save(`근무표_${(store.scheduleMeta?.period || todayDateString()).replace(/[\s.~]+/g, "_")}.pdf`);
+      blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     } finally {
       periodText.replaceWith(period);
       sheet.classList.remove("capturing");
       if (fold) fold.open = wasOpen;
+      stage?.remove();
     }
+    if (!blob) throw new Error("사진을 만들지 못했어요. 다시 시도해주세요.");
+    openSharePreview(new File([blob], `근무표_${(store.scheduleMeta?.period || todayDateString()).replace(/[\s.~]+/g, "_")}.png`, { type: "image/png" }));
   });
 }
 
@@ -2126,6 +3048,17 @@ function render() {
   lockDemoFields();
   placeNavPill();
   if (state.pageEnter && r.name === "records") countUp(app.querySelectorAll(".pay-table td.net, .m-main .net"));
+  // 카톡 복사 후 다음 직원으로 넘어갔음을 보여준다: 직원 칸 반짝, 표 새로 들어옴, 전송 버튼 두근
+  // (저장 직후 다시 그려져도 이어서 돌도록 지난 시간만큼 앞당겨 시작)
+  const flashMs = Date.now() - (state.nextFlashAt ?? 0);
+  if (flashMs < 2600 && r.name === "records") {
+    for (const sel of ["#r-emp", ".ts-desktop", '[data-action="share-ts-image"]']) {
+      const el = app.querySelector(sel);
+      if (!el) continue;
+      el.style.setProperty("--flash-t", `${flashMs}ms`);
+      el.classList.add("next-flash");
+    }
+  }
   state.pageEnter = false;
   state.monthDir = null;
   state.expandEnter = false;
@@ -2459,11 +3392,15 @@ app.addEventListener("click", (e) => {
       break;
     case "promote-trainee": {
       const emp = employeeById(id);
-      if (!window.confirm(`${emp.name}님을 직원으로 등록할까요?\n지금까지 교육으로 일한 날은 계속 교육수당으로 계산돼요.`)) return;
-      delete emp.trainee;
-      save();
-      queueToast(`${emp.name}님을 직원으로 등록했어요`);
-      break;
+      uiConfirm(`${emp.name}님을 직원으로 등록할까요?\n지금까지 교육으로 일한 날은 계속 교육수당으로 계산돼요.`, { ok: "등록" }).then((yes) => {
+        if (!yes) return;
+        delete emp.trainee;
+        delete emp.promoteFrom;
+        save();
+        queueToast(`${emp.name}님을 직원으로 등록했어요`);
+        render();
+      });
+      return;
     }
     case "admin-clock-in": {
       // 관리자: 출근을 못 찍은 직원을 그날 근무 시간대로 출근 처리 (오늘·지난 날짜)
@@ -2489,12 +3426,15 @@ app.addEventListener("click", (e) => {
       break;
     case "remove-record": {
       const date = activeDate();
-      if (!window.confirm(`${employeeById(id).name}님의 ${shortDate(date)} 근무 기록을 삭제할까요?`)) return;
-      removeRecord(id, date);
-      save();
-      queueToast("근무 기록을 삭제했어요");
-      state.expandedId = null;
-      break;
+      uiConfirm(`${employeeById(id).name}님의 ${shortDate(date)} 근무 기록을 삭제할까요?`, { ok: "삭제", danger: true }).then((yes) => {
+        if (!yes) return;
+        removeRecord(id, date);
+        save();
+        queueToast("근무 기록을 삭제했어요");
+        state.expandedId = null;
+        render();
+      });
+      return;
     }
     case "logout":
       cloud?.auth.signOut();
@@ -2509,20 +3449,22 @@ app.addEventListener("click", (e) => {
     }
     case "remove-employee": {
       const emp = employeeById(id);
-      if (!window.confirm(`${emp.name}님을 삭제하시겠습니까? 근무 기록도 함께 삭제됩니다.`)) return;
-      const finish = () => {
-        store.employees = store.employees.filter((x) => x.id !== id);
-        store.records = store.records.filter((x) => x.employeeId !== id);
-        save();
-        queueToast(`${emp.name}님을 삭제했어요`);
-        if (state.sheet?.id === id) state.sheet = null;
-        render();
-      };
-      // 줄이 옆으로 밀려나며 사라진 뒤에 지운다
       const row = el.closest("tr");
-      if (row && !reducedMotion()) {
-        row.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(24px)" }], { duration: 220, easing: "ease-in" }).finished.then(finish);
-      } else finish();
+      uiConfirm(`${emp.name}님을 삭제할까요?\n근무 기록도 함께 삭제돼요.`, { ok: "삭제", danger: true }).then((yes) => {
+        if (!yes) return;
+        const finish = () => {
+          store.employees = store.employees.filter((x) => x.id !== id);
+          store.records = store.records.filter((x) => x.employeeId !== id);
+          save();
+          queueToast(`${emp.name}님을 삭제했어요`);
+          if (state.sheet?.id === id) state.sheet = null;
+          render();
+        };
+        // 줄이 옆으로 밀려나며 사라진 뒤에 지운다
+        if (row && row.isConnected && !reducedMotion()) {
+          row.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(24px)" }], { duration: 220, easing: "ease-in" }).finished.then(finish);
+        } else finish();
+      });
       return;
     }
     case "export-xlsx":
@@ -2566,9 +3508,26 @@ app.addEventListener("click", (e) => {
         () => showToast("복사하지 못했어요. 주소를 길게 눌러 복사해주세요."),
       );
       return;
-    case "schedule-pdf":
-      schedulePdf(el);
+    case "fill-template-xlsx":
+      fillTemplateXlsx(el);
       return;
+    case "share-ts-image":
+      shareTimesheetImage(el, el.dataset.id);
+      return;
+    case "schedule-share":
+      scheduleShare(el);
+      return;
+    case "toggle-password": {
+      // 다시 그리지 않고 입력칸 종류만 바꾼다 (입력한 비밀번호가 지워지지 않게)
+      const input = document.getElementById("login-password");
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      el.innerHTML = show ? ICON_EYE_OFF : ICON_EYE;
+      el.setAttribute("aria-pressed", String(show));
+      el.setAttribute("aria-label", show ? "비밀번호 숨기기" : "비밀번호 보기");
+      input.focus({ preventScroll: true });
+      return;
+    }
     case "schedule-temp":
       if (state.slotEdit) liveSlot({ final: true });
       state.slotEdit = null;
@@ -2579,12 +3538,38 @@ app.addEventListener("click", (e) => {
       if (state.slotEdit) liveSlot({ final: true });
       {
         // 저장할 근무표(아직 저장 전인 기간 포함)의 시작일
-        const from = scheduleStart(state.schedWork?.meta?.period ?? store.scheduleMeta?.period ?? "").replaceAll("-", ".");
-        if (!window.confirm(`근무표를 저장하면 ${from} 부터 직원 관리·달력·근무 기록에 반영돼요. 저장할까요?`)) return;
+        // 근무표를 바꿀 때마다 시작 날짜를 직접 다시 입력해야 저장 (예전 날짜 그대로 실수로 덮어쓰지 않게)
+        if (!state.periodTyped) {
+          uiAlert("저장하기 전에 근무표 시작 날짜를 입력해주세요.\n예전과 같은 날짜라도 다시 입력해야 저장돼요.\n(예: 2026.10.20~)").then(() => {
+            const input = document.querySelector(".sc-period");
+            input?.focus();
+            input?.select();
+          });
+          return;
+        }
+        const period = state.schedWork?.meta?.period ?? store.scheduleMeta?.period ?? "";
+        // 시작 날짜(연·월·일)를 다 입력해야 저장 (날짜가 없으면 언제부터 바뀌는지 알 수 없다)
+        const typed = period.match(/(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})/);
+        const valid = typed && (() => {
+          const [y, m, d] = typed.slice(1).map(Number);
+          const dt = new Date(Date.UTC(y, m - 1, d));
+          return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+        })();
+        if (!valid) {
+          uiAlert("근무표 시작 날짜를 입력해주세요.\n제목 옆 기간 칸에 숫자 8자리로 입력하면 돼요.\n(예: 2026.10.20~)").then(() =>
+            document.querySelector(".sc-period")?.focus(),
+          );
+          return;
+        }
+        const from = scheduleStart(period).replaceAll("-", ".");
+        uiConfirm(`근무표를 저장하면 ${from} 부터\n직원 관리·달력·근무 기록에 반영돼요. 저장할까요?`, { ok: "저장" }).then((yes) => {
+          if (!yes) return;
+          state.slotEdit = null;
+          state.periodTyped = false;
+          const notes = commitSchedule();
+          showToast(["근무표를 저장했어요", ...notes].join(" · "), "ok");
+        });
       }
-      state.slotEdit = null;
-      commitSchedule();
-      showToast("근무표를 저장했어요", "ok");
       return;
     case "edit-slot":
       if (state.slotEdit) liveSlot({ final: true }); // 보던 칸은 입력한 대로 두고 넘어간다
@@ -3009,11 +3994,7 @@ app.addEventListener("change", (e) => {
     return;
   }
   if (t.dataset.note !== undefined || t.dataset.meta) {
-    const work = schedWork();
-    const meta = (work.meta = structuredClone(work.meta ?? store.scheduleMeta ?? { notes: {} }));
-    if (t.dataset.meta) meta[t.dataset.meta] = t.value.trim();
-    else meta.notes = { ...meta.notes, [t.dataset.note]: t.value.trim() };
-    render();
+    if (keepMetaInput(t)) render();
     return;
   }
   if (t.dataset.allow) {
@@ -3035,7 +4016,7 @@ app.addEventListener("change", (e) => {
 });
 
 // + 로 일정에 없던 인원을 그날 근무자로 등록. 처음 보는 이름이면 직원으로도 추가된다.
-function addExtra() {
+async function addExtra() {
   const name = document.getElementById("extra-name").value.trim();
   const start = readTime("extra-start");
   const end = readTime("extra-end");
@@ -3046,7 +4027,7 @@ function addExtra() {
   }
   let emp = store.employees.find((x) => x.active && x.name === name);
   // 처음 보는 이름은 직원이 아니라 교육생 (교육)으로 넣는다. 직원 등록은 관리자가 직원 화면에서.
-  if (!emp && !window.confirm(`'${name}'님은 등록된 직원이 아니에요. 교육(교육생)으로 등록할까요?\n직원 등록은 사장님이 해요.`)) return;
+  if (!emp && !(await uiConfirm(`'${name}'님은 등록된 직원이 아니에요.\n교육(교육생)으로 등록할까요?\n직원 등록은 사장님이 해요.`, { ok: "등록" }))) return;
   if (!emp) {
     emp = { id: uid(), name, phone: null, hourlyWage: DEFAULT_WAGE, active: true, weekly: {}, trainee: true };
     store.employees.push(emp);
@@ -3108,12 +4089,18 @@ window.matchMedia("(min-width: 768px)").addEventListener("change", (mq) => {
 
 render();
 
-// 근무표 기간: 숫자만 입력해도 "2026.06.04 ~ 2026.07.05" 꼴로 맞춘다
+// 근무표 기간: 시작일만 받는다. 숫자만 입력해도 "2026.06.04 ~" 꼴로 맞춘다 (끝나는 날 없이 이날부터 계속)
 function formatPeriod(digits) {
-  const d = digits.slice(0, 16);
+  const d = digits.slice(0, 8);
   const date = (s) => [s.slice(0, 4), s.slice(4, 6), s.slice(6, 8)].filter(Boolean).join(".");
-  if (d.length < 8) return date(d);
-  return d.length === 8 ? `${date(d)} ~ ` : `${date(d.slice(0, 8))} ~ ${date(d.slice(8))}`;
+  return d.length === 8 ? `${date(d)} ~` : date(d);
+}
+
+// 예전 형식("2026. 10. 5 ~ 11. 8", "2026.10.05 ~ 2026.11.08")은 고치기 시작할 때 시작일만 남긴다 ("2026.10.05 ~")
+function normalizePeriod(text) {
+  const [a] = text.split("~");
+  if (!/\d/.test(a ?? "") || /^\d{4}\.\d{2}\.\d{2} ~$/.test(text)) return text;
+  return `${scheduleStart(a).replaceAll("-", ".")} ~`;
 }
 
 function livePeriod(input, e) {
@@ -3136,10 +4123,39 @@ function fitPeriod(input) {
 // 근무표 편집 패널: 입력하는 대로 왼쪽 표에 반영
 app.addEventListener("input", (e) => {
   if (e.target.id === "slot-start" || e.target.id === "slot-end") liveSlot();
-  if (e.target.classList.contains("sc-period")) livePeriod(e.target, e);
+  if (e.target.classList.contains("sc-period")) {
+    livePeriod(e.target, e);
+    state.periodTyped = true; // 저장 전에 시작 날짜를 직접 입력했는지
+  }
+});
+// 근무표 기간·메모: 입력하는 대로 초안에 넣는다 (바뀐 게 있으면 true)
+// 다시 그리지 않고 저장 버튼만 켠다 — 입력칸을 벗어날 때 다시 그리면 바로 누른 [저장]이 먹히지 않아서
+function keepMetaInput(t) {
+  const work = schedWork();
+  const meta = structuredClone(work.meta ?? store.scheduleMeta ?? { notes: {} });
+  const value = t.value.trim();
+  if (t.dataset.meta) {
+    if (meta[t.dataset.meta] === value && work.meta) return false;
+    meta[t.dataset.meta] = value;
+  } else {
+    if ((meta.notes?.[t.dataset.note] ?? "") === value && work.meta) return false;
+    meta.notes = { ...meta.notes, [t.dataset.note]: value };
+  }
+  work.meta = meta;
+  for (const b of document.querySelectorAll('[data-action="schedule-save"]')) b.disabled = !hasDraft();
+  for (const b of document.querySelectorAll('[data-action="schedule-temp"]')) b.disabled = !schedDirty();
+  const status = document.getElementById("sched-status");
+  if (status) status.innerHTML = renderSchedStatus();
+  return true;
+}
+app.addEventListener("input", (e) => {
+  if (e.target.classList.contains("sc-period") || e.target.dataset?.note !== undefined) keepMetaInput(e.target);
 });
 app.addEventListener("focusin", (e) => {
-  if (e.target.classList.contains("sc-period")) e.target.dataset.digits = e.target.value.replace(/\D/g, "");
+  if (!e.target.classList.contains("sc-period")) return;
+  e.target.value = normalizePeriod(e.target.value);
+  e.target.dataset.digits = e.target.value.replace(/\D/g, "");
+  fitPeriod(e.target);
 });
 app.addEventListener("change", (e) => {
   if (e.target.id === "slot-emp") liveSlot();
@@ -3169,7 +4185,7 @@ const storePath = (sub) => `stores/${storeId}/${sub}`;
 var cloud = null; // { auth, db } — SDK 를 못 불러오면 이 기기에만 저장
 var remote = { pub: null, priv: null, pubLoaded: false, privLoaded: false, last: {}, seedAsked: false };
 
-const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory", "trainee"];
+const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory", "trainee", "promoteFrom"];
 
 // store → { "경로": "JSON 문자열" }
 function flattenStore(withPrivate) {
@@ -3244,6 +4260,7 @@ function cleanStore(data) {
       name: e.name.slice(0, 40),
       color: e.color ? cssColor(e.color) : e.color,
       weekly: cleanWeekly(e.weekly),
+      ...(e.promoteFrom ? { promoteFrom: safeDate(e.promoteFrom) ? e.promoteFrom : undefined } : {}),
       ...(e.weeklyBase ? { weeklyBase: cleanWeekly(e.weeklyBase) } : {}),
       ...(Array.isArray(e.weeklyHistory)
         ? { weeklyHistory: e.weeklyHistory.filter((h) => h && safeDate(h.from)).map((h) => ({ from: h.from, weekly: cleanWeekly(h.weekly) })) }
@@ -3336,6 +4353,7 @@ function applyRemote() {
     return;
   }
   store = storeFromRemote();
+  promoteDueTrainees();
   saveCache();
   requestRender();
 }
