@@ -5063,7 +5063,7 @@ td.name {
 
 /* 근무표: 누른 요일 바로 아래에 나오는 근무 입력칸 (컴퓨터) — 제목 한 줄, 입력·버튼 한 줄, 가운데 정렬 */
 .tl-edit {
-  width: fit-content;
+  width: 720px; /* 추가·수정 어느 쪽이든 같은 크기 */
   max-width: 100%;
   box-sizing: border-box;
   margin: 2px auto 12px;
