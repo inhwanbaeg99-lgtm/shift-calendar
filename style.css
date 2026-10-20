@@ -4526,8 +4526,7 @@ td.name {
   transform: translateX(-100%);
 }
 .tl-row {
-  /* 달력처럼 화면 높이를 7개 요일이 나눠 쓴다 (겹친 근무가 많은 요일은 그만큼 더 길어짐) */
-  min-height: clamp(84px, calc((100vh - 410px) / 7), 170px);
+  flex: 1 1 auto;
   padding: 10px 0;
   box-sizing: border-box;
   align-items: center;
@@ -5134,5 +5133,23 @@ td.name {
 @media (prefers-reduced-motion: reduce) {
   .tl-edit {
     animation: none;
+  }
+}
+
+/* 근무표 카드 높이 = 달력 카드 높이 (보통 달력: 5주 칸 + 머리). 남는 높이는 요일 7줄이 똑같이 나눠 쓴다 */
+@media (min-width: 768px) {
+  .sched-sheet:has(> .tl) {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(var(--cell-h) * 5 + 156px);
+    box-sizing: border-box;
+  }
+  .sched-sheet > .tl {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .sched-sheet.capturing {
+    min-height: 0;
   }
 }
