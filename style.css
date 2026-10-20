@@ -4526,7 +4526,11 @@ td.name {
   transform: translateX(-100%);
 }
 .tl-row {
-  padding: 32px 0;
+  /* 달력처럼 화면 높이를 7개 요일이 나눠 쓴다 (겹친 근무가 많은 요일은 그만큼 더 길어짐) */
+  min-height: clamp(84px, calc((100vh - 410px) / 7), 170px);
+  padding: 10px 0;
+  box-sizing: border-box;
+  align-items: center;
   border-top: 1px solid var(--line);
 }
 .tl-day {
@@ -4680,6 +4684,7 @@ td.name {
   column-gap: 4px;
 }
 .tl.compact .tl-row {
+  min-height: 0;
   padding: 16px 0;
 }
 .tl.compact .tl-hours span {
