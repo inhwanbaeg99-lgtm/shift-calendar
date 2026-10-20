@@ -5063,7 +5063,7 @@ td.name {
 
 /* 근무표: 누른 요일 바로 아래에 나오는 근무 입력칸 (컴퓨터) — 제목 한 줄, 입력·버튼 한 줄, 가운데 정렬 */
 .tl-edit {
-  width: 720px; /* 추가·수정 어느 쪽이든 같은 크기 */
+  width: 560px; /* 추가·수정 어느 쪽이든 같은 크기 */
   max-width: 100%;
   box-sizing: border-box;
   margin: 2px auto 12px;
@@ -5122,6 +5122,21 @@ td.name {
   border-radius: 12px;
   font-size: 15px;
   font-weight: 700;
+}
+/* 윗줄: 직원·시간 입력, 아랫줄: 취소·완료·근무 삭제 */
+.tl-edit .slot-form::before {
+  content: "";
+  flex-basis: 100%;
+  order: 2;
+  height: 0;
+  margin: -6px 0;
+}
+.tl-edit .action-row {
+  order: 3;
+}
+.tl-edit .slot-remove {
+  order: 4;
+  margin: 0;
 }
 .tl-edit .slot-form > .error {
   flex-basis: 100%;
