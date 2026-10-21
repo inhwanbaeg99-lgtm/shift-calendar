@@ -1321,6 +1321,14 @@ function allowancesFor(ym, empId) {
 // 월급·식대·공제액은 세무사에게 받은 금액을 한 번 입력하면 그달부터 다음 달, 그다음 달에도 그대로 이어진다.
 // 금액이 바뀐 달에만 새로 입력하면 그달부터 새 금액. 지난달 명세서는 그때 금액 그대로.
 const DED_KEYS = [["pension", "국민연금"], ["health", "건강보험"], ["care", "장기요양보험"], ["employ", "고용보험"], ["income", "근로소득세"], ["local", "지방소득세"]];
+// 직원 목록 순서: 매니저(직원)가 맨 위. emp 를 매니저 무리의 바로 아래(= 알바 맨 앞)로 옮긴다
+function placeByRole(emp) {
+  const list = store.employees.filter((e) => e !== emp);
+  const at = list.findIndex((e) => !isManager(e));
+  list.splice(at < 0 ? list.length : at, 0, emp);
+  store.employees = list;
+}
+
 // 따로 정하지 않았으면 매니저는 월급제, 알바는 시급제
 const isSalaried = (emp) => Boolean(emp) && (store.salary?.[emp.id]?.on ?? isManager(emp));
 
@@ -3672,6 +3680,7 @@ app.addEventListener("click", (e) => {
       const emp = employeeById(id);
       emp.role = isManager(emp) ? undefined : "manager";
       if (!isManager(emp)) emp.color = null;
+      placeByRole(emp); // 매니저가 되면 위로, 알바가 되면 알바 맨 앞으로
       ensureColors();
       // 매니저는 월급제(4대보험), 알바는 시급제(3.3%)로 같이 바꾼다 (전에 넣은 월급·공제액은 지우지 않고 둔다)
       store.salary = store.salary ?? {};
@@ -4170,6 +4179,7 @@ app.addEventListener("submit", (e) => {
     ...(manager ? { role: "manager" } : {}),
   };
   store.employees.push(emp);
+  if (manager) placeByRole(emp); // 매니저는 맨 위 (매니저가 여럿이면 그 아래)
   // 매니저는 월급제(4대보험)로 시작: 입력한 기본급·식대를 이번 달부터 (공제액은 나중에 급여 화면 명세서에서)
   if (manager) {
     store.salary = store.salary ?? {};
