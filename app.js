@@ -823,11 +823,13 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
     </nav>
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. 내 매장으로 쓰려면 <a href="#/signup">매장 등록</a> 또는 <a href="#/login">로그인</a>해주세요.</p>` : ""}
     <main class="admin-main${center ? " centered" : ""}${wide ? " wide" : ""}${state.pageEnter ? " page-enter" : ""}">${content}</main>
+    <button type="button" class="tour-fab" data-action="start-tour" aria-label="이 화면 사용법 보기"><span>?</span>사용법</button>
     ${toastHtml()}`;
 }
 
 // ? 버튼을 누르면 펼쳐지는 설명 (다른 화면에 갔다 오면 다시 접힘)
 function helpToggle(key, html) {
+  if (ADMIN_SITE) return ""; // 관리자 화면은 ? 를 누르면 튜토리얼 (tourButton)
   const open = state.helpOpen[key];
   return `
     <div class="help">
@@ -944,6 +946,7 @@ function renderMobileShell(active, content) {
     <header class="m-top">
       <b class="m-store">${esc(storeName())}</b>
       ${demoLoaded ? "" : staffCalLink("m-staff-link")}
+      <button type="button" class="m-tour" data-action="start-tour" aria-label="이 화면 사용법 보기">?</button>
       ${demoLoaded ? `<a class="m-login" href="#/login">로그인</a>` : `<button type="button" class="m-logout" data-action="logout">로그아웃</button>`}
     </header>
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. <a href="#/signup">매장 등록</a> · <a href="#/login">로그인</a></p>` : ""}
@@ -2523,6 +2526,183 @@ async function scheduleShare(button) {
   });
 }
 
+// ---------- 사용법 튜토리얼 (관리자 화면의 ?) ----------
+// 지금 화면 위를 어둡게 덮고, 설명할 버튼·칸만 밝게 뚫어 옆에 말풍선으로 설명한다. [다음]으로 하나씩.
+// sel 은 여러 개를 줄 수 있고, 화면에 보이는 첫 번째를 가리킨다. 지금 화면에 없는 단계는 건너뛴다.
+const TOURS = {
+  employees: (pc) =>
+    pc
+      ? [
+          { sel: "#add-employee .seg", title: "알바 / 매니저", text: "새 직원이 알바인지 매니저인지 골라요. 매니저를 고르면 시급 대신 기본급(월급)과 식대를 넣어요." },
+          { sel: "#add-employee", title: "직원 추가", text: "이름과 시급(매니저는 월급)을 넣고 <b>추가</b>를 눌러요. 전화번호는 넣지 않아도 돼요." },
+          { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
+          { sel: "table.schedule tbody tr:first-child .day-cell", title: "요일별 근무 시간", text: "칸에 <b>7-12</b>, <b>18-2230</b>처럼 입력하면 그 요일 고정 근무 시간이 저장돼요. 비우면 쉬는 날이에요." },
+          { sel: "table.schedule tbody tr:first-child .wage-cell", title: "시급 · 월급", text: "알바는 시급을 고쳐요. <b>월급으로</b>를 누르면 월급제(4대보험) 직원이 되고, 월급은 급여 화면 명세서에서 입력해요." },
+          { sel: "table.schedule tbody tr:first-child [data-action=toggle-active]", title: "재직중 · 비활성", text: "그만둔 직원은 <b>비활성</b>으로 바꿔요. 기록은 남고, 달력과 근무표에서만 빠져요." },
+          { sel: "table.schedule tbody tr:first-child [data-action=toggle-role]", title: "알바 · 매니저", text: "매니저로 바꾸면 목록 맨 위로 오고 월급제가 돼요. 다시 알바로 바꾸면 시급제로 돌아가요." },
+        ]
+      : [
+          { sel: ".m-add", title: "직원 추가", text: "여기를 눌러 직원을 추가해요. 알바 / 매니저를 고르고, 매니저는 기본급(월급)을 넣어요." },
+          { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
+          { sel: ".m-list .m-row", title: "직원 정보 고치기", text: "직원을 누르면 요일별 근무 시간, 시급, 재직중·비활성, 알바·매니저를 고칠 수 있어요." },
+        ],
+  schedule: (pc) =>
+    pc
+      ? [
+          { sel: ".sc-period", title: "근무표 시작 날짜", text: "이 근무표를 언제부터 쓸지 숫자 8자리로 입력해요(예: 20261101). 저장할 때마다 한 번씩 다시 입력해야 저장돼요." },
+          { sel: ".tl-row .tl-track", title: "근무자 추가", text: "막대가 없는 빈 곳을 누르면 그 요일, 그 시각으로 근무자를 추가해요. 입력칸은 그 요일 바로 아래에 열려요." },
+          { sel: ".tl-bar", title: "근무 고치기 · 삭제", text: "막대를 누르면 시간을 고치거나 <b>근무 삭제</b>를 할 수 있어요. 같은 시간에 여러 명이면 아래 줄에 쌓여요." },
+          { sel: ".sc-actions [data-action=schedule-temp]", title: "임시저장", text: "고친 내용을 보관만 해요. 직원 화면·달력·근무 기록에는 아직 반영되지 않아요." },
+          { sel: ".sc-actions [data-action=schedule-save]", title: "저장", text: "시작 날짜부터 직원 화면, 달력, 근무 기록에 반영돼요." },
+          { sel: ".sc-actions [data-action=schedule-share]", title: "카카오톡 전송하기", text: "근무표를 사진으로 만들어요. 복사해서 단톡방에 붙여넣으면 돼요." },
+        ]
+      : [
+          { sel: ".m-period", title: "근무표 시작 날짜", text: "이 근무표를 언제부터 쓸지 숫자 8자리로 입력해요. 저장할 때마다 한 번씩 다시 입력해야 저장돼요." },
+          { sel: ".m-days", title: "요일 고르기", text: "요일을 누르면 그날 근무자가 아래에 나와요. 옆으로 밀어도 요일이 바뀌어요." },
+          { sel: ".m-shift", title: "근무 고치기", text: "근무자를 누르면 시간을 고치거나 삭제할 수 있어요." },
+          { sel: ".m-add-shift", title: "근무자 추가", text: "이 요일에 근무자를 추가해요." },
+          { sel: ".m-fold > summary", title: "근무표 한눈에 보기", text: "일주일 근무표 전체를 볼 수 있어요." },
+          { sel: ".m-savebar", title: "저장 · 카톡 전송", text: "<b>저장</b>하면 시작 날짜부터 반영돼요. <b>카톡 전송</b>은 근무표를 사진으로 보내요." },
+        ],
+  calendar: (pc) => [
+    ...(pc ? [] : [{ sel: ".m-today", title: "오늘 근무자", text: "오늘 일할 사람과 출근했는지가 보여요. 누르면 오늘 화면으로 가요." }]),
+    { sel: ".cal-head", title: "달 바꾸기", text: "화살표로 지난달, 다음 달을 봐요." },
+    { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "그날 출근 기록이 이름과 시간으로 보여요. 근무표보다 <b style=\"color:var(--more)\">더 일하면 파랑</b>, <b style=\"color:var(--red)\">덜 일하면 빨강</b>이에요." },
+    { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 누르기", text: "날짜를 누르면 그날 근무자 목록이 열려요. 출근 처리, 시간 고치기, 결근 표시, <b>+</b>로 대타·추가 근무를 넣을 수 있어요." },
+  ],
+  records: (pc) =>
+    pc
+      ? [
+          { sel: ".month-nav", title: "달 바꾸기", text: "화살표로 지난달 급여를 볼 수 있어요." },
+          { sel: "#r-emp", title: "직원 고르기", text: "한 명을 고르면 그 사람 것만 보여요. 그때 <b>카카오톡 전송하기</b> 버튼이 나와서 근무 내역을 사진으로 보낼 수 있어요." },
+          { sel: "#r-tax", title: "세금", text: "알바(시급제) 세금이에요. 보통 3.3%를 떼요. 월급제 직원의 공제액은 명세서에서 따로 입력해요." },
+          { sel: "[data-action=share-ts-image]", title: "카카오톡 전송하기", text: "이 직원의 한 달 근무를 달력 사진으로 만들어요. <b>복사하기</b>를 누르면 다음 직원으로 넘어가요." },
+          { sel: "[data-action=export-ledger]", title: "급여대장 받기", text: "세무사에게 보낼 엑셀이에요. 알바·직원(4대보험)·날짜별 근무시간·주휴수당 내역이 한 파일에 들어가요." },
+          { sel: [".ts-wrap", ".timesheet"], title: "근무 상세", text: "날짜별 근무 시간이에요. 근무표보다 더 일하면 파랑, 덜 일하면 빨강으로 보여요." },
+          { sel: ".pay-table", title: "급여 정산", text: "기본급, 주휴수당, 수당, 세금, 실지급액이 계산돼요. 주휴수당에 마우스를 올리면 주별 내역이 보여요." },
+          { sel: ".pay-table [data-action=open-payslip]", title: "명세서", text: "수당(특근수당 등)을 넣어요. 매니저(월급제)는 여기서 월급·식대·공제액(세무사 금액)을 넣고, 다음 달에도 그대로 이어져요." },
+          { sel: ".section-head [data-action=payslip-pdf-all]", title: "명세서 PDF", text: "직원마다 따로 급여명세서 PDF를 받아요. 직원에게 보내 주면 돼요." },
+        ]
+      : [
+          { sel: ".m-month", title: "달 바꾸기", text: "화살표로 지난달 급여를 볼 수 있어요." },
+          { sel: ".m-hero", title: "이번 달 합계", text: "실지급액 합계예요. 오른쪽에서 알바 세금(3.3% / 공제 안 함)을 바꿔요." },
+          { sel: ".m-pay", title: "직원별 급여", text: "직원을 누르면 급여 내역과 날짜별 근무가 나와요. 거기서 <b>카카오톡 전송하기</b>, <b>수당 · 명세서</b>, <b>명세서 PDF</b>를 할 수 있어요." },
+          { sel: ".m-fold > summary", title: "날짜별 근무 시간", text: "전체 직원의 날짜별 근무 시간 표예요." },
+          { sel: ".m-btns [data-action=export-ledger]", title: "급여대장 받기", text: "세무사에게 보낼 엑셀이에요." },
+          { sel: ".m-btns [data-action=payslip-pdf-all]", title: "명세서 PDF 전체", text: "직원마다 따로 급여명세서 PDF를 받아요." },
+        ],
+};
+
+let tour = null; // { steps, i, timer }
+
+function tourEl(sel) {
+  for (const one of [].concat(sel)) {
+    const el = app.querySelector(one);
+    if (el && el.getClientRects().length) return el;
+  }
+  return null;
+}
+
+function startTour(page) {
+  if (state.sheet || state.payslipId || state.slotEdit) {
+    state.sheet = null;
+    state.payslipId = null;
+    state.slotEdit = null;
+    render();
+  }
+  const steps = (TOURS[page]?.(isDesktop()) ?? []).filter((s) => tourEl(s.sel));
+  if (!steps.length) return;
+  endTour();
+  const root = document.createElement("div");
+  root.className = "tour";
+  root.innerHTML = `
+    <div class="tour-block"></div>
+    <div class="tour-spot"></div>
+    <div class="tour-tip" role="dialog" aria-modal="true" aria-labelledby="tour-title">
+      <p class="tour-title" id="tour-title"></p>
+      <p class="tour-text"></p>
+      <div class="tour-foot">
+        <button type="button" class="tour-skip" data-tour="end">건너뛰기</button>
+        <span class="tour-count"></span>
+        <button type="button" class="tour-prev" data-tour="prev">이전</button>
+        <button type="button" class="tour-next" data-tour="next">다음</button>
+      </div>
+    </div>`;
+  root.addEventListener("click", (e) => {
+    const k = e.target.closest("[data-tour]")?.dataset.tour;
+    if (k === "end") endTour();
+    if (k === "prev") showTourStep(tour.i - 1);
+    if (k === "next") tour.i + 1 < tour.steps.length ? showTourStep(tour.i + 1) : endTour();
+  });
+  document.body.appendChild(root);
+  tour = { steps, i: 0, root, timer: setInterval(placeTour, 250) };
+  document.addEventListener("keydown", tourKey, true);
+  window.addEventListener("resize", placeTour);
+  window.addEventListener("scroll", placeTour, true);
+  showTourStep(0);
+}
+
+function tourKey(e) {
+  if (!tour) return;
+  if (e.key === "Escape") endTour();
+  else if (e.key === "ArrowRight" || e.key === "Enter") tour.i + 1 < tour.steps.length ? showTourStep(tour.i + 1) : endTour();
+  else if (e.key === "ArrowLeft") showTourStep(tour.i - 1);
+  else return;
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function showTourStep(i) {
+  if (!tour || i < 0 || i >= tour.steps.length) return;
+  tour.i = i;
+  const step = tour.steps[i];
+  const q = (c) => tour.root.querySelector(c);
+  q(".tour-title").textContent = step.title;
+  q(".tour-text").innerHTML = step.text;
+  q(".tour-count").textContent = `${i + 1} / ${tour.steps.length}`;
+  q(".tour-prev").hidden = i === 0;
+  q(".tour-next").textContent = i + 1 === tour.steps.length ? "완료" : "다음";
+  tour.root.classList.remove("show");
+  void tour.root.offsetWidth; // 단계마다 말풍선이 새로 나타나게
+  tour.root.classList.add("show");
+  tourEl(step.sel)?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
+  placeTour();
+  q(".tour-next").focus({ preventScroll: true });
+}
+
+// 가리키는 칸이 움직여도(스크롤·다시 그리기) 따라가게 자주 다시 잰다
+function placeTour() {
+  if (!tour) return;
+  const el = tourEl(tour.steps[tour.i].sel);
+  const spot = tour.root.querySelector(".tour-spot");
+  const tip = tour.root.querySelector(".tour-tip");
+  if (!el) return;
+  const pad = 6;
+  const r = el.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  Object.assign(spot.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+  const tw = tip.offsetWidth;
+  const th = tip.offsetHeight;
+  const gap = 14;
+  const below = r.bottom + pad + gap + th < vh - 8 || r.top - pad - gap - th < 8;
+  const top = below ? Math.min(r.bottom + pad + gap, vh - th - 8) : r.top - pad - gap - th;
+  const left = Math.min(Math.max(12, r.left + r.width / 2 - tw / 2), vw - tw - 12);
+  Object.assign(tip.style, { left: `${left}px`, top: `${Math.max(8, top)}px` });
+  tip.dataset.side = below ? "below" : "above";
+  tip.style.setProperty("--arrow-x", `${Math.min(Math.max(20, r.left + r.width / 2 - left), tw - 20)}px`);
+}
+
+function endTour() {
+  if (!tour) return;
+  clearInterval(tour.timer);
+  document.removeEventListener("keydown", tourKey, true);
+  window.removeEventListener("resize", placeTour);
+  window.removeEventListener("scroll", placeTour, true);
+  tour.root.remove();
+  tour = null;
+}
+
 // ---------- 라우팅 ----------
 
 function route() {
@@ -2604,12 +2784,14 @@ function render() {
 }
 
 function navigate(hash) {
+  endTour();
   state.error = "";
   if (location.hash === hash) render();
   else location.hash = hash;
 }
 
 window.addEventListener("hashchange", () => {
+  endTour();
   state.pageEnter = true;
   state.sheet = null;
   resetDayUi();
@@ -3026,6 +3208,9 @@ app.addEventListener("click", (e) => {
         () => showToast("복사하지 못했어요. 주소를 길게 눌러 복사해주세요."),
       );
       return;
+    case "start-tour":
+      startTour(route().name);
+      return;
     case "export-ledger":
       exportLedger(el);
       return;
@@ -3364,7 +3549,7 @@ function renderInstallHint() {
 const DEMO_ALLOWED = new Set([
   "prev-month", "next-month", "close-panel", "go-home", "toggle-staff", "toggle-help",
   "payroll-prev", "payroll-next", "open-payslip", "close-payslip",
-  "open-sheet", "close-sheet", "sched-day", "open-today", "install-app", "dismiss-install",
+  "open-sheet", "close-sheet", "sched-day", "open-today", "install-app", "dismiss-install", "start-tour",
 ]);
 
 let toastTimer = null;

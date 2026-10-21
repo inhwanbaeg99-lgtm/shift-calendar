@@ -5295,3 +5295,178 @@ td.name {
 .m-form .f-mgr-wrap .sheet-label:first-child {
   margin-top: 12px;
 }
+
+/* ---------- 사용법 튜토리얼 (관리자 화면 ?) ---------- */
+.tour-fab {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right, 0px));
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.tour-fab span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+}
+.tour-fab:hover {
+  transform: translateY(-2px);
+}
+.m-tour {
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.m-tour + .m-logout,
+.m-tour + .m-login {
+  margin-left: 8px;
+}
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+.tour-block {
+  position: absolute;
+  inset: 0;
+}
+.tour-spot {
+  position: fixed;
+  border-radius: 14px;
+  box-shadow: 0 0 0 3px var(--accent), 0 0 0 9999px rgb(10 14 13 / 0.62);
+  transition: left 0.25s, top 0.25s, width 0.25s, height 0.25s;
+  pointer-events: none;
+}
+.tour-tip {
+  position: fixed;
+  width: min(340px, calc(100vw - 24px));
+  padding: 18px 18px 14px;
+  border-radius: 16px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.25);
+  transition: left 0.25s, top 0.25s;
+}
+.tour-tip::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--arrow-x, 50%) - 8px);
+  width: 16px;
+  height: 16px;
+  background: var(--paper);
+  transform: rotate(45deg);
+  border-radius: 3px;
+}
+.tour-tip[data-side="below"]::before {
+  top: -7px;
+}
+.tour-tip[data-side="above"]::before {
+  bottom: -7px;
+}
+.tour.show .tour-tip {
+  animation: tour-in 0.22s ease-out;
+}
+@keyframes tour-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.tour-title {
+  position: relative;
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 800;
+}
+.tour-text {
+  position: relative;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-sub);
+}
+.tour-text b {
+  color: var(--ink);
+}
+.tour-foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+.tour-count {
+  margin-left: auto;
+  margin-right: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  font-variant-numeric: tabular-nums;
+}
+.tour-foot button {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tour-skip {
+  padding: 0 4px !important;
+  background: none;
+  color: var(--ink-sub);
+}
+.tour-prev {
+  background: var(--bg);
+  color: var(--ink);
+}
+.tour-next {
+  background: var(--accent);
+  color: #fff;
+}
+.tour-foot button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-spot,
+  .tour-tip {
+    transition: none;
+  }
+  .tour.show .tour-tip {
+    animation: none;
+  }
+}
+/* 오른쪽 아래 사용법 버튼이 맨 아래 내용을 가리지 않게 */
+.admin-main {
+  padding-bottom: 88px;
+}
