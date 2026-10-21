@@ -2603,7 +2603,7 @@ const TOURS = {
           { sel: "#r-tax", title: "세금", text: "알바(시급제) 세금이에요. 보통 3.3%를 떼요. 월급제 직원의 공제액은 명세서에서 따로 입력해요." },
           { sel: "[data-action=export-ledger]", title: "급여대장 받기", text: "세무사에게 보낼 엑셀이에요. 알바·직원(4대보험)·날짜별 근무시간·주휴수당 내역이 한 파일에 들어가요." },
           { sel: ".pay-table", title: "급여 정산", text: "기본급, 주휴수당, 수당, 세금, 실지급액이 계산돼요. 주휴수당에 마우스를 올리면 주별 내역이 보여요." },
-          { sel: ".pay-table [data-action=open-payslip]", title: "명세서", text: "이름 옆 <b>명세서</b>를 누르면 명세서 창이 열려요. 알바와 직원(매니저)은 창이 조금 달라요." },
+          { sel: ".pay-table .ps-cell [data-action=open-payslip]", title: "명세서", text: "이름 옆 <b>명세서</b>를 누르면 명세서 창이 열려요. 알바와 직원(매니저)은 창이 조금 달라요." },
           { scene: "payslipAlba", sel: ".ps-allow", title: "알바 명세서 · 수당 입력", text: "특근수당 같은 수당을 이름과 금액으로 넣어요. <b>+ 수당 추가</b>로 여러 개 넣을 수 있어요." },
           { scene: "payslipAlba", sel: ".ps-preview", title: "알바 명세서", text: "기본급, 주휴수당, 수당에서 3.3%를 뗀 금액이에요. 입력하는 대로 바로 바뀌고, 이 모양 그대로 PDF가 돼요." },
           { scene: "payslipAlba", sel: ".ps-side [data-action=save-payslip]", title: "저장", text: "저장하면 급여 정산과 명세서에 반영돼요." },
