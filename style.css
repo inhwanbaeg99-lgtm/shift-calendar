@@ -4484,12 +4484,6 @@ td.name {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.tl-hours span:first-child {
-  transform: none;
-}
-.tl-hours span:last-child {
-  transform: translateX(-100%);
-}
 .tl-row {
   flex: 1 1 auto;
   padding: 10px 0;
@@ -4937,7 +4931,7 @@ td.name {
   position: fixed;
   left: -10000px;
   top: 0;
-  width: 1100px;
+  width: 720px;
 }
 
 /* 카톡 복사 후 다음 직원으로 넘어갈 때 */

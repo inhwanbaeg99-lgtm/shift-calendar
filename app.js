@@ -2635,7 +2635,7 @@ function placeShifts(list) {
   return { items, lanes: Math.max(1, ends.length) };
 }
 
-function renderScheduleSheet({ wide = false } = {}) {
+function renderScheduleSheet({ wide = false, share = false } = {}) {
   const meta = schedMeta();
   const compact = !wide && !isDesktop();
   const ed = state.slotEdit;
@@ -2663,7 +2663,7 @@ function renderScheduleSheet({ wide = false } = {}) {
   const inlineEdit = Boolean(ed) && !wide && isDesktop();
 
   const axis = [...hours, last]
-    .map((h, i) => (i % step ? "" : `<span style="left:${pct(h * 60)}">${h % 24}${compact ? "" : ":00"}</span>`))
+    .map((h, i) => (i % step ? "" : `<span style="left:${pct(h * 60)}">${h % 24}${compact ? "" : share ? "시" : ":00"}</span>`))
     .join("");
   const lines = hours.slice(1).map((h) => `<i style="left:${pct(h * 60)}"></i>`).join("");
   const rows = days
@@ -2877,14 +2877,13 @@ async function scheduleShare(button) {
   return withBusy(button, "사진 만드는 중…", async () => {
     const html2canvas = await loadLib("html2canvas");
     await document.fonts.ready;
-    // 휴대폰 화면의 표는 이름 없이 색만 있으므로, 화면 밖에 PC용 큰 표를 그려서 찍는다
-    const stage = isDesktop() ? null : document.createElement("div");
-    if (stage) {
-      stage.className = "sc-wide-stage";
-      stage.innerHTML = renderScheduleSheet({ wide: true }).replace('id="sched-sheet"', "");
-      document.body.appendChild(stage);
-    }
-    const sheet = stage ? stage.firstElementChild : document.getElementById("sched-sheet");
+    // 화면 크기와 상관없이 화면 밖에 카톡에서 보기 좋은 너비(720px)로 그려서 찍는다
+    // (컴퓨터 화면 그대로 찍으면 너무 가로로 길고, 휴대폰 화면 표는 이름이 없어서)
+    const stage = document.createElement("div");
+    stage.className = "sc-wide-stage";
+    stage.innerHTML = renderScheduleSheet({ wide: true, share: true }).replace('id="sched-sheet"', "");
+    document.body.appendChild(stage);
+    const sheet = stage.firstElementChild;
     const fold = sheet.closest("details");
     const wasOpen = fold?.open;
     if (fold) fold.open = true;
