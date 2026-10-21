@@ -6043,8 +6043,19 @@ a.m-store span {
   text-decoration: none;
 }
 .pay-store {
-  margin: 20px 0 0;
-  font-weight: 700;
+  margin: 12px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.pay-sub {
+  margin: 2px 0 18px;
+  font-size: 13px;
+  color: var(--ink-sub);
+}
+.pay-hint {
+  margin: 14px 2px 0;
+  font-size: 13.5px;
   color: var(--ink-sub);
 }
 .pay-inner h1 {
@@ -6156,28 +6167,6 @@ a.m-store span {
   font-size: 13px;
   font-weight: 700;
 }
-.pay-tabs {
-  display: flex;
-  gap: 4px;
-  margin: 8px 0 4px;
-  padding: 4px;
-  border-radius: 12px;
-  background: var(--paper);
-}
-.pay-tabs a {
-  flex: 1;
-  padding: 9px 0;
-  border-radius: 9px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink-sub);
-  text-decoration: none;
-}
-.pay-tabs a.on {
-  background: var(--ink);
-  color: var(--bg);
-}
 .pay-wait {
   padding: 20px;
 }
@@ -6280,4 +6269,134 @@ a.m-store span {
 }
 .emp-modal-actions .btn-primary {
   min-width: 120px;
+}
+
+/* 직원: 내 근무 · 급여명세서 */
+.pay-who {
+  justify-content: flex-start;
+  gap: 4px;
+  margin: 4px 0 14px;
+}
+.pay-back-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pay-back-btn:hover {
+  background: var(--paper);
+}
+.pay-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--paper);
+}
+.pay-tabs button {
+  flex: 1;
+  padding: 10px 0;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  cursor: pointer;
+}
+.pay-tabs button.on {
+  background: var(--ink);
+  color: var(--bg);
+}
+.pay-month {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 0;
+}
+.pay-month .round-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.pay-month-pick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 17px;
+  cursor: pointer;
+}
+.pay-month-pick span {
+  font-size: 11px;
+  color: var(--ink-sub);
+}
+.pay-month-pick select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.pin-guide {
+  margin: 28px 0 18px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--ink-sub);
+}
+.pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 36px;
+}
+.pin-dots i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--line);
+  transition: background 0.12s;
+}
+.pin-dots i.on {
+  background: var(--accent);
+}
+.pin-dots.shake {
+  animation: pin-shake 0.4s;
+}
+@keyframes pin-shake {
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.pin-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 320px;
+  margin: 0 auto;
+}
+.pin-pad button {
+  height: 64px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--paper);
+  font: inherit;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pin-pad button:active {
+  background: var(--line);
+}
+.pin-pad button:disabled {
+  opacity: 0.5;
 }

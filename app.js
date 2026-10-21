@@ -805,7 +805,7 @@ function renderHome() {
     </div>
     ${policyLinks("policy-links home-policy")}
     <button type="button" class="tour-fab" data-action="start-tour" aria-label="사용법 보기"><span>?</span>사용법</button>
-    ${Object.keys(remote?.pub?.slips ?? {}).length ? `<div class="pay-fabs"><a class="pay-fab" href="#/work">내 근무</a><a class="pay-fab" href="#/pay">내 명세서</a></div>` : ""}
+    ${Object.keys(remote?.pub?.slips ?? {}).length ? `<div class="pay-fabs"><a class="pay-fab" href="#/my">내 근무 · 명세서</a></div>` : ""}
     ${toastHtml()}`;
 }
 
@@ -938,8 +938,8 @@ function renderEmployees() {
 
 // ---------- 마이페이지 (매장 이름을 누르면): 사업주 정보 · 직원 명세서 링크 · 전체 기록 · 매장 삭제 ----------
 const resumeUrl = () => new URL(`../resume.html?store=${encodeURIComponent(storeName())}`, location.href).href;
-const payUrl = () => new URL(`../?s=${storeId}#/pay`, location.href).href;
-const workUrl = () => new URL(`../?s=${storeId}#/work`, location.href).href;
+const payUrl = () => new URL(`../?s=${storeId}#/my`, location.href).href;
+
 function renderMyPage() {
   const biz = store.settings?.biz ?? {};
   const keys = remote?.priv?.slipKeys ?? {};
@@ -968,12 +968,9 @@ function renderMyPage() {
       </section>
 
       <section class="me-card">
-        <h2>직원 링크 · 명세서와 근무 상세</h2>
-        <p class="sub">이 주소를 단톡방에 올려 두면, 직원이 눌러서 <b>자기 PIN</b>으로 자기 것만 봐요. 명세서는 매달 <b>지급일(${payDayLabel()})</b>이 지나면, 근무 상세는 출퇴근이 찍힐 때마다 자동으로 올라가요. 두 링크는 같은 PIN을 써요.</p>
-        <p class="me-link-label">급여명세서</p>
+        <h2>직원 링크 · 근무 상세와 급여명세서</h2>
+        <p class="sub">이 주소를 단톡방에 올려 두면, 직원이 눌러서 <b>자기 PIN</b>으로 자기 것만 봐요. 근무 상세는 출퇴근이 찍힐 때마다, 명세서는 매달 <b>지급일(${payDayLabel()})</b>이 지나면 자동으로 올라가요.</p>
         <div class="me-link"><span>${demoLoaded ? "로그인하면 주소가 생겨요" : esc(payUrl())}</span><button type="button" class="pill" data-action="copy-pay-link"${demoLoaded ? " disabled" : ""}>주소 복사</button></div>
-        <p class="me-link-label">근무 상세</p>
-        <div class="me-link"><span>${demoLoaded ? "로그인하면 주소가 생겨요" : esc(workUrl())}</span><button type="button" class="pill" data-action="copy-work-link"${demoLoaded ? " disabled" : ""}>주소 복사</button></div>
         <ul class="me-pins">
           ${
             emps
@@ -1114,85 +1111,152 @@ async function slipOff(empId) {
   render();
 }
 
-// ---------- 직원: 내 명세서 (#/pay) · 내 근무 상세 (#/work) ----------
-// 같은 PIN 으로 두 탭을 본다. 근무 상세는 public/slips/{직원}/w-{달} 에 잠겨 있다.
+// ---------- 직원: 내 근무 · 급여명세서 (#/my, #/work, #/pay) ----------
+// 한 화면에 탭 두 개 (왼쪽 근무 상세가 먼저). 같은 PIN 으로 연다. 근무 상세는 public/slips/{직원}/w-{달} 에 잠겨 있다.
 const paySessionKey = (empId) => `kok-pay:${storeId}:${empId}`;
-const payTab = () => (location.hash === "#/work" ? "work" : "pay");
+const payTab = () => state.payTab ?? (location.hash === "#/pay" ? "pay" : "work");
 const workMonths = (empId) => Object.keys(slipsOf(empId)).filter((k) => /^w-\d{4}-\d{2}$/.test(k)).map((k) => k.slice(2)).sort().reverse();
 const tabMonths = (empId, tab) => (tab === "work" ? workMonths(empId) : slipMonths(empId));
 const slipKey = (tab, ym) => (tab === "work" ? `w-${ym}` : ym);
+const ICON_BACK = ICON_PREV;
+
+// 처음 보여 줄 달: 근무 상세는 이번 달, 명세서는 지급일이 지난 가장 최근 달 (올라온 것 중 가장 최근)
+function payDefaultYm(empId, tab) {
+  const list = tabMonths(empId, tab);
+  if (tab === "work") return list.includes(todayDateString().slice(0, 7)) ? todayDateString().slice(0, 7) : list[0] ?? null;
+  return list[0] ?? null;
+}
+
+function renderPinPad() {
+  const p = state.payPin;
+  const emp = employeeById(p.empId);
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
+  return `
+    <div class="pay-who"><button type="button" class="pay-back-btn" data-action="pay-close" aria-label="이전">${ICON_BACK}</button><b>${esc(emp?.name ?? "")}님</b></div>
+    <p class="pin-guide">${p.busy ? "확인하는 중이에요…" : "PIN 6자리를 눌러주세요"}</p>
+    <div class="pin-dots${p.shake ? " shake" : ""}" aria-label="${p.digits.length}자리 입력됨">${Array.from({ length: 6 }, (_, i) => `<i class="${i < p.digits.length ? "on" : ""}"></i>`).join("")}</div>
+    <div class="pin-pad">${keys
+      .map((k) =>
+        k === ""
+          ? `<span></span>`
+          : `<button type="button" data-action="pin-key" data-key="${k}"${p.busy ? " disabled" : ""}${k === "del" ? ' aria-label="지우기"' : ""}>${k === "del" ? "⌫" : k}</button>`,
+      )
+      .join("")}</div>`;
+}
+
 function renderPayPage() {
   const v = state.payView;
-  const tab = payTab();
   const names = store.employees.filter((e) => slipsOf(e.id).check);
   let body;
-  if (!remote?.pubLoaded) body = `<p class="sub">불러오는 중이에요…</p>`;
+  if (!remote?.pubLoaded) body = `<p class="sub pay-wait">불러오는 중이에요…</p>`;
+  else if (state.payPin) body = renderPinPad();
   else if (!v) {
-    body = names.length
-      ? `<p class="sub">본인 이름을 누르고 PIN 6자리를 입력해주세요.</p>
-        <ul class="pay-names">${names.map((e) => `<li><button type="button" data-action="pay-open" data-id="${e.id}"><span class="swatch" style="background:${cssColor(e.color)}"></span>${esc(e.name)}<span class="chev" aria-hidden="true">›</span></button></li>`).join("")}</ul>`
-      : `<p class="sub">아직 공개된 ${tab === "work" ? "근무 상세가" : "명세서가"} 없어요. 사장님께 PIN을 받았는지 확인해주세요.</p>`;
+    body = `
+      <p class="pay-store">${esc(storeName())}</p>
+      <p class="pay-sub">내 근무 및 급여명세서</p>
+      ${
+        names.length
+          ? `<ul class="pay-names">${names.map((e) => `<li><button type="button" data-action="pay-open" data-id="${e.id}"><span class="swatch" style="background:${cssColor(e.color)}"></span>${esc(e.name)}<span class="chev" aria-hidden="true">›</span></button></li>`).join("")}</ul>
+            <p class="pay-hint">본인 이름을 누르고 PIN을 입력해주세요.</p>`
+          : `<p class="pay-hint">아직 공개된 내용이 없어요. 사장님께 PIN을 받았는지 확인해주세요.</p>`
+      }`;
   } else {
+    const tab = payTab();
     const emp = employeeById(v.empId);
     const months = tabMonths(v.empId, tab);
-    const ym = months.includes(v.ym) ? v.ym : months[0];
-    if (ym && ym !== v.ym) v.ym = ym;
+    if (!v.ym[tab] || !months.includes(v.ym[tab])) v.ym[tab] = payDefaultYm(v.empId, tab);
+    const ym = v.ym[tab];
     const got = ym ? v.cache[slipKey(tab, ym)] : null;
     if (ym && got === undefined) queueMicrotask(payLoadMonth);
-    const name = `${emp?.name ?? ""} ${ym ? Number(ym.slice(5)) : ""}월 ${tab === "work" ? "근무" : "급여명세서"}`;
-    const html = got?.img
-      ? `<img class="pay-img" src="${got.img}" alt="${esc(name)}" />
-        <button type="button" class="btn-primary pay-save" data-action="pay-save">${tab === "work" ? "사진 저장" : "PDF 저장"}</button>`
-      : got?.error;
+    const at = months.indexOf(ym);
+    const label = ym ? `${Number(ym.slice(0, 4))}년 ${Number(ym.slice(5))}월` : "";
+    const content = !ym
+      ? `<p class="pay-hint">${tab === "work" ? "아직 올라온 근무 상세가 없어요." : "아직 올라온 명세서가 없어요. 급여 지급일이 지나면 올라와요."}</p>`
+      : got?.img
+        ? `<img class="pay-img" src="${got.img}" alt="${esc(`${emp?.name ?? ""} ${label} ${tab === "work" ? "근무 상세" : "급여명세서"}`)}" />
+          <button type="button" class="btn-primary pay-save" data-action="pay-save">${tab === "work" ? "사진 저장" : "PDF 저장"}</button>`
+        : (got?.error ?? `<p class="sub pay-wait">여는 중이에요…</p>`);
     body = `
-      <div class="pay-who"><b>${esc(emp?.name ?? "")}님</b><button type="button" class="link-btn" data-action="pay-close">다른 사람</button></div>
+      <div class="pay-who"><button type="button" class="pay-back-btn" data-action="pay-close" aria-label="이전">${ICON_BACK}</button><b>${esc(emp?.name ?? "")}님</b></div>
+      <div class="pay-tabs" role="tablist">
+        <button type="button" role="tab" class="${tab === "work" ? "on" : ""}" aria-selected="${tab === "work"}" data-action="pay-tab" data-tab="work">근무 상세</button>
+        <button type="button" role="tab" class="${tab === "pay" ? "on" : ""}" aria-selected="${tab === "pay"}" data-action="pay-tab" data-tab="pay">급여명세서</button>
+      </div>
       ${
-        months.length
-          ? `<div class="pay-months">${months.map((m) => `<button type="button" class="${m === ym ? "on" : ""}" data-action="pay-month" data-ym="${m}">${Number(m.slice(0, 4))}년 ${Number(m.slice(5))}월</button>`).join("")}</div>
-            <div class="pay-slip">${html ?? `<p class="sub pay-wait">여는 중이에요…</p>`}</div>`
-          : `<p class="sub">${tab === "work" ? "아직 올라온 근무 상세가 없어요." : "아직 올라온 명세서가 없어요. 급여 지급일이 지나면 올라와요."}</p>`
-      }`;
+        ym
+          ? `<div class="pay-month">
+              <button type="button" class="round-btn" data-action="pay-step" data-dir="1" aria-label="이전 달"${at >= months.length - 1 ? " disabled" : ""}>${ICON_PREV}</button>
+              <label class="pay-month-pick"><b>${label}</b><span aria-hidden="true">▾</span>
+                <select data-paymonth aria-label="달 고르기">${months.map((m) => `<option value="${m}"${m === ym ? " selected" : ""}>${Number(m.slice(0, 4))}년 ${Number(m.slice(5))}월</option>`).join("")}</select>
+              </label>
+              <button type="button" class="round-btn" data-action="pay-step" data-dir="-1" aria-label="다음 달"${at <= 0 ? " disabled" : ""}>${ICON_NEXT}</button>
+            </div>`
+          : ""
+      }
+      <div class="pay-slip">${content}</div>`;
   }
   return `
     <div class="pay-page">
-      <div class="pay-inner">
-        <a class="pay-back" href="#/">‹ 달력</a>
-        <p class="pay-store">${esc(storeName())}</p>
-        <h1>${tab === "work" ? "내 근무 상세" : "내 급여명세서"}</h1>
-        ${body}
-      </div>
+      <div class="pay-inner">${body}</div>
     </div>
     ${toastHtml()}`;
 }
+
 async function payOpen(empId) {
-  const emp = employeeById(empId);
   const check = parse(slipsOf(empId).check, null);
-  const tryKey = async (raw) => Boolean(raw) && (await openText(raw, check).catch(() => "")) === "ok";
   let raw = null;
   try {
     raw = sessionStorage.getItem(paySessionKey(empId));
   } catch {}
-  if (!(await tryKey(raw))) {
-    const pin = await uiPrompt(`${emp.name}님 PIN을 입력해주세요.`, { kind: "pin", placeholder: "숫자 6자리" });
-    if (pin === null) return;
-    showToast("확인하는 중이에요…");
-    raw = await slipKeyFromPin(empId, pin);
-    if (!(await tryKey(raw))) return showToast("PIN이 맞지 않아요. 다시 확인해주세요.");
-    try {
-      sessionStorage.setItem(paySessionKey(empId), raw);
-    } catch {}
-    state.toast = "";
-  }
-  state.payView = { empId, raw, ym: null, cache: {} };
+  // 이 탭에서 이미 PIN 을 맞혔으면 다시 묻지 않는다
+  if (raw && (await openText(raw, check).catch(() => "")) === "ok") return payShow(empId, raw);
+  state.payPin = { empId, digits: "", busy: false, shake: false };
   render();
 }
+function payShow(empId, raw) {
+  state.payPin = null;
+  state.payView = { empId, raw, ym: {}, cache: {} };
+  render();
+}
+async function pinKey(key) {
+  const p = state.payPin;
+  if (!p || p.busy) return;
+  p.shake = false;
+  if (key === "del") p.digits = p.digits.slice(0, -1);
+  else if (p.digits.length < 6) p.digits += key;
+  render();
+  if (p.digits.length < 6) return;
+  p.busy = true;
+  render();
+  const raw = await slipKeyFromPin(p.empId, p.digits);
+  const ok = (await openText(raw, parse(slipsOf(p.empId).check, null)).catch(() => "")) === "ok";
+  if (state.payPin !== p) return;
+  if (!ok) {
+    Object.assign(p, { digits: "", busy: false, shake: true });
+    showToast("PIN이 맞지 않아요. 다시 눌러주세요.");
+    return;
+  }
+  try {
+    sessionStorage.setItem(paySessionKey(p.empId), raw);
+  } catch {}
+  payShow(p.empId, raw);
+}
+// 컴퓨터 키보드로도 PIN 을 누를 수 있게
+document.addEventListener("keydown", (e) => {
+  if (!state.payPin || document.querySelector(".ui-back, .share-back")) return;
+  if (/^\d$/.test(e.key)) pinKey(e.key);
+  else if (e.key === "Backspace") pinKey("del");
+});
+
 async function payLoadMonth() {
   const v = state.payView;
-  if (!v?.ym) return;
-  const key = slipKey(payTab(), v.ym);
+  const tab = payTab();
+  const ym = v?.ym[tab];
+  if (!ym) return;
+  const key = slipKey(tab, ym);
   if (v.cache[key] !== undefined) return;
   v.cache[key] = null; // 여는 중 (같은 달을 두 번 열지 않게)
-  const work = key.startsWith("w-");
+  const work = tab === "work";
   try {
     const html = await openText(v.raw, parse(slipsOf(v.empId)[key], null));
     // 관리자 화면의 카톡 사진(근무 상세) · PDF(명세서)와 똑같이: 화면 밖에 그려서 2배로 찍는다
@@ -1214,14 +1278,16 @@ async function payLoadMonth() {
   }
   if (state.payView === v) render();
 }
+
 // 직원이 받는 파일: 명세서는 관리자 PDF 와 같은 A4 한 장, 근무 상세는 카톡 사진과 같은 PNG
 async function paySave() {
   const v = state.payView;
   const tab = payTab();
-  const got = v?.cache[slipKey(tab, v.ym)];
+  const ym = v?.ym[tab];
+  const got = ym && v.cache[slipKey(tab, ym)];
   if (!got?.img) return;
   const name = employeeById(v.empId)?.name ?? "";
-  const m = Number(v.ym.slice(5));
+  const m = Number(ym.slice(5));
   if (tab === "work") {
     const a = document.createElement("a");
     a.href = got.img;
@@ -3522,7 +3588,7 @@ async function scheduleShare(button) {
 const TOURS = {
   me: () => [
     { sel: ".me-card:nth-of-type(2)", title: "사업주 정보", text: "상호, 대표자, 주소, 연락처를 한 번 넣어 두면 <b>근로계약서</b>에 자동으로 들어가요." },
-    { sel: ".me-card:nth-of-type(3) .me-link", title: "직원 링크", text: "명세서·근무 상세 주소를 <b>단톡방</b>에 한 번 올려 두세요. 직원이 눌러서 자기 PIN으로 자기 것만 봐요." },
+    { sel: ".me-card:nth-of-type(3) .me-link", title: "직원 링크", text: "이 주소를 <b>단톡방</b>에 한 번 올려 두세요. 직원이 눌러서 자기 PIN으로 자기 근무 상세와 명세서만 봐요." },
     { sel: ".me-pins", title: "직원별 PIN", text: "직원마다 <b>숫자 6자리 PIN</b>을 정하고 개인 톡으로 알려 주세요. 매달 지급일이 지나면 명세서가 자동으로 올라가서, 일일이 보낼 필요가 없어요." },
     { sel: ".me-card:nth-of-type(4) .me-link", title: "이력서 양식", text: "지원자에게 이 주소를 보내면 휴대폰으로 써서 PDF로 보내 줘요. 열어서 인쇄하면 종이 양식이 돼요." },
     { sel: ".me-card:nth-of-type(5) .store-manage-actions", title: "기록 · 계정", text: "전체 기록을 엑셀로 받거나, 매장과 계정을 지워요. 지우기 전에 꼭 엑셀로 받아 두세요." },
@@ -3856,7 +3922,7 @@ function route() {
   } else if (!storeId) return { name: "pick" };
   const day = hash.match(/^\/day\/(\d{4}-\d{2}-\d{2})$/);
   if (day) return { name: "day", date: day[1] };
-  if (!ADMIN_SITE) return { name: hash === "/pay" || hash === "/work" ? "pay" : "home" };
+  if (!ADMIN_SITE) return { name: ["/my", "/pay", "/work"].includes(hash) ? "pay" : "home" };
   const page = { "/records": "records", "/schedule": "schedule", "/calendar": "calendar", "/me": "me" }[hash];
   return { name: page ?? "employees" };
 }
@@ -3941,6 +4007,7 @@ window.addEventListener("hashchange", () => {
   state.sheet = null;
   resetDayUi();
   state.payslipId = null;
+  state.payTab = null;
   state.allowDraft = null;
   state.slotEdit = null;
   state.helpOpen = {};
@@ -4358,15 +4425,9 @@ app.addEventListener("click", (e) => {
         () => showToast("복사하지 못했어요. 주소를 길게 눌러 복사해주세요."),
       );
       return;
-    case "copy-work-link":
-      navigator.clipboard?.writeText(workUrl()).then(
-        () => showToast("근무 상세 주소를 복사했어요. 단톡방에 붙여 넣어 주세요", "ok"),
-        () => showToast("복사하지 못했어요. 주소를 길게 눌러 복사해주세요."),
-      );
-      return;
     case "copy-pay-link":
       navigator.clipboard?.writeText(payUrl()).then(
-        () => showToast("직원 명세서 주소를 복사했어요. 단톡방에 붙여 넣어 주세요", "ok"),
+        () => showToast("직원 링크를 복사했어요. 단톡방에 붙여 넣어 주세요", "ok"),
         () => showToast("복사하지 못했어요. 주소를 길게 눌러 복사해주세요."),
       );
       return;
@@ -4384,14 +4445,27 @@ app.addEventListener("click", (e) => {
       return;
     case "pay-close":
       state.payView = null;
+      state.payPin = null;
       render();
       return;
-    case "pay-month":
-      if (state.payView) {
-        state.payView.ym = el.dataset.ym;
+    case "pin-key":
+      pinKey(el.dataset.key);
+      return;
+    case "pay-tab":
+      state.payTab = el.dataset.tab;
+      render();
+      return;
+    case "pay-step": {
+      const v = state.payView;
+      const tab = payTab();
+      const list = v ? tabMonths(v.empId, tab) : [];
+      const next = list[list.indexOf(v?.ym[tab]) + Number(el.dataset.dir)];
+      if (next) {
+        v.ym[tab] = next;
         render();
       }
       return;
+    }
     case "copy-staff-link":
       navigator.clipboard?.writeText(staffUrl()).then(
         () => showToast("직원용 달력 주소를 복사했어요", "ok"),
@@ -4770,7 +4844,7 @@ const DEMO_ALLOWED = new Set([
   "prev-month", "next-month", "close-panel", "go-home", "toggle-staff", "toggle-help",
   "payroll-prev", "payroll-next", "open-payslip", "close-payslip",
   "open-sheet", "close-sheet", "sched-day", "open-today", "install-app", "dismiss-install", "start-tour",
-  "open-contract", "close-contract", "copy-resume-link", "pay-open", "pay-close", "pay-month", "pay-save",
+  "open-contract", "close-contract", "copy-resume-link", "pay-open", "pay-close", "pay-save", "pin-key", "pay-tab", "pay-step",
 ]);
 
 let toastTimer = null;
@@ -4958,6 +5032,11 @@ app.addEventListener("change", (e) => {
   if (state.contractDraft && (t.dataset.cf || t.dataset.cfday || t.dataset.cfbreak || t.dataset.cfins)) {
     state.error = "";
     updateContractDraft(t);
+    render();
+    return;
+  }
+  if (t.dataset.paymonth !== undefined && state.payView) {
+    state.payView.ym[payTab()] = t.value;
     render();
     return;
   }
