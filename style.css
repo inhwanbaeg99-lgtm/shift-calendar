@@ -5470,3 +5470,40 @@ td.name {
 .admin-main {
   padding-bottom: 88px;
 }
+
+/* ---------- 출근 PIN ---------- */
+.manage-cell {
+  white-space: nowrap;
+}
+.pin-btn {
+  margin-right: 8px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink-sub);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pin-btn.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ui-input {
+  width: 100%;
+  margin-top: 14px;
+  text-align: center;
+  font-size: 22px;
+  letter-spacing: 0.4em;
+}
+.ui-err {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--red);
+  text-align: center;
+}
+.ui-input ~ .ui-actions {
+  margin-top: 16px;
+}

@@ -114,11 +114,14 @@ function rememberStore(id) {
   } catch {}
 }
 
-// 새 매장 코드: 헷갈리는 글자(0/o, 1/l/i)를 뺀 6자리
+// 새 매장 코드: 헷갈리는 글자(0/o, 1/l/i)를 뺀 12자리 (마구 넣어 보는 방법으로는 남의 매장을 찾을 수 없게)
+// 예전에 만든 6자리 매장도 그대로 쓸 수 있다
 function newStoreCode() {
   const chars = "abcdefghjkmnpqrstuvwxyz23456789";
-  return Array.from(crypto.getRandomValues(new Uint32Array(6)), (n) => chars[n % chars.length]).join("");
+  return Array.from(crypto.getRandomValues(new Uint32Array(12)), (n) => chars[n % chars.length]).join("");
 }
+// 보여 줄 때는 4자리씩 끊어서 (abcd-efgh-jkmn). 입력할 때 - 나 띄어쓰기는 무시한다
+const codeLabel = (code = storeId) => (code && code.length > 6 ? code.match(/.{1,4}/g).join("-") : code);
 
 // 사람이 늘어나면 이 순서대로 아직 안 쓴 색을 준다
 const PALETTE = [
@@ -575,7 +578,7 @@ function renderPick() {
       </div>
       <p class="lock-note">관리자에게 받은 매장 코드를 입력해주세요.</p>
       <form class="lock-form" id="pick-form">
-        <input id="pick-code" class="field" maxlength="12" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="매장 코드" aria-label="매장 코드" required />
+        <input id="pick-code" class="field" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="매장 코드" aria-label="매장 코드" required />
         <button type="submit" class="btn-primary"${state.busy ? " disabled" : ""}>${state.busy ? "확인 중…" : "시작하기"}</button>
         ${errorLine()}
       </form>
@@ -878,7 +881,7 @@ function renderEmployees() {
         <td>${
           `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요">${isManager(e) ? "매니저" : "알바"}</button>`
         }</td>
-        <td><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
+        <td class="manage-cell"><button type="button" class="pin-btn${e.pinHash ? " on" : ""}" data-action="set-pin" data-id="${e.id}" title="직원용 달력에서 출근할 때 물어볼 PIN">${e.pinHash ? "PIN ✓" : "PIN"}</button><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
       </tr>`,
     )
     .join("");
@@ -915,7 +918,7 @@ function renderEmployees() {
 
 // 직원용 달력으로 가는 버튼 (새 탭)
 const staffCalLink = (cls = "") =>
-  `<a${cls ? ` class="${cls}"` : ""} href="${esc(staffUrl())}" target="_blank" rel="noopener" title="매장 코드 ${storeId} · 이 주소를 매장 기기에서 열어주세요">직원용 달력 ↗</a>`;
+  `<a${cls ? ` class="${cls}"` : ""} href="${esc(staffUrl())}" target="_blank" rel="noopener" title="매장 코드 ${codeLabel()} · 이 주소를 매장 기기에서 열어주세요">직원용 달력 ↗</a>`;
 
 // 직원용 달력 주소: 매장 기기에서 한 번 열면 그 기기가 매장을 기억한다
 const staffUrl = () => new URL(`../?s=${storeId}`, location.href).href;
@@ -923,7 +926,7 @@ function renderStaffLink() {
   return `
     <div class="staff-link">
       <div>
-        <p class="staff-link-title">직원용 달력 · 매장 코드 <b>${storeId}</b></p>
+        <p class="staff-link-title">직원용 달력 · 매장 코드 <b>${codeLabel()}</b></p>
         <p class="staff-link-url">${esc(staffUrl())}</p>
       </div>
       <div class="staff-link-actions">
@@ -1013,7 +1016,7 @@ function renderEmployeesMobile() {
       demoLoaded
         ? ""
         : `<div class="m-card m-link">
-            <div><b>직원용 달력</b><small>매장 코드 ${storeId}</small></div>
+            <div><b>직원용 달력</b><small>매장 코드 ${codeLabel()}</small></div>
             <button type="button" class="pill" data-action="copy-staff-link">주소 복사</button>
           </div>`
     }
@@ -1050,6 +1053,7 @@ function renderEmpSheet(e) {
       <button type="button" class="m-toggle${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button>
       <button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>
       <button type="button" class="m-toggle${isSalaried(e) ? " on" : ""}" data-action="toggle-paytype" data-id="${e.id}">${isSalaried(e) ? "월급제" : "시급제"}</button>
+      <button type="button" class="m-toggle${e.pinHash ? " on" : ""}" data-action="set-pin" data-id="${e.id}">${e.pinHash ? "출근 PIN ✓" : "출근 PIN"}</button>
     </div>
     <p class="sheet-note">매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요. 매니저는 출근을 안 찍어도 근무표대로 급여에 나와요.</p>
     <div class="sheet-actions">
@@ -1827,6 +1831,70 @@ function uiDialog({ message, ok = "확인", cancel = null, danger = false }) {
   });
 }
 const uiAlert = (message) => uiDialog({ message });
+
+// 숫자를 입력받는 창 (출근 PIN). 확인이면 입력한 글자, 취소면 null
+function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false } = {}) {
+  return new Promise((resolve) => {
+    const prev = document.activeElement;
+    const back = document.createElement("div");
+    back.className = "ui-back";
+    back.innerHTML = `
+      <form class="ui-box" role="dialog" aria-modal="true" aria-describedby="ui-msg">
+        <p class="ui-msg" id="ui-msg"></p>
+        <input class="field ui-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${esc(placeholder)}" aria-label="PIN" />
+        <p class="ui-err" hidden></p>
+        <div class="ui-actions">
+          <button type="button" class="ui-btn ui-no" data-ui="no">취소</button>
+          <button type="submit" class="ui-btn ui-yes">${esc(ok)}</button>
+        </div>
+      </form>`;
+    back.querySelector(".ui-msg").textContent = message;
+    const input = back.querySelector(".ui-input");
+    const err = back.querySelector(".ui-err");
+    let closed = false;
+    const close = (value) => {
+      if (closed) return;
+      closed = true;
+      document.removeEventListener("keydown", onKey, true);
+      back.classList.add("leave");
+      setTimeout(() => back.remove(), reducedMotion() ? 0 : 160);
+      if (prev && document.contains(prev)) prev.focus({ preventScroll: true });
+      resolve(value);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        close(null);
+      }
+    };
+    input.addEventListener("input", () => (input.value = input.value.replace(/\D/g, "").slice(0, 4)));
+    back.querySelector("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = input.value;
+      if ((v === "" && allowEmpty) || /^\d{4}$/.test(v)) close(v);
+      else {
+        err.textContent = "숫자 4자리를 입력해주세요.";
+        err.hidden = false;
+        input.focus();
+      }
+    });
+    back.addEventListener("click", (e) => {
+      if (e.target.closest("[data-ui=no]") || e.target === back) close(null);
+    });
+    document.body.appendChild(back);
+    setTimeout(() => {
+      document.addEventListener("keydown", onKey, true);
+      input.focus();
+    });
+  });
+}
+
+// 출근 PIN 은 그대로 저장하지 않고 매장·직원과 섞어서 바꾼 값(SHA-256)만 저장한다
+async function hashPin(empId, pin) {
+  const bytes = new TextEncoder().encode(`${storeId}:${empId}:${pin}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 const uiConfirm = (message, options = {}) => uiDialog({ message, cancel: "취소", ...options });
 
 async function withBusy(button, text, task) {
@@ -2551,13 +2619,14 @@ const TOURS = {
           { sel: "table.schedule tbody tr:first-child .wage-cell", title: "시급 · 월급", text: "알바는 시급을 고쳐요. <b>월급으로</b>를 누르면 월급제(4대보험) 직원이 되고, 월급은 급여 화면 명세서에서 입력해요." },
           { sel: "table.schedule tbody tr:first-child [data-action=toggle-active]", title: "재직중 · 비활성", text: "그만둔 직원은 <b>비활성</b>으로 바꿔요. 기록은 남고, 달력과 근무표에서만 빠져요." },
           { sel: "table.schedule tbody tr:first-child [data-action=toggle-role]", title: "알바 · 매니저", text: "매니저로 바꾸면 목록 맨 위로 오고 월급제가 돼요. 다시 알바로 바꾸면 시급제로 돌아가요." },
+          { sel: "table.schedule tbody tr:first-child [data-action=set-pin]", title: "출근 PIN", text: "직원마다 숫자 4자리 PIN을 정하면, 직원용 달력에서 그 이름을 누를 때 PIN을 물어봐요. 다른 사람이 대신 출근을 찍지 못하게 해요." },
         ]
       : [
           { sel: ".m-add", title: "직원 추가", text: "여기를 누르면 직원 추가 창이 열려요." },
           { scene: "addSheet", sel: ".sheet", title: "직원 추가 창", text: "알바 / 매니저를 고르고 이름을 넣어요. 알바는 시급, 매니저는 기본급(월급)과 식대(선택)를 넣고 <b>추가</b>를 눌러요." },
           { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
           { sel: ".m-list .m-row", title: "직원 누르기", text: "직원을 누르면 정보 창이 열려요." },
-          { scene: "empSheet", sel: ".sheet", title: "직원 정보", text: "요일별 근무 시간, 시급, 재직중·비활성, 알바·매니저, 시급제·월급제를 여기서 바꿔요." },
+          { scene: "empSheet", sel: ".sheet", title: "직원 정보", text: "요일별 근무 시간, 시급, 재직중·비활성, 알바·매니저, 시급제·월급제, <b>출근 PIN</b>을 여기서 바꿔요." },
         ],
   schedule: (pc) =>
     pc
@@ -2600,7 +2669,7 @@ const TOURS = {
       : { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "점이 있는 날은 출근 기록이 있는 날이에요. 날짜를 누르면 그날 화면이 열려요." },
     { scene: "day", sel: ".date-box", title: "출근 기록", text: "날짜를 누르면 이렇게 열려요. 그날 실제로 출근한 사람과 시간이에요." },
     { scene: "day", sel: ".staff", title: "오늘 근무자", text: "근무표에 있는 오늘 근무자예요. <b>본인 이름</b>을 찾아 눌러요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근하기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 눌러 주세요. 그날만 시간이 바뀌었으면 <b>수정</b>으로 고쳐요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근하기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 눌러 주세요. 그날만 시간이 바뀌었으면 <b>수정</b>으로 고쳐요. 사장님이 출근 PIN을 정해 뒀으면 이름을 누를 때 PIN을 물어봐요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "근무표에 없는데 일하게 됐으면 <b>+</b>를 눌러 이름과 시간을 넣고 <b>등록</b>해요. 그다음 이름을 눌러 출근하면 돼요." },
   ],
   records: (pc) =>
@@ -3078,7 +3147,7 @@ async function createStore(ownerUid, name) {
 
 // 직원용 달력에서 매장 코드를 입력
 async function pickStore() {
-  const code = document.getElementById("pick-code").value.trim().toLowerCase();
+  const code = document.getElementById("pick-code").value.replace(/[\s-]/g, "").toLowerCase();
   state.error = "";
   if (!/^[a-z0-9]{4,12}$/.test(code)) {
     state.error = "매장 코드를 다시 확인해주세요.";
@@ -3184,12 +3253,45 @@ app.addEventListener("click", (e) => {
     case "go-home":
       navigate(homeHash());
       return;
-    case "toggle-staff":
+    case "toggle-staff": {
       state.error = "";
       state.editingId = null;
-      state.expandedId = state.expandedId === id ? null : id;
+      const opening = state.expandedId !== id;
+      const emp = employeeById(id);
+      // 직원용 달력: PIN 을 정해 둔 직원은 이름을 펼칠 때(출근·수정 전에) PIN 확인
+      if (!ADMIN_SITE && opening && emp?.pinHash) {
+        uiPrompt(`${emp.name}님 출근 PIN을 입력해주세요.`, { placeholder: "숫자 4자리" }).then(async (pin) => {
+          if (pin === null) return;
+          if ((await hashPin(emp.id, pin)) !== emp.pinHash) {
+            showToast("PIN이 맞지 않아요. 다시 확인해주세요.");
+            return;
+          }
+          state.expandedId = id;
+          state.expandEnter = true;
+          render();
+        });
+        return;
+      }
+      state.expandedId = opening ? id : null;
       state.expandEnter = Boolean(state.expandedId);
       break;
+    }
+    case "set-pin": {
+      const emp = employeeById(id);
+      uiPrompt(`${emp.name}님 출근 PIN (숫자 4자리)\n직원용 달력에서 이름을 누를 때 물어봐요.${emp.pinHash ? "\n비우고 확인하면 PIN을 없애요." : ""}`, {
+        placeholder: emp.pinHash ? "새 PIN 또는 비우기" : "숫자 4자리",
+        ok: "저장",
+        allowEmpty: Boolean(emp.pinHash),
+      }).then(async (pin) => {
+        if (pin === null) return;
+        if (pin === "") delete emp.pinHash;
+        else emp.pinHash = await hashPin(emp.id, pin);
+        save();
+        showToast(pin === "" ? `${emp.name}님 출근 PIN을 없앴어요` : `${emp.name}님 출근 PIN을 정했어요. 직원에게 알려 주세요`, "ok");
+        render();
+      });
+      return;
+    }
     case "edit-shift":
       state.error = "";
       state.editingId = id;
@@ -4072,7 +4174,7 @@ const storePath = (sub) => `stores/${storeId}/${sub}`;
 var cloud = null; // { auth, db } — SDK 를 못 불러오면 이 기기에만 저장
 var remote = { pub: null, priv: null, pubLoaded: false, privLoaded: false, last: {}, seedAsked: false };
 
-const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory"];
+const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory", "pinHash"];
 
 // store → { "경로": "JSON 문자열" }
 function flattenStore(withPrivate) {
@@ -4145,6 +4247,7 @@ function cleanStore(data) {
     .map((e) => ({
       ...e,
       name: e.name.slice(0, 40),
+      pinHash: typeof e.pinHash === "string" && /^[0-9a-f]{64}$/.test(e.pinHash) ? e.pinHash : undefined,
       color: e.color ? cssColor(e.color) : e.color,
       weekly: cleanWeekly(e.weekly),
       ...(e.weeklyBase ? { weeklyBase: cleanWeekly(e.weeklyBase) } : {}),
