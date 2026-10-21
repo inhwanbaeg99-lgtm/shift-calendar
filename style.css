@@ -5597,3 +5597,264 @@ td.name {
     flex: 1;
   }
 }
+
+/* ---------- 전자 근로계약서 ---------- */
+/* 종이는 화면 테마와 상관없이 흰 바탕 (A4 폭 794px) */
+.contract-doc {
+  width: 794px;
+  min-height: 1123px;
+  padding: 64px 72px 48px;
+  background: #ffffff;
+  color: #191f28;
+  font-family: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: 14px;
+  line-height: 1.75;
+}
+.ct-title {
+  margin: 0 0 22px;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.ct-lead {
+  margin: 0 0 14px;
+}
+.ct-list {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 8px;
+}
+.ct-list b {
+  margin-right: 6px;
+}
+.ct-days {
+  width: 100%;
+  margin: 8px 0 2px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ct-days th,
+.ct-days td {
+  padding: 5px 8px;
+  border: 1px solid #d1d6db;
+  text-align: center;
+}
+.ct-days thead th {
+  background: #f2f4f6;
+  font-weight: 700;
+}
+.ct-date {
+  margin: 26px 0 16px;
+  text-align: center;
+  font-weight: 700;
+}
+.ct-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.ct-parties p {
+  margin: 0;
+}
+.ct-party {
+  margin-bottom: 4px !important;
+  font-weight: 800;
+}
+.ct-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+}
+.ct-sign {
+  height: 52px;
+  max-width: 160px;
+  object-fit: contain;
+}
+.ct-sign-empty {
+  color: #8b95a1;
+}
+.ct-foot {
+  margin: 28px 0 0;
+  font-size: 11px;
+  color: #8b95a1;
+  text-align: right;
+}
+.ct-foot.draft {
+  color: #b45309;
+}
+.ct-preview {
+  zoom: 0.62;
+}
+.ct-side {
+  width: 340px;
+}
+.ct-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--paper);
+}
+.ct-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+.ct-row span {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.ct-row small,
+.sal-title small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-sub);
+}
+.ct-row .field {
+  flex: 1;
+  min-width: 0;
+  max-width: 190px;
+  height: 34px;
+  padding: 0 10px;
+  background: var(--bg);
+  font-size: 13px;
+}
+.ct-day {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.ct-day span {
+  width: 18px;
+  font-weight: 700;
+}
+.ct-day .field {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--bg);
+  font-size: 13px;
+}
+.ct-day .ct-break {
+  flex: 0 0 52px;
+  text-align: right;
+}
+.ct-day small {
+  color: var(--ink-sub);
+}
+.ct-ins {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  font-size: 13px;
+}
+.ct-ins input {
+  accent-color: var(--accent);
+}
+.ct-actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pin-btn.draft {
+  background: #fff4e5;
+  color: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  .pin-btn.draft {
+    background: rgb(251 191 36 / 0.16);
+    color: #fbbf24;
+  }
+}
+@media (max-width: 767px) {
+  .ct-side {
+    width: auto;
+  }
+  .ct-preview {
+    zoom: 0.44;
+  }
+}
+
+/* 서명 창 */
+.sign-back {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.5);
+}
+.sign-box {
+  width: min(560px, 100%);
+  padding: 22px 20px 18px;
+  border-radius: 20px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.25);
+}
+.sign-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+.sign-msg {
+  margin: 4px 0 12px;
+  font-size: 14px;
+  color: var(--ink-sub);
+}
+.sign-check {
+  margin-bottom: 10px;
+}
+.sign-pad {
+  position: relative;
+  border: 2px dashed var(--grid);
+  border-radius: 14px;
+  background: #ffffff;
+  touch-action: none;
+}
+.sign-pad canvas {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+.sign-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  color: #b0b8c1;
+  pointer-events: none;
+}
+.sign-pad.on .sign-hint {
+  display: none;
+}
+.sign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.sign-actions button {
+  height: 44px;
+  padding: 0 16px;
+}
+.sign-err {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--red);
+  text-align: right;
+}
