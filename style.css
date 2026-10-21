@@ -6312,8 +6312,8 @@ a.m-store span {
   cursor: pointer;
 }
 .pay-tabs button.on {
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--accent);
+  color: #fff;
 }
 .pay-month {
   display: flex;

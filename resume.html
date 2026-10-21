@@ -34,29 +34,6 @@
         margin: 0 auto;
         padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 140px;
       }
-      .kakao-bar {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin: 0 0 14px;
-        padding: 12px 14px;
-        border-radius: 14px;
-        background: #fff7d6;
-        font-size: 13.5px;
-        line-height: 1.5;
-      }
-      .kakao-bar[hidden] {
-        display: none;
-      }
-      .kakao-bar a {
-        flex-shrink: 0;
-        padding: 8px 12px;
-        border-radius: 10px;
-        background: #191f28;
-        color: #fff;
-        font-weight: 700;
-        text-decoration: none;
-      }
       .head h1 {
         margin: 0;
         font-size: 26px;
@@ -271,8 +248,8 @@
       .send {
         flex: 1;
         max-width: 420px;
-        background: #fee500;
-        color: #191919;
+        background: var(--accent);
+        color: #fff;
         font-size: 17px;
       }
       .send:disabled {
@@ -384,8 +361,8 @@
         color: var(--ink);
       }
       .pv-actions .primary {
-        background: #fee500;
-        color: #191919;
+        background: var(--accent);
+        color: #fff;
       }
 
       /* ---------- A4 이력서 (사진 · 인쇄용, 794 x 1123) : 격식 있는 명조 양식 ---------- */
@@ -450,7 +427,7 @@
         text-align: center;
       }
       .a4 .intro {
-        height: 168px;
+        height: 270px;
         padding: 10px 12px;
         vertical-align: top;
         white-space: pre-wrap;
@@ -460,13 +437,24 @@
         margin: 14px 0 0;
         font-size: 13px;
       }
+      .a4 .ck {
+        display: inline-block;
+        width: 11px;
+        height: 11px;
+        margin: 0 7px 0 1px;
+        border: 1.5px solid #000;
+        vertical-align: -1px;
+      }
+      .a4 .ck.on {
+        background: #000;
+      }
       .a4 .confirm {
         margin: 26px 0 0;
         text-align: center;
         font-size: 15px;
       }
       .a4 .date {
-        margin: 16px 0 0;
+        margin: 30px 0 0;
         text-align: center;
         font-size: 15px;
       }
@@ -511,10 +499,9 @@
   </head>
   <body>
     <div class="wrap">
-      <p class="kakao-bar" id="kakao-bar" hidden>카카오톡 안에서는 사진 보내기가 안 될 수 있어요.<a id="open-out" href="#">다른 브라우저로 열기</a></p>
       <header class="head">
         <h1>이력서</h1>
-        <p id="for">아르바이트 지원서 · 다 쓰고 아래 노란 버튼을 눌러 보내 주세요</p>
+        <p id="for">아르바이트 지원서 · 다 쓰고 아래 문자 전송하기를 눌러 보내 주세요</p>
       </header>
 
       <form id="form" autocomplete="on" onsubmit="return false">
@@ -581,7 +568,7 @@
     </div>
     <div class="bar">
       <button type="button" class="more" id="more" aria-label="더 보기">•••</button>
-      <button type="button" class="send" id="send">카카오톡 전송하기</button>
+      <button type="button" class="send" id="send">문자 전송하기</button>
     </div>
     <div class="stage" id="stage" aria-hidden="true"></div>
 
@@ -589,9 +576,11 @@
       const KEY = "kok-resume";
       const $ = (s) => document.querySelector(s);
       const form = $("#form");
-      const store = (new URLSearchParams(location.search).get("store") || "").slice(0, 40);
+      const params = new URLSearchParams(location.search);
+      const store = (params.get("store") || "").slice(0, 40);
+      const tel = (params.get("tel") || "").replace(/[^\d-]/g, "").slice(0, 13);
       if (store) {
-        $("#for").textContent = `${store} 아르바이트 지원서 · 다 쓰고 아래 노란 버튼을 눌러 보내 주세요`;
+        $("#for").textContent = `${store} 아르바이트 지원서 · 다 쓰고 아래 문자 전송하기를 눌러 보내 주세요`;
         document.title = `이력서 · ${store}`;
       }
       const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -605,12 +594,6 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => t.remove(), 2600);
       };
-
-      // 카카오톡 안 브라우저는 사진 공유가 막혀 있을 수 있어서 바깥 브라우저로 열기 안내
-      if (/KAKAOTALK/i.test(navigator.userAgent)) {
-        $("#kakao-bar").hidden = false;
-        $("#open-out").href = `kakaotalk://web/openExternal?url=${encodeURIComponent(location.href)}`;
-      }
 
       // ---------- 경력 (최대 3개) ----------
       let careers = [];
@@ -724,11 +707,9 @@
             </table>
             <h2>■ 자기소개</h2>
             <table><tr><td class="intro">${esc(v.intro)}</td></tr></table>
-            <p class="agree-doc">${v.agree ? "☑" : "☐"} 본인은 채용 검토를 위한 개인정보 수집 · 이용에 동의합니다.</p>
-            <p class="confirm">위의 기재 사항은 사실과 다름없음을 확인합니다.</p>
+            <p class="agree-doc"><span class="ck${v.agree ? " on" : ""}"></span>본인은 채용 검토를 위한 개인정보 수집 · 이용에 동의합니다.</p>
             <p class="date">${filled ? `${now.getFullYear()}년 &nbsp;${now.getMonth() + 1}월 &nbsp;${now.getDate()}일` : "년 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;월 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;일"}</p>
             <p class="sign">지원자 &nbsp;<b>${esc(v.name) || "&nbsp;"}</b> &nbsp;(서명 또는 인)</p>
-            <p class="to">${esc(store ? `${store} 귀중` : "")}</p>
           </div>`;
       }
 
@@ -791,11 +772,11 @@
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       }
 
-      // 미리보기 → 휴대폰은 공유창(카카오톡), 컴퓨터는 복사해서 카톡에 붙여넣기
+      // 미리보기 → 휴대폰은 공유창(메시지), 컴퓨터는 복사해서 붙여넣기
       // (공유·복사는 버튼을 누른 순간에 해야 브라우저가 허락해서, 사진을 먼저 만들고 한 번 더 누르게 한다)
       function preview(file) {
         const url = URL.createObjectURL(file);
-        // 휴대폰(손가락 터치)만 공유창, 컴퓨터는 복사 → 카톡 PC 에 붙여넣기
+        // 휴대폰(손가락 터치)만 공유창, 컴퓨터는 복사해서 붙여넣기
         const canShare = matchMedia("(pointer: coarse)").matches && Boolean(navigator.canShare?.({ files: [file] }));
         const canCopy = !canShare && Boolean(window.ClipboardItem && navigator.clipboard?.write);
         const mac = /Mac/.test(navigator.platform);
@@ -803,10 +784,10 @@
         pv.className = "pv";
         pv.innerHTML = `
           <img src="${url}" alt="이력서 미리보기" />
-          <p class="pv-tip">${canShare ? "공유창에서 <b>카카오톡</b> → 매장 채팅방을 골라 보내 주세요." : canCopy ? `복사한 뒤 카카오톡 채팅방에 붙여넣기(${mac ? "⌘V" : "Ctrl+V"}) 하면 사진으로 보내져요.` : "사진 저장 후 카카오톡으로 보내 주세요. 사진을 길게 눌러 저장할 수도 있어요."}</p>
+          <p class="pv-tip">${canShare ? `공유창에서 <b>메시지</b>를 골라 ${tel ? `매장 번호 <b>${esc(tel)}</b>` : "매장 번호"}로 보내 주세요.` : canCopy ? `복사한 뒤 메시지 창에 붙여넣기(${mac ? "⌘V" : "Ctrl+V"}) 하면 사진으로 보내져요.${tel ? ` 매장 번호 <b>${esc(tel)}</b>` : ""}` : `사진을 저장한 뒤 문자로 보내 주세요.${tel ? ` 매장 번호 <b>${esc(tel)}</b>` : ""} 사진을 길게 눌러 저장할 수도 있어요.`}</p>
           <div class="pv-actions">
             <button type="button" class="ghost" data-pv="close">닫기</button>
-            ${canShare ? `<button type="button" class="primary" data-pv="share">카카오톡 전송하기</button>` : canCopy ? `<button type="button" class="primary" data-pv="copy">복사하기</button>` : `<button type="button" class="primary" data-pv="save">사진 저장</button>`}
+            ${canShare ? `<button type="button" class="primary" data-pv="share">문자 전송하기</button>` : canCopy ? `<button type="button" class="primary" data-pv="copy">복사하기</button>` : `<button type="button" class="primary" data-pv="save">사진 저장</button>`}
           </div>`;
         const close = () => {
           pv.remove();
@@ -826,7 +807,7 @@
           if (a === "copy") {
             try {
               await navigator.clipboard.write([new ClipboardItem({ "image/png": file })]);
-              toast("복사했어요. 카카오톡 채팅방에 붙여넣기 하세요");
+              toast("복사했어요. 메시지 창에 붙여넣기 하세요");
             } catch {
               toast("복사하지 못했어요. ••• → 사진으로 저장 해 주세요.");
             }
@@ -848,7 +829,7 @@
           toast(err.message);
         } finally {
           send.disabled = false;
-          send.textContent = "카카오톡 전송하기";
+          send.textContent = "문자 전송하기";
         }
       });
 
