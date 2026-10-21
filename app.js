@@ -174,6 +174,8 @@ function demoData() {
   ];
   const employees = people.map(([name, color, days], i) => ({
     id: `demo${i}`,
+    no: i + 1,
+    hireDate: `2026-0${3 + i}-02`,
     name,
     phone: null,
     hourlyWage: DEFAULT_WAGE,
@@ -876,7 +878,7 @@ function renderEmployees() {
     .map(
       (e, i) => `
       <tr style="--i:${i}">
-        <td class="name"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${nameLabel(e)}</span><div class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</div></td>
+        <td class="name"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${nameLabel(e)}</span><div class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</div><button type="button" class="hire-btn${e.hireDate ? "" : " need"}" data-action="edit-hire" data-id="${e.id}" title="입사일 · 퇴사일 고치기">${e.hireDate ? `입사 ${dot(e.hireDate)}` : "입사일 넣기"}${e.leaveDate ? ` · 퇴사 ${dot(e.leaveDate)}` : ""}</button></td>
         ${order
           .map(
             (wd) =>
@@ -892,7 +894,7 @@ function renderEmployees() {
         <td>${
           `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요">${isManager(e) ? "매니저" : "알바"}</button>`
         }</td>
-        <td class="manage-cell">${contractButton(e)}<button type="button" class="pin-btn${e.pinHash ? " on" : ""}" data-action="set-pin" data-id="${e.id}" title="직원용 달력에서 출근할 때 물어볼 PIN">${e.pinHash ? "PIN ✓" : "PIN"}</button><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
+        <td class="manage-cell">${contractButton(e)}<button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
       </tr>`,
     )
     .join("");
@@ -904,6 +906,7 @@ function renderEmployees() {
       <div><span class="f-label" id="f-role-label">구분</span><div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>매니저</span></label></div></div>
       <div><label for="f-name">이름</label><input id="f-name" class="field" style="width:112px" placeholder="홍길동" required /></div>
       <div><label for="f-phone">전화번호 (선택)</label><input id="f-phone" class="field phone" style="width:144px" type="text" inputmode="numeric" placeholder="010-0000-0000" /></div>
+      <div><label for="f-hire">입사일</label><input id="f-hire" class="field" style="width:148px" type="date" value="${todayDateString()}" required /></div>
       <div class="f-wage-wrap"><label for="f-wage">시급(원)</label><input id="f-wage" class="field money" style="width:112px" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required /></div>
       <div class="f-mgr-wrap" hidden><label for="f-salary">기본급 (월급)</label><input id="f-salary" class="field money" style="width:128px" type="text" inputmode="numeric" placeholder="2,000,000" /></div>
       <div class="f-mgr-wrap" hidden><label for="f-meal">식대 (선택)</label><input id="f-meal" class="field money" style="width:104px" type="text" inputmode="numeric" placeholder="0" /></div>
@@ -1088,11 +1091,14 @@ function renderEmpSheet(e) {
         : `<label class="sheet-label" for="m-wage">시급</label>
     <div class="m-wage"><input id="m-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /><span>원</span></div>`
     }
+    <div class="m-dates">
+      <label><span>입사일</span><input class="field" type="date" data-empdate="hireDate" data-id="${e.id}" value="${e.hireDate ?? ""}" /></label>
+      <label><span>퇴사일</span><input class="field" type="date" data-empdate="leaveDate" data-id="${e.id}" value="${e.leaveDate ?? ""}" /></label>
+    </div>
     <div class="m-toggles">
       <button type="button" class="m-toggle${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button>
       <button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>
       <button type="button" class="m-toggle${isSalaried(e) ? " on" : ""}" data-action="toggle-paytype" data-id="${e.id}">${isSalaried(e) ? "월급제" : "시급제"}</button>
-      <button type="button" class="m-toggle${e.pinHash ? " on" : ""}" data-action="set-pin" data-id="${e.id}">${e.pinHash ? "출근 PIN ✓" : "출근 PIN"}</button>
       <button type="button" class="m-toggle${latestContract(e.id)?.status === "signed" ? " on" : ""}" data-action="open-contract" data-id="${e.id}">${latestContract(e.id)?.status === "signed" ? "근로계약서 ✓" : "근로계약서"}</button>
     </div>
     <p class="sheet-note">매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요. 매니저는 출근을 안 찍어도 근무표대로 급여에 나와요.</p>
@@ -1112,6 +1118,8 @@ function renderAddEmpSheet() {
       <input id="f-name" class="field" placeholder="홍길동" required autocomplete="off" />
       <label class="sheet-label" for="f-phone">전화번호 (선택)</label>
       <input id="f-phone" class="field phone" type="text" inputmode="numeric" placeholder="010-0000-0000" />
+      <label class="sheet-label" for="f-hire">입사일</label>
+      <input id="f-hire" class="field" type="date" value="${todayDateString()}" required />
       <div class="f-wage-wrap">
         <label class="sheet-label" for="f-wage">시급(원)</label>
         <input id="f-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required />
@@ -1225,6 +1233,7 @@ function renderRecordsMobile() {
           <option value="none"${taxOn ? "" : " selected"}>공제 안 함</option>
         </select>
       </div>
+      <div class="m-payday"><span>급여 지급일</span>${payDaySelects("m-tax")}</div>
     </div>
     <div class="m-list">${cards || `<p class="m-empty">이 달의 근무 기록이 없어요.</p>`}</div>
     <details class="m-fold">
@@ -1362,6 +1371,31 @@ function allowancesFor(ym, empId) {
   return (store.allowances?.[ym]?.[empId] ?? []).filter((a) => !((a.name || "").trim() === "교육수당" && !Number(a.amount)));
 }
 
+
+// ---------- 급여 지급일 ----------
+// 설정: payMonth "next"(다음 달, 기본) | "same"(그달), payday 1~31 | "last"(말일)
+function payDateFor(ym) {
+  let [y, m] = ym.split("-").map(Number);
+  if ((store.settings?.payMonth ?? "next") === "next") {
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  const last = new Date(y, m, 0).getDate();
+  const day = store.settings?.payday ?? "10";
+  const d = day === "last" ? last : Math.min(Number(day) || 10, last);
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+const payDayLabel = () => `${(store.settings?.payMonth ?? "next") === "next" ? "다음 달" : "그달"} ${(store.settings?.payday ?? "10") === "last" ? "말일" : `${store.settings?.payday ?? 10}일`}`;
+function payDaySelects(cls = "field") {
+  const month = store.settings?.payMonth ?? "next";
+  const day = String(store.settings?.payday ?? "10");
+  return `<select class="${cls}" data-setting="payMonth" aria-label="지급 달"><option value="next"${month === "next" ? " selected" : ""}>다음 달</option><option value="same"${month === "same" ? " selected" : ""}>그달</option></select>
+    <select class="${cls}" data-setting="payday" aria-label="지급일">${[...Array.from({ length: 28 }, (_, i) => String(i + 1)), "last"].map((d) => `<option value="${d}"${d === day ? " selected" : ""}>${d === "last" ? "말일" : `${d}일`}</option>`).join("")}</select>`;
+}
+const dot = (d) => (d ? d.replaceAll("-", ".") : "");
 
 // ---------- 월급제 직원 (4대보험) ----------
 // 월급·식대·공제액은 세무사에게 받은 금액을 한 번 입력하면 그달부터 다음 달, 그다음 달에도 그대로 이어진다.
@@ -1596,6 +1630,24 @@ function renderPayslip(r, ym) {
   const pending = r.salaried && !r.ded;
   const line = ([label, value]) => `<li><span>${esc(label)}</span><b>${won(value)}</b></li>`;
   const issued = todayDateString().replaceAll("-", ".");
+  const lastDay = new Date(y, m, 0).getDate();
+  // 임금명세서 필수 기재: 금액이 근무시간에 따라 달라지면 계산 방법을 적는다 (근로기준법 시행령 제27조의2)
+  const wage = r.emp.hourlyWage;
+  const weeks = r.weekly.weeks ?? [];
+  const juHours = weeks.reduce((sum, w) => sum + (w.allowHours || 0), 0);
+  const calc = r.salaried
+    ? [
+        `기본급: 월 고정급 ${won(r.base)}`,
+        ...(r.meal ? [`식대: 비과세 (월 20만 원 한도) ${won(r.meal)}`] : []),
+        `공제: 4대보험·근로소득세는 세무사 산정 금액`,
+      ]
+    : [
+        `기본급: 근무 ${Number(r.hours.toFixed(2))}시간 × 시급 ${won(wage)}`,
+        r.weekly.total
+          ? `주휴수당: ${weeks.filter((w) => w.allowHours).length}주 · 주휴 ${Number(juHours.toFixed(2))}시간 × 시급 ${won(wage)} (주별: 1주 소정근로시간 ÷ 40 × 8시간)`
+          : `주휴수당: 없음 ${weeks.find((w) => w.reason)?.reason ? `(${weeks.find((w) => w.reason).reason})` : ""}`,
+        r.income ? `공제: 소득세 = 지급 합계 × 3% (10원 미만 버림), 지방소득세 = 소득세 × 10%` : `공제: 없음`,
+      ];
 
   return `
     <div class="payslip">
@@ -1605,6 +1657,7 @@ function renderPayslip(r, ym) {
       </header>
       <h1 class="ps-name">${esc(r.emp.name)} 님</h1>
       <p class="ps-meta">${r.salaried ? "월급제" : `시급 ${won(r.emp.hourlyWage)}`} · 근무 ${r.days}일 · 총 ${Number(r.hours.toFixed(2))}시간</p>
+      <p class="ps-meta ps-ids">사번 ${r.emp.no ?? "-"}${r.emp.hireDate ? ` · 입사 ${dot(r.emp.hireDate)}` : ""} · 근무기간 ${m}/1~${m}/${lastDay} · <b>지급일 ${dot(payDateFor(ym))}</b></p>
 
       <div class="ps-net">
         <span>지급 금액</span>
@@ -1621,6 +1674,11 @@ function renderPayslip(r, ym) {
         <h2>공제</h2>
         <ul>${pending ? `<li><span>4대보험 · 근로소득세</span><b>입력 필요</b></li>` : deductTotal ? deduct.map(line).join("") : `<li><span>공제 없음</span><b>0원</b></li>`}</ul>
         <p class="ps-sum"><span>공제 합계</span><b>${won(deductTotal)}</b></p>
+      </section>
+
+      <section class="ps-calc">
+        <h2>계산 방법</h2>
+        <ul>${calc.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
       </section>
 
       <footer class="ps-foot">
@@ -1754,6 +1812,10 @@ function renderRecords() {
         </select>
       </div>
       <div>
+        <label>급여 지급일</label>
+        <div class="payday-pick">${payDaySelects()}</div>
+      </div>
+      <div>
         <label for="r-tax">세금</label>
         <select id="r-tax" class="field" data-setting="tax">
           <option value="3.3"${taxOn ? " selected" : ""}>${isDesktop() ? "3.3% 공제 (사업소득)" : "3.3% 공제"}</option>
@@ -1872,8 +1934,8 @@ function uiDialog({ message, ok = "확인", cancel = null, danger = false }) {
 }
 const uiAlert = (message) => uiDialog({ message });
 
-// 숫자를 입력받는 창 (출근 PIN). 확인이면 입력한 글자, 취소면 null
-function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false, kind = "pin", danger = false } = {}) {
+// 글자를 입력받는 창. 확인이면 입력한 글자, 취소면 null
+function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false, kind = "text", danger = false } = {}) {
   return new Promise((resolve) => {
     const prev = document.activeElement;
     const back = document.createElement("div");
@@ -1881,11 +1943,7 @@ function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false
     back.innerHTML = `
       <form class="ui-box" role="dialog" aria-modal="true" aria-describedby="ui-msg">
         <p class="ui-msg" id="ui-msg"></p>
-        ${
-          kind === "pin"
-            ? `<input class="field ui-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${esc(placeholder)}" aria-label="PIN" />`
-            : `<input class="field ui-input ui-input-text" type="${kind === "password" ? "password" : "text"}" maxlength="60" autocomplete="${kind === "password" ? "current-password" : "off"}" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder || "입력")}" />`
-        }
+        <input class="field ui-input ui-input-text" type="${kind === "password" ? "password" : "text"}" maxlength="60" autocomplete="${kind === "password" ? "current-password" : "off"}" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder || "입력")}" />
         <p class="ui-err" hidden></p>
         <div class="ui-actions">
           <button type="button" class="ui-btn ui-no" data-ui="no">취소</button>
@@ -1911,14 +1969,12 @@ function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false
         close(null);
       }
     };
-    if (kind === "pin") input.addEventListener("input", () => (input.value = input.value.replace(/\D/g, "").slice(0, 4)));
     back.querySelector("form").addEventListener("submit", (e) => {
       e.preventDefault();
-      const v = kind === "pin" ? input.value : input.value.trim();
-      if (kind !== "pin" && v) close(v);
-      else if ((v === "" && allowEmpty) || /^\d{4}$/.test(v)) close(v);
+      const v = input.value.trim();
+      if (v || allowEmpty) close(v);
       else {
-        err.textContent = kind === "pin" ? "숫자 4자리를 입력해주세요." : "입력해주세요.";
+        err.textContent = "입력해주세요.";
         err.hidden = false;
         input.focus();
       }
@@ -1934,12 +1990,6 @@ function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false
   });
 }
 
-// 출근 PIN 은 그대로 저장하지 않고 매장·직원과 섞어서 바꾼 값(SHA-256)만 저장한다
-async function hashPin(empId, pin) {
-  const bytes = new TextEncoder().encode(`${storeId}:${empId}:${pin}`);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 const uiConfirm = (message, options = {}) => uiDialog({ message, cancel: "취소", ...options });
 
 async function withBusy(button, text, task) {
@@ -2031,13 +2081,14 @@ function exportLedger(button) {
       return ws;
     };
     const tot = (list, k) => list.reduce((a, r) => a + (r[k] ?? 0), 0);
-    const memo = (r) => r.allowances.filter((a) => a.name && Number(a.amount)).map((a) => `${a.name} ${Number(a.amount).toLocaleString()}`).join(", ");
+    const empDates = (e) => [e.no ? `사번 ${e.no}` : "", e.hireDate ? `입사 ${dot(e.hireDate)}` : "", e.leaveDate ? `퇴사 ${dot(e.leaveDate)}` : ""].filter(Boolean).join(" ");
+    const memo = (r) => [empDates(r.emp), r.allowances.filter((a) => a.name && Number(a.amount)).map((a) => `${a.name} ${Number(a.amount).toLocaleString()}`).join(", ")].filter(Boolean).join(" · ");
 
     // 1. 알바 (3.3%)
     const taxNote = store.settings?.tax === "none" ? "세금 공제 안 함" : "세금 3.3% (소득세 3% + 지방소득세 0.3%)";
     const ws1 = sheet(
       `${store_} ${y}년 ${m}월 급여대장 · 알바`,
-      `기간 ${period}   ·   ${taxNote}   ·   작성일 ${made}`,
+      `기간 ${period}   ·   지급일 ${dot(payDateFor(month))}   ·   ${taxNote}   ·   작성일 ${made}`,
       ["이름", "근무일수", "근무시간", "시급", "기본급", "주휴수당", "기타수당", "지급총액(세전)", "소득세", "지방소득세", "실지급액(세후)", "비고"],
       hourly.length
         ? [
@@ -2059,7 +2110,7 @@ function exportLedger(button) {
     // 2. 직원 (4대보험)
     const ws2 = sheet(
       `${store_} ${y}년 ${m}월 급여대장 · 직원 (4대보험)`,
-      `기간 ${period}   ·   공제액은 세무사 금액을 앱에 입력한 값   ·   작성일 ${made}`,
+      `기간 ${period}   ·   지급일 ${dot(payDateFor(month))}   ·   공제액은 세무사 금액을 앱에 입력한 값   ·   작성일 ${made}`,
       ["이름", "근무일수", "근무시간", "기본급(월급)", "식대(비과세)", "기타수당", "지급총액(세전)", ...DED_KEYS.map(([, l]) => l), "공제합계", "실지급액(세후)", "비고"],
       salaried.length
         ? [
@@ -2069,7 +2120,7 @@ function exportLedger(button) {
               ...DED_KEYS.map(([k]) => (r.ded ? cell(r.ded[k], st.num) : cell("", st.text))),
               r.ded ? cell(r.dedTotal, st.num) : cell("", st.text),
               r.ded ? cell(r.net, st.net) : cell("", st.text),
-              r.ded ? cell([r.setFrom ? `${Number(r.setFrom.slice(5, 7))}월부터 같은 금액` : "", memo(r)].filter(Boolean).join(" · "), st.text) : cell("공제액 입력 필요 (세무사 계산)", st.note),
+              r.ded ? cell([r.setFrom ? `${Number(r.setFrom.slice(5, 7))}월부터 같은 금액` : "", memo(r)].filter(Boolean).join(" · "), st.text) : cell(["공제액 입력 필요 (세무사 계산)", empDates(r.emp)].filter(Boolean).join(" · "), st.note),
             ]),
             [
               cell("합계", st.sumText), cell(tot(salaried, "days"), st.sum), cell(Number(tot(salaried, "hours").toFixed(2)), st.sum),
@@ -2284,7 +2335,7 @@ function newContract(emp) {
       empName: emp.name,
       empPhone: emp.phone ? formatPhone(emp.phone) : "",
       empAddress: "",
-      start: todayDateString(),
+      start: emp.hireDate ?? todayDateString(),
       end: "",
       place: storeName(),
       job: biz.job ?? "매장 업무 (음료·음식 준비, 계산, 청소 등)",
@@ -2294,7 +2345,7 @@ function newContract(emp) {
       wage: emp.hourlyWage ?? DEFAULT_WAGE,
       salary: sal?.salary ?? 0,
       meal: sal?.meal ?? 0,
-      payday: biz.payday ?? 10,
+      payday: (store.settings?.payday ?? "10") === "last" ? 31 : Number(store.settings?.payday ?? biz.payday ?? 10),
       insurance: salaried ? { employ: true, accident: true, pension: true, health: true } : { employ: false, accident: true, pension: false, health: false },
       bizName: storeName(),
       owner: biz.owner ?? "",
@@ -3177,14 +3228,13 @@ const TOURS = {
           { sel: "table.schedule tbody tr:first-child [data-action=open-contract]", title: "근로계약서", text: "직원마다 전자 근로계약서를 써요. 직원 정보로 미리 채워지고, 매장에서 화면에 서명받아요." },
           { scene: "contract", sel: ".ct-side", title: "계약서 쓰기", text: "기간, 근무 요일·시간, 임금, 사회보험, 사업주 정보를 확인하고 <b>서명 받기</b>를 눌러요. 직원이 먼저, 사장님이 다음에 손가락으로 서명해요." },
           { scene: "contract", sel: ".ct-preview", title: "계약서 미리보기", text: "고용노동부 표준근로계약서 항목대로 만들어져요. 서명이 끝나면 <b>카카오톡 전송</b>이나 <b>PDF</b>로 직원에게 꼭 한 부 줘요." },
-          { sel: "table.schedule tbody tr:first-child [data-action=set-pin]", title: "출근 PIN", text: "직원마다 숫자 4자리 PIN을 정하면, 직원용 달력에서 그 이름을 누를 때 PIN을 물어봐요. 다른 사람이 대신 출근을 찍지 못하게 해요." },
         ]
       : [
           { sel: ".m-add", title: "직원 추가", text: "여기를 누르면 직원 추가 창이 열려요." },
           { scene: "addSheet", sel: ".sheet", title: "직원 추가 창", text: "알바 / 매니저를 고르고 이름을 넣어요. 알바는 시급, 매니저는 기본급(월급)과 식대(선택)를 넣고 <b>추가</b>를 눌러요." },
           { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
           { sel: ".m-list .m-row", title: "직원 누르기", text: "직원을 누르면 정보 창이 열려요." },
-          { scene: "empSheet", sel: ".sheet", title: "직원 정보", text: "요일별 근무 시간, 시급, 재직중·비활성, 알바·매니저, 시급제·월급제, <b>출근 PIN</b>, <b>근로계약서</b>를 여기서 바꾸고 써요." },
+          { scene: "empSheet", sel: ".sheet", title: "직원 정보", text: "요일별 근무 시간, 시급, 재직중·비활성, 알바·매니저, 시급제·월급제, 입사일·퇴사일, <b>근로계약서</b>를 여기서 바꾸고 써요." },
         ],
   schedule: (pc) =>
     pc
@@ -3227,7 +3277,7 @@ const TOURS = {
       : { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "점이 있는 날은 출근 기록이 있는 날이에요. 날짜를 누르면 그날 화면이 열려요." },
     { scene: "day", sel: ".date-box", title: "출근 기록", text: "날짜를 누르면 이렇게 열려요. 그날 실제로 출근한 사람과 시간이에요." },
     { scene: "day", sel: ".staff", title: "오늘 근무자", text: "근무표에 있는 오늘 근무자예요. <b>본인 이름</b>을 찾아 눌러요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근하기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 눌러 주세요. 그날만 시간이 바뀌었으면 <b>수정</b>으로 고쳐요. 사장님이 출근 PIN을 정해 뒀으면 이름을 누를 때 PIN을 물어봐요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근하기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 눌러 주세요. 그날만 시간이 바뀌었으면 <b>수정</b>으로 고쳐요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "근무표에 없는데 일하게 됐으면 <b>+</b>를 눌러 이름과 시간을 넣고 <b>등록</b>해요. 그다음 이름을 눌러 출근하면 돼요." },
   ],
   records: (pc) =>
@@ -3816,39 +3866,34 @@ app.addEventListener("click", (e) => {
       state.error = "";
       state.editingId = null;
       const opening = state.expandedId !== id;
-      const emp = employeeById(id);
-      // 직원용 달력: PIN 을 정해 둔 직원은 이름을 펼칠 때(출근·수정 전에) PIN 확인
-      if (!ADMIN_SITE && opening && emp?.pinHash) {
-        uiPrompt(`${emp.name}님 출근 PIN을 입력해주세요.`, { placeholder: "숫자 4자리" }).then(async (pin) => {
-          if (pin === null) return;
-          if ((await hashPin(emp.id, pin)) !== emp.pinHash) {
-            showToast("PIN이 맞지 않아요. 다시 확인해주세요.");
-            return;
-          }
-          state.expandedId = id;
-          state.expandEnter = true;
-          render();
-        });
-        return;
-      }
       state.expandedId = opening ? id : null;
       state.expandEnter = Boolean(state.expandedId);
       break;
     }
-    case "set-pin": {
+    case "edit-hire": {
       const emp = employeeById(id);
-      uiPrompt(`${emp.name}님 출근 PIN (숫자 4자리)\n직원용 달력에서 이름을 누를 때 물어봐요.${emp.pinHash ? "\n비우고 확인하면 PIN을 없애요." : ""}`, {
-        placeholder: emp.pinHash ? "새 PIN 또는 비우기" : "숫자 4자리",
-        ok: "저장",
-        allowEmpty: Boolean(emp.pinHash),
-      }).then(async (pin) => {
-        if (pin === null) return;
-        if (pin === "") delete emp.pinHash;
-        else emp.pinHash = await hashPin(emp.id, pin);
+      const ask = (msg, cur) => uiPrompt(msg, { kind: "text", placeholder: cur ? cur.replaceAll("-", "") : "예: 20261001", ok: "저장" });
+      const toDate = (v) => {
+        const d = v.replace(/\D/g, "");
+        if (d.length !== 8) return null;
+        const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+        return safeDate(iso) && !Number.isNaN(Date.parse(iso)) ? iso : null;
+      };
+      (async () => {
+        const hire = await ask(`${emp.name}님 입사일 (숫자 8자리)`, emp.hireDate);
+        if (hire === null) return;
+        const h = toDate(hire);
+        if (!h) return uiAlert("날짜는 20261001 처럼 숫자 8자리로 써 주세요.");
+        emp.hireDate = h;
+        if (!emp.active) {
+          const leave = await ask(`${emp.name}님 퇴사일 (숫자 8자리)`, emp.leaveDate);
+          const l = leave && toDate(leave);
+          if (l) emp.leaveDate = l;
+        }
         save();
-        showToast(pin === "" ? `${emp.name}님 출근 PIN을 없앴어요` : `${emp.name}님 출근 PIN을 정했어요. 직원에게 알려 주세요`, "ok");
+        showToast(`${emp.name}님 입사일을 ${dot(h)}로 저장했어요`, "ok");
         render();
-      });
+      })();
       return;
     }
     case "edit-shift":
@@ -3947,6 +3992,9 @@ app.addEventListener("click", (e) => {
     case "toggle-active": {
       const emp = employeeById(id);
       emp.active = !emp.active;
+      // 비활성으로 바꾸면 오늘을 퇴사일로, 다시 재직중이면 퇴사일을 지운다
+      if (!emp.active && !emp.leaveDate) emp.leaveDate = todayDateString();
+      if (emp.active) delete emp.leaveDate;
       save();
       queueToast(`${emp.name}님을 ${emp.active ? "재직중으로" : "비활성으로"} 바꿨어요`);
       break;
@@ -4504,6 +4552,7 @@ app.addEventListener("submit", (e) => {
   e.preventDefault();
   const name = document.getElementById("f-name").value.trim();
   const phone = formatPhone(document.getElementById("f-phone").value);
+  const hire = document.getElementById("f-hire")?.value || todayDateString();
   const wage = parseMoney(document.getElementById("f-wage").value);
   const manager = e.target.querySelector('input[name="f-role"]:checked')?.value === "manager";
   if (!name) return;
@@ -4514,6 +4563,8 @@ app.addEventListener("submit", (e) => {
     hourlyWage: wage || DEFAULT_WAGE,
     active: true,
     weekly: {},
+    hireDate: hire,
+    no: store.employees.reduce((max, x) => Math.max(max, x.no || 0), 0) + 1,
     ...(manager ? { role: "manager" } : {}),
   };
   store.employees.push(emp);
@@ -4579,6 +4630,14 @@ app.addEventListener("change", (e) => {
   if (state.contractDraft && (t.dataset.cf || t.dataset.cfday || t.dataset.cfbreak || t.dataset.cfins)) {
     state.error = "";
     updateContractDraft(t);
+    render();
+    return;
+  }
+  if (t.dataset.empdate) {
+    const emp = employeeById(t.dataset.id);
+    if (t.value) emp[t.dataset.empdate] = t.value;
+    else delete emp[t.dataset.empdate];
+    save();
     render();
     return;
   }
@@ -4778,7 +4837,7 @@ const storePath = (sub) => `stores/${storeId}/${sub}`;
 var cloud = null; // { auth, db } — SDK 를 못 불러오면 이 기기에만 저장
 var remote = { pub: null, priv: null, pubLoaded: false, privLoaded: false, last: {}, seedAsked: false };
 
-const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory", "pinHash"];
+const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory", "no"];
 
 // store → { "경로": "JSON 문자열" }
 function flattenStore(withPrivate) {
@@ -4786,7 +4845,7 @@ function flattenStore(withPrivate) {
   const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k] !== undefined).map((k) => [k, obj[k]]));
   for (const e of store.employees) {
     out[`public/employees/${e.id}`] = JSON.stringify(pick(e, PUBLIC_EMP_KEYS));
-    if (withPrivate) out[`private/employees/${e.id}`] = JSON.stringify({ phone: e.phone ?? null, hourlyWage: e.hourlyWage ?? DEFAULT_WAGE });
+    if (withPrivate) out[`private/employees/${e.id}`] = JSON.stringify({ phone: e.phone ?? null, hourlyWage: e.hourlyWage ?? DEFAULT_WAGE, hireDate: e.hireDate ?? null, leaveDate: e.leaveDate ?? null });
   }
   out["public/order"] = JSON.stringify(store.employees.map((e) => e.id));
   if (ADMIN_SITE) out["public/absent"] = JSON.stringify(store.absent ?? {});
@@ -4845,7 +4904,9 @@ function cleanWeekly(w) {
   }
   return out;
 }
-const safeDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+function safeDate(v) {
+  return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+}
 const safeIso = (v) => typeof v === "string" && v.length < 40 && !Number.isNaN(Date.parse(v));
 
 function cleanStore(data) {
@@ -4854,7 +4915,8 @@ function cleanStore(data) {
     .map((e) => ({
       ...e,
       name: e.name.slice(0, 40),
-      pinHash: typeof e.pinHash === "string" && /^[0-9a-f]{64}$/.test(e.pinHash) ? e.pinHash : undefined,
+      ...(e.hireDate ? { hireDate: safeDate(e.hireDate) ? e.hireDate : null } : {}),
+      ...(e.leaveDate ? { leaveDate: safeDate(e.leaveDate) ? e.leaveDate : null } : {}),
       color: e.color ? cssColor(e.color) : e.color,
       weekly: cleanWeekly(e.weekly),
       ...(e.weeklyBase ? { weeklyBase: cleanWeekly(e.weeklyBase) } : {}),
@@ -4862,6 +4924,8 @@ function cleanStore(data) {
         ? { weeklyHistory: e.weeklyHistory.filter((h) => h && safeDate(h.from)).map((h) => ({ from: h.from, weekly: cleanWeekly(h.weekly) })) }
         : {}),
     }));
+  let nextNo = employees.reduce((max, e) => (Number.isInteger(e.no) && e.no > max ? e.no : max), 0);
+  for (const e of employees) if (!Number.isInteger(e.no) || e.no < 1) e.no = ++nextNo;
   const records = (Array.isArray(data.records) ? data.records : []).filter(
     (r) => r && safeId(r.id) && safeId(r.employeeId) && safeDate(r.date) && safeIso(r.clockIn) && (!r.clockOut || safeIso(r.clockOut)),
   );
@@ -4939,7 +5003,7 @@ function storeFromRemote() {
     .sort((a, b) => rank(a.id) - rank(b.id))
     .map((e) => {
       const p = priv ? parse(priv.employees?.[e.id], {}) : employeeById(e.id) ?? {};
-      return { weekly: {}, ...e, phone: p.phone ?? null, hourlyWage: p.hourlyWage ?? DEFAULT_WAGE };
+      return { weekly: {}, ...e, phone: p.phone ?? null, hourlyWage: p.hourlyWage ?? DEFAULT_WAGE, hireDate: p.hireDate ?? null, leaveDate: p.leaveDate ?? null };
     });
   const main = priv ? parse(priv.main, {}) : store;
   return cleanStore({

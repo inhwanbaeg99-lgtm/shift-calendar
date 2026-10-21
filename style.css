@@ -5858,3 +5858,29 @@ td.name {
   color: var(--red);
   text-align: right;
 }
+
+/* 입사일 · 지급일 · 명세서 계산 방법 */
+.hire-btn {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-sub, #6b7684);
+  cursor: pointer;
+}
+.hire-btn:hover { text-decoration: underline; }
+.hire-btn.need { color: #b45309; }
+.payday-pick { display: flex; gap: 6px; }
+.payday-pick .field { width: auto; }
+.m-payday { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 10px; font-size: 13px; opacity: 0.9; }
+.m-payday span { margin-right: auto; }
+.m-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.m-dates label { display: grid; gap: 4px; font-size: 13px; color: var(--ink-sub, #6b7684); }
+.ps-ids { margin-top: 2px; font-size: 13px; }
+.ps-ids b { color: #0ea5a0; font-weight: 700; }
+.ps-calc { margin: 16px 0 20px; padding: 14px 16px; border-radius: 12px; background: #f2f4f6; }
+.ps-calc h2 { margin: 0 0 6px; font-size: 14px; }
+.ps-calc ul { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; color: #4e5968; }
