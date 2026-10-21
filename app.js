@@ -1281,7 +1281,8 @@ function taxes(gross) {
 
 // 직원별·월별 추가 수당 (특근수당 등)
 function allowancesFor(ym, empId) {
-  return store.allowances?.[ym]?.[empId] ?? [];
+  // 예전 기본값으로 저장된 빈 "교육수당" 줄(0원)은 뺀다 (교육수당 기능은 없앰)
+  return (store.allowances?.[ym]?.[empId] ?? []).filter((a) => !((a.name || "").trim() === "교육수당" && !Number(a.amount)));
 }
 
 
