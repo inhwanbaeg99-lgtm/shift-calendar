@@ -5100,3 +5100,117 @@ td.name {
     min-height: 0;
   }
 }
+
+/* ---------- 월급제 (4대보험) ---------- */
+.wage-cell {
+  white-space: nowrap;
+}
+.pay-kind {
+  display: inline-block;
+  width: 88px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+.pay-switch {
+  margin-left: 6px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-sub);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pay-switch:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+.pay-tag {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+.link-btn.need,
+.need {
+  color: var(--red);
+  font-weight: 700;
+}
+.m-pay-net .need {
+  font-size: 13px;
+}
+.sal-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--paper);
+}
+.sal-title {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+.sal-title small {
+  margin-left: 6px;
+  font-weight: 500;
+  color: var(--ink-sub);
+}
+.sal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.sal-row span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.sal-row small {
+  font-size: 11px;
+  color: var(--ink-sub);
+}
+.sal-row .field {
+  flex: 0 0 116px;
+  width: 116px;
+  height: 34px;
+  padding: 0 10px;
+  text-align: right;
+  background: var(--bg);
+}
+.sal-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-sub);
+}
+.sal-alert {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff4e5;
+  color: #92400e;
+  font-size: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  .sal-alert {
+    background: rgb(251 191 36 / 0.16);
+    color: #fbbf24;
+  }
+}
+.ps-side {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
