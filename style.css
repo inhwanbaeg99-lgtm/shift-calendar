@@ -6410,3 +6410,70 @@ a.m-store span {
     padding-top: 40px;
   }
 }
+
+/* 직원 페이지: 들어가면 바로 근로계약서 */
+.emp-page {
+  width: min(1168px, 100%);
+  margin: 0 auto;
+}
+.emp-page-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.emp-page-head .swatch.big {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+}
+.emp-page-head h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.emp-page-head small {
+  color: var(--ink-sub);
+  font-size: 13px;
+}
+a.pay-back-btn {
+  text-decoration: none;
+}
+.emp-page-body {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.emp-ct-side {
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.emp-ct-preview {
+  position: sticky;
+  top: 16px;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--line);
+  background: #fff;
+}
+a.name-btn {
+  text-decoration: none;
+}
+a.m-toggle {
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+}
+@media (max-width: 899px) {
+  .emp-page-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .emp-ct-preview {
+    position: static;
+  }
+}

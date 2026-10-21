@@ -881,7 +881,7 @@ function renderEmployees() {
     .map(
       (e, i) => `
       <tr style="--i:${i}">
-        <td class="name"><button type="button" class="name-btn" data-action="open-sheet" data-sheet="emp" data-id="${e.id}" title="입사일 · 퇴사일 · 근로계약서"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${nameLabel(e)}<span class="name-chev" aria-hidden="true">›</span></span><span class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</span></button></td>
+        <td class="name"><a class="name-btn" href="#/emp/${e.id}" title="근로계약서 쓰기 · 보기"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${nameLabel(e)}<span class="name-chev" aria-hidden="true">›</span></span><span class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</span></a></td>
         ${order
           .map(
             (wd) =>
@@ -909,7 +909,6 @@ function renderEmployees() {
       <div><span class="f-label" id="f-role-label">구분</span><div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>매니저</span></label></div></div>
       <div><label for="f-name">이름</label><input id="f-name" class="field" style="width:112px" placeholder="홍길동" required /></div>
       <div><label for="f-phone">전화번호 (선택)</label><input id="f-phone" class="field phone" style="width:144px" type="text" inputmode="numeric" placeholder="010-0000-0000" /></div>
-      <div><label for="f-hire">입사일</label><input id="f-hire" class="field" style="width:148px" type="date" value="${todayDateString()}" required /></div>
       <div class="f-wage-wrap"><label for="f-wage">시급(원)</label><input id="f-wage" class="field money" style="width:112px" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required /></div>
       <div class="f-mgr-wrap" hidden><label for="f-salary">기본급 (월급)</label><input id="f-salary" class="field money" style="width:128px" type="text" inputmode="numeric" placeholder="2,000,000" /></div>
       <div class="f-mgr-wrap" hidden><label for="f-meal">식대 (선택)</label><input id="f-meal" class="field money" style="width:104px" type="text" inputmode="numeric" placeholder="0" /></div>
@@ -930,13 +929,12 @@ function renderEmployees() {
       구분을 <b>매니저</b>로 바꾸면 자동으로 월급제(4대보험), <b>알바</b>로 바꾸면 시급제(3.3%)가 돼요. 알바인데 월급제면 급여 칸의 <b>월급으로</b>를 눌러요. 월급·식대·공제액은 급여 화면에서 이름 옆 <b>명세서</b>를 눌러 입력해요.`,
     )}
     ${policyLinks()}
-    ${state.sheet?.type === "emp" && employeeById(state.sheet.id) ? renderEmpModal(employeeById(state.sheet.id)) : ""}
     ${renderContractModal()}`,
     { center: true },
   );
 }
 
-// ---------- 마이페이지 (매장 이름을 누르면): 사업주 정보 · 직원 명세서 링크 · 전체 기록 · 매장 삭제 ----------
+// ---------- 정보 탭: 매장 · 사업주 정보 · 직원 링크 · 이력서 양식 · 매장 삭제 ----------
 const resumeUrl = () => new URL(`../resume.html?store=${encodeURIComponent(storeName())}`, location.href).href;
 const payUrl = () => new URL(`../?s=${storeId}#/my`, location.href).href;
 
@@ -992,10 +990,9 @@ function renderMyPage() {
       </section>
 
       <section class="me-card">
-        <h2>기록 · 계정</h2>
-        <p class="sub">기록은 언제든 엑셀로 받을 수 있어요. 매장을 삭제하면 모든 기록이 지워지고 되살릴 수 없어요.</p>
+        <h2>매장 삭제</h2>
+        <p class="sub">매장을 삭제하면 직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어요. 지우기 전에 급여 화면에서 달마다 급여대장을 받아 두세요.</p>
         <div class="store-manage-actions">
-          <button type="button" class="pill plain-dark" data-action="export-all"${demoLoaded ? " disabled" : ""}>전체 기록 엑셀 받기</button>
           <button type="button" class="pill danger-pill" data-action="delete-store"${demoLoaded ? " disabled" : ""}>매장 · 계정 삭제</button>
         </div>
       </section>
@@ -1437,45 +1434,16 @@ function renderEmpSheet(e) {
         : `<label class="sheet-label" for="m-wage">시급</label>
     <div class="m-wage"><input id="m-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /><span>원</span></div>`
     }
-    <div class="m-dates">
-      <label><span>입사일</span><input class="field" type="date" data-empdate="hireDate" data-id="${e.id}" value="${e.hireDate ?? ""}" /></label>
-      <label><span>퇴사일</span><input class="field" type="date" data-empdate="leaveDate" data-id="${e.id}" value="${e.leaveDate ?? ""}" /></label>
-    </div>
     <div class="m-toggles">
       <button type="button" class="m-toggle${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button>
       <button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>
       <button type="button" class="m-toggle${isSalaried(e) ? " on" : ""}" data-action="toggle-paytype" data-id="${e.id}">${isSalaried(e) ? "월급제" : "시급제"}</button>
-      <button type="button" class="m-toggle${latestContract(e.id)?.status === "signed" ? " on" : ""}" data-action="open-contract" data-id="${e.id}">${latestContract(e.id)?.status === "signed" ? "근로계약서 ✓" : "근로계약서"}</button>
+      <a class="m-toggle${latestContract(e.id)?.status === "signed" ? " on" : ""}" href="#/emp/${e.id}">${latestContract(e.id)?.status === "signed" ? "근로계약서 ✓" : "근로계약서 쓰기"}</a>
     </div>
     <p class="sheet-note">매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요. 매니저는 출근을 안 찍어도 근무표대로 급여에 나와요.</p>
     <div class="sheet-actions">
       <button type="button" class="btn-ghost danger-ghost" data-action="remove-employee" data-id="${e.id}">삭제</button>
       <button type="button" class="btn-primary" data-action="close-sheet">완료</button>
-    </div>`;
-}
-
-// 컴퓨터: 직원 이름을 누르면 뜨는 창 (요일·시급·상태는 표에서 바로 고치고, 여기서는 입사일·퇴사일·계약서)
-function renderEmpModal(e) {
-  const c = latestContract(e.id);
-  const cState = !c ? "아직 안 썼어요" : c.status === "signed" ? `서명 완료 · ${dot(dateStringFor(new Date(c.signedAt ?? c.createdAt)))}` : "작성 중이에요";
-  return `
-    <div class="ps-backdrop emp-back${state.sheetEnter ? " enter" : ""}" data-action="close-sheet">
-      <div class="emp-modal" data-stop role="dialog" aria-modal="true" aria-label="${esc(e.name)} 정보">
-        <div class="emp-modal-head">
-          <span class="swatch big" style="background:${cssColor(e.color)}"></span>
-          <div><h2>${esc(e.name)}</h2><small>사번 ${e.no ?? "-"}${e.phone ? ` · ${esc(formatPhone(e.phone))}` : ""} · ${isManager(e) ? "매니저" : "알바"} · ${e.active ? "재직중" : "비활성"}</small></div>
-        </div>
-        <div class="emp-modal-dates">
-          <label><span>입사일</span><input class="field" type="date" data-empdate="hireDate" data-id="${e.id}" value="${e.hireDate ?? ""}" /></label>
-          <label><span>퇴사일</span><input class="field" type="date" data-empdate="leaveDate" data-id="${e.id}" value="${e.leaveDate ?? ""}" /></label>
-        </div>
-        <p class="emp-modal-note">비활성으로 바꾸면 그날이 퇴사일로 들어가요.</p>
-        <div class="emp-modal-contract">
-          <div><b>근로계약서</b><small class="${c?.status === "signed" ? "ok" : ""}">${cState}</small></div>
-          <button type="button" class="pill${c?.status === "signed" ? " plain-dark" : ""}" data-action="open-contract" data-id="${e.id}">${!c ? "쓰기" : c.status === "signed" ? "보기" : "이어서 쓰기"}</button>
-        </div>
-        <div class="emp-modal-actions"><button type="button" class="btn-primary" data-action="close-sheet">완료</button></div>
-      </div>
     </div>`;
 }
 
@@ -1489,8 +1457,6 @@ function renderAddEmpSheet() {
       <input id="f-name" class="field" placeholder="홍길동" required autocomplete="off" />
       <label class="sheet-label" for="f-phone">전화번호 (선택)</label>
       <input id="f-phone" class="field phone" type="text" inputmode="numeric" placeholder="010-0000-0000" />
-      <label class="sheet-label" for="f-hire">입사일</label>
-      <input id="f-hire" class="field" type="date" value="${todayDateString()}" required />
       <div class="f-wage-wrap">
         <label class="sheet-label" for="f-wage">시급(원)</label>
         <input id="f-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required />
@@ -2562,63 +2528,11 @@ function exportLedger(button) {
   });
 }
 
-// ---------- 전체 기록 엑셀 (매장을 떠나거나 3년 보관용) ----------
-function exportAll(button) {
-  return withBusy(button, "만드는 중…", async () => {
-    const XLSX = await loadLib("xlsx");
-    const head = { font: { bold: true }, fill: { fgColor: { rgb: "E2F4F2" } } };
-    const sheet = (rows, widths) => {
-      const ws = XLSX.utils.aoa_to_sheet(rows.map((r, i) => (i === 0 ? r.map((v) => ({ v, t: "s", s: head })) : r)));
-      ws["!cols"] = widths.map((wch) => ({ wch }));
-      return ws;
-    };
-    const order = [1, 2, 3, 4, 5, 6, 0];
-    const emps = sheet(
-      [
-        ["이름", "구분", "급여 방식", "시급", "전화번호", "상태", ...order.map((wd) => `${WEEKDAYS[wd]}요일`)],
-        ...store.employees.map((e) => [
-          e.name, isManager(e) ? "매니저" : "알바", isSalaried(e) ? "월급제" : "시급제", e.hourlyWage ?? "", e.phone ? formatPhone(e.phone) : "",
-          e.active ? "재직중" : "비활성", ...order.map((wd) => formatRange(e.weekly?.[wd])),
-        ]),
-      ],
-      [10, 7, 8, 8, 14, 7, 12, 12, 12, 12, 12, 12, 12],
-    );
-    const recs = [...store.records].sort((a, b) => (a.date === b.date ? (a.clockIn < b.clockIn ? -1 : 1) : a.date < b.date ? -1 : 1));
-    const records = sheet(
-      [
-        ["날짜", "이름", "출근", "퇴근", "시간", "비고"],
-        ...recs.map((r) => [
-          r.date, employeeById(r.employeeId)?.name ?? "(삭제된 직원)", formatTime(r.clockIn), r.clockOut ? formatTime(r.clockOut) : "",
-          r.clockOut ? Number(hoursBetween(r.clockIn, r.clockOut).toFixed(2)) : "", r.manual ? "관리자 출근 처리" : r.edited ? "시간 고침" : "",
-        ]),
-      ],
-      [12, 10, 8, 8, 7, 16],
-    );
-    const months = [...new Set(store.records.map((r) => r.date.slice(0, 7)))].sort();
-    const pay = sheet(
-      [
-        ["달", "이름", "근무일", "근무시간", "기본급", "주휴수당", "식대(비과세)", "기타수당", "지급총액(세전)", "공제합계", "실지급액(세후)"],
-        ...months.flatMap((ym) =>
-          payrollFor(ym, "").rows.map((r) => [ym, r.emp.name, r.days, Number(r.hours.toFixed(2)), r.base, r.weekly.total, r.meal, r.extra, r.gross, r.dedTotal, r.net ?? "공제 입력 필요"]),
-        ),
-      ],
-      [9, 10, 7, 9, 11, 10, 11, 10, 13, 10, 13],
-    );
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, emps, "직원");
-    XLSX.utils.book_append_sheet(wb, records, "출퇴근 기록");
-    XLSX.utils.book_append_sheet(wb, pay, "월별 급여");
-    const bytes = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const saved = await saveXlsxBytes(new Uint8Array(bytes), `${storeName()} 전체 기록 ${todayDateString()}.xlsx`);
-    if (saved) showToast("전체 기록을 엑셀로 저장했어요", "ok");
-  });
-}
-
 // ---------- 매장 · 계정 삭제 ----------
 // 매장 이름을 다시 입력하고 비밀번호로 한 번 더 확인한 뒤, 매장 기록 전부와 관리자 계정을 지운다
 async function deleteStore() {
   const name = storeName();
-  const yes = await uiConfirm(`매장과 계정을 삭제할까요?\n직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어요.\n먼저 [전체 기록 엑셀 받기]로 보관해 두세요.`, { ok: "계속", danger: true });
+  const yes = await uiConfirm(`매장과 계정을 삭제할까요?\n직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어요.\n먼저 급여 화면의 [급여대장 받기]로 달마다 보관해 두세요.`, { ok: "계속", danger: true });
   if (!yes) return;
   const typed = await uiPrompt(`확인을 위해 매장 이름을 똑같이 입력해주세요.\n${name}`, { kind: "text", placeholder: name, ok: "다음", danger: true });
   if (typed === null) return;
@@ -2794,7 +2708,19 @@ function renderContract(c) {
 
 function renderContractModal() {
   const c = state.contractDraft;
-  if (!c) return "";
+  if (!c || route().name === "emp") return "";
+  return `
+    <div class="ps-backdrop ct-backdrop${state.modalEnter ? " enter" : ""}" data-action="close-contract">
+      <div class="ps-dialog" data-stop>
+        <div class="ps-side ct-side">${contractForm(c)}</div>
+        <div class="ps-preview ct-preview">${renderContract(c)}</div>
+      </div>
+    </div>`;
+}
+
+// 계약서 편집 칸 (창 · 직원 페이지 공통)
+function contractForm(c) {
+  const page = route().name === "emp";
   const f = c.f;
   const signed = c.status === "signed";
   const lowWage = f.payType === "hourly" && Number(f.wage) < DEFAULT_WAGE;
@@ -2810,7 +2736,7 @@ function renderContractModal() {
         <button type="button" class="btn-ghost" data-action="new-contract" data-id="${c.empId}">새 계약서 쓰기 (재계약)</button>
       </div>
       <p class="sal-note">근로계약서는 근로자에게 꼭 한 부 줘야 해요. 카톡이나 PDF로 보내 주세요. 사업주는 계약이 끝난 뒤에도 3년간 보관해야 해요.</p>
-      <div class="action-row"><button type="button" class="btn-ghost" data-action="close-contract">닫기</button></div>`
+      ${page ? "" : `<div class="action-row"><button type="button" class="btn-ghost" data-action="close-contract">닫기</button></div>`}`
     : `
       <p class="sub">직원 정보로 미리 채워 뒀어요. 고치면 계약서 미리보기가 바로 바뀌어요.</p>
       <div class="ct-form">
@@ -2847,21 +2773,50 @@ function renderContractModal() {
       </div>
       ${state.error ? `<p class="error">${esc(state.error)}</p>` : ""}
       <div class="action-row">
-        <button type="button" class="btn-ghost" data-action="close-contract">닫기</button>
+        ${page ? "" : `<button type="button" class="btn-ghost" data-action="close-contract">닫기</button>`}
         <button type="button" class="btn-ghost" data-action="save-contract">저장</button>
         <button type="button" class="btn-primary" data-action="sign-contract">서명 받기</button>
       </div>`;
-  return `
-    <div class="ps-backdrop ct-backdrop${state.modalEnter ? " enter" : ""}" data-action="close-contract">
-      <div class="ps-dialog" data-stop>
-        <div class="ps-side ct-side">
-          <p class="staff-title">${esc(f.empName)} · 근로계약서${signed ? ` <span class="pay-tag">서명 완료</span>` : ""}</p>
-          ${form}
+  return `<p class="staff-title">${page ? "근로계약서" : `${esc(f.empName)} · 근로계약서`}${signed ? ` <span class="pay-tag">서명 완료</span>` : ""}</p>
+          ${form}`;
+}
+
+// ---------- 직원 페이지 (#/emp/{id}): 들어가면 바로 근로계약서 ----------
+function renderEmpPage(id) {
+  const e = employeeById(id);
+  if (!e) return renderAdminShell("employees", `<p class="sub">직원을 찾지 못했어요. <a href="#/employees">직원 목록으로</a></p>`, { center: true });
+  // 이 직원 계약서: 쓰던 것(또는 서명한 것)이 있으면 그것, 없으면 직원 정보로 새로
+  if (state.contractDraft?.empId !== id) {
+    const last = latestContract(id);
+    state.contractDraft = last ? structuredClone(last) : newContract(e);
+    state.contractDirty = false;
+  }
+  const c = state.contractDraft;
+  const history = contractsOf(id).filter((x) => x.status === "signed" && x.id !== c.id);
+  const content = `
+    <div class="emp-page">
+      <div class="emp-page-head">
+        <a class="pay-back-btn" href="#/employees" aria-label="직원 목록으로">${ICON_PREV}</a>
+        <span class="swatch big" style="background:${cssColor(e.color)}"></span>
+        <div><h1>${esc(e.name)}</h1><small>사번 ${e.no ?? "-"} · ${isManager(e) ? "매니저" : "알바"} · ${e.active ? "재직중" : "비활성"}${e.phone ? ` · ${esc(formatPhone(e.phone))}` : ""}</small></div>
+      </div>
+      <div class="emp-page-body">
+        <div class="ct-side emp-ct-side">
+          ${contractForm(c)}
+          ${history.length ? `<p class="sal-note">이전 계약서: ${history.map((h) => `<button type="button" class="link-btn" data-action="view-contract" data-cid="${h.id}">${dot(dateStringFor(new Date(h.signedAt ?? h.createdAt)))}</button>`).join(" · ")}</p>` : ""}
         </div>
-        <div class="ps-preview ct-preview">${renderContract(c)}</div>
+        <div class="emp-ct-preview">${renderContract(c)}</div>
       </div>
     </div>`;
+  return renderAdminShell("employees", content, { center: true });
 }
+// 계약서 미리보기를 칸 폭에 맞춰 줄인다 (A4 폭 794px)
+function fitContractPreview() {
+  const box = document.querySelector(".emp-ct-preview");
+  const doc = box?.querySelector(".contract-doc");
+  if (doc) doc.style.zoom = Math.min(0.9, box.clientWidth / 794);
+}
+window.addEventListener("resize", () => route().name === "emp" && fitContractPreview());
 
 // 편집 칸 → 초안
 function updateContractDraft(t) {
@@ -3592,7 +3547,7 @@ const TOURS = {
     { sel: ".me-card:nth-of-type(3) .me-link", title: "직원 링크", text: "이 주소를 <b>단톡방</b>에 한 번 올려 두세요. 직원이 눌러서 자기 PIN으로 자기 근무 상세와 명세서만 봐요." },
     { sel: ".me-pins", title: "직원별 PIN", text: "직원마다 <b>숫자 6자리 PIN</b>을 정하고 개인 톡으로 알려 주세요. 매달 지급일이 지나면 명세서가 자동으로 올라가서, 일일이 보낼 필요가 없어요." },
     { sel: ".me-card:nth-of-type(4) .me-link", title: "이력서 양식", text: "지원자에게 이 주소를 보내면 휴대폰으로 써서 A4 이력서 사진을 문자로 보내 줘요. 종이 양식은 열어서 ••• → 빈 양식 인쇄." },
-    { sel: ".me-card:nth-of-type(5) .store-manage-actions", title: "기록 · 계정", text: "전체 기록을 엑셀로 받거나, 매장과 계정을 지워요. 지우기 전에 꼭 엑셀로 받아 두세요." },
+    { sel: ".me-card:nth-of-type(5) .store-manage-actions", title: "매장 삭제", text: "매장과 계정을 지워요. 지우기 전에 급여 화면에서 급여대장을 받아 두세요." },
   ],
   employees: (pc) =>
     pc
@@ -3604,7 +3559,7 @@ const TOURS = {
           { sel: "table.schedule tbody tr:first-child .wage-cell", title: "시급 · 월급", text: "알바는 시급을 고쳐요. <b>월급으로</b>를 누르면 월급제(4대보험) 직원이 되고, 월급은 급여 화면 명세서에서 입력해요." },
           { sel: "table.schedule tbody tr:first-child [data-action=toggle-active]", title: "재직중 · 비활성", text: "그만둔 직원은 <b>비활성</b>으로 바꿔요. 기록은 남고, 달력과 근무표에서만 빠져요." },
           { sel: "table.schedule tbody tr:first-child [data-action=toggle-role]", title: "알바 · 매니저", text: "매니저로 바꾸면 목록 맨 위로 오고 월급제가 돼요. 다시 알바로 바꾸면 시급제로 돌아가요." },
-          { sel: "table.schedule tbody tr:first-child .name-btn", title: "직원 정보", text: "이름을 누르면 <b>입사일·퇴사일</b>과 <b>근로계약서</b>를 관리해요. 계약서는 직원 정보로 미리 채워지고, 매장에서 화면에 서명받아요." },
+          { sel: "table.schedule tbody tr:first-child .name-btn", title: "직원 페이지 · 근로계약서", text: "이름을 누르면 그 직원 페이지로 가서 바로 <b>전자 근로계약서</b>를 써요. 직원 정보로 미리 채워지고, 매장에서 화면에 서명받아요." },
           { scene: "contract", sel: ".ct-side", title: "계약서 쓰기", text: "기간, 근무 요일·시간, 임금, 사회보험, 사업주 정보를 확인하고 <b>서명 받기</b>를 눌러요. 직원이 먼저, 사장님이 다음에 손가락으로 서명해요." },
           { scene: "contract", sel: ".ct-preview", title: "계약서 미리보기", text: "고용노동부 표준근로계약서 항목대로 만들어져요. 서명이 끝나면 <b>카카오톡 전송</b>이나 <b>PDF</b>로 직원에게 꼭 한 부 줘요." },
         ]
@@ -3924,6 +3879,8 @@ function route() {
   const day = hash.match(/^\/day\/(\d{4}-\d{2}-\d{2})$/);
   if (day) return { name: "day", date: day[1] };
   if (!ADMIN_SITE) return { name: ["/my", "/pay", "/work"].includes(hash) ? "pay" : "home" };
+  const emp = hash.match(/^\/emp\/([\w-]+)$/);
+  if (emp) return { name: "emp", id: emp[1] };
   const page = { "/records": "records", "/schedule": "schedule", "/calendar": "calendar", "/me": "me" }[hash];
   return { name: page ?? "employees" };
 }
@@ -3946,6 +3903,7 @@ function render() {
   else if (r.name === "records") app.innerHTML = renderRecords();
   else if (r.name === "schedule") app.innerHTML = renderSchedule();
   else if (r.name === "me") app.innerHTML = renderMyPage();
+  else if (r.name === "emp") app.innerHTML = renderEmpPage(r.id);
   else if (r.name === "pay") app.innerHTML = renderPayPage();
   else app.innerHTML = renderHome();
 
@@ -3959,6 +3917,7 @@ function render() {
   if (period) fitPeriod(period);
   lockDemoFields();
   placeNavPill();
+  if (r.name === "emp") fitContractPreview();
   if (state.pageEnter && r.name === "records") countUp(app.querySelectorAll(".pay-table td.net, .m-main .net"));
   // 카톡 복사 후 다음 직원으로 넘어갔음을 보여준다: 직원 칸 반짝, 표 새로 들어옴, 전송 버튼 두근
   // (저장 직후 다시 그려져도 이어서 돌도록 지난 시간만큼 앞당겨 시작)
@@ -4009,6 +3968,12 @@ window.addEventListener("hashchange", () => {
   resetDayUi();
   state.payslipId = null;
   state.payTab = null;
+  // 직원 페이지를 떠나면: 고친 초안은 저장하고 닫는다
+  if (!location.hash.startsWith("#/emp/")) {
+    if (state.contractDirty && state.contractDraft?.status === "draft") saveContractDraft(state.contractDraft);
+    state.contractDraft = null;
+    state.contractDirty = false;
+  }
   state.allowDraft = null;
   state.slotEdit = null;
   state.helpOpen = {};
@@ -4493,9 +4458,15 @@ app.addEventListener("click", (e) => {
       state.contractDraft = null;
       state.error = "";
       break;
+    case "view-contract": {
+      const h = (store.contracts ?? []).find((x) => x.id === el.dataset.cid);
+      if (h) state.contractDraft = structuredClone(h);
+      break;
+    }
     case "save-contract": {
       const problem = contractProblem(state.contractDraft.f);
       saveContractDraft(state.contractDraft);
+      state.contractDirty = false;
       showToast(problem ? `저장했어요. 서명 전에 확인: ${problem}` : "계약서를 저장했어요", "ok");
       break;
     }
@@ -4507,9 +4478,6 @@ app.addEventListener("click", (e) => {
       return;
     case "contract-share":
       contractShare(el);
-      return;
-    case "export-all":
-      exportAll(el);
       return;
     case "delete-store":
       deleteStore();
@@ -4955,7 +4923,7 @@ app.addEventListener("submit", (e) => {
   e.preventDefault();
   const name = document.getElementById("f-name").value.trim();
   const phone = formatPhone(document.getElementById("f-phone").value);
-  const hire = document.getElementById("f-hire")?.value || todayDateString();
+  const hire = todayDateString(); // 입사일은 추가한 날 (근로계약서 시작일은 계약서에서 고친다)
   const wage = parseMoney(document.getElementById("f-wage").value);
   const manager = e.target.querySelector('input[name="f-role"]:checked')?.value === "manager";
   if (!name) return;
@@ -5033,6 +5001,7 @@ app.addEventListener("change", (e) => {
   if (state.contractDraft && (t.dataset.cf || t.dataset.cfday || t.dataset.cfbreak || t.dataset.cfins)) {
     state.error = "";
     updateContractDraft(t);
+    state.contractDirty = true;
     render();
     return;
   }
