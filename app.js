@@ -884,9 +884,11 @@ function renderEmployees() {
     "employees",
     `
     <form class="toolbar" id="add-employee" style="margin-bottom:32px">
+      <div><span class="f-label" id="f-role-label">구분</span><div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>매니저</span></label></div></div>
       <div><label for="f-name">이름</label><input id="f-name" class="field" style="width:112px" placeholder="홍길동" required /></div>
       <div><label for="f-phone">전화번호 (선택)</label><input id="f-phone" class="field phone" style="width:144px" type="text" inputmode="numeric" placeholder="010-0000-0000" /></div>
-      <div><label for="f-wage">시급(원)</label><input id="f-wage" class="field money" style="width:112px" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required /></div>
+      <div class="f-wage-wrap"><label for="f-wage">시급(원)</label><input id="f-wage" class="field money" style="width:112px" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required /></div>
+      <p class="f-mgr-note" hidden>매니저는 월급제예요. 월급은 추가한 뒤 급여 화면 <b>명세서</b>에서 입력해요.</p>
       <button type="submit" class="pill">추가</button>
     </form>
     ${demoLoaded ? "" : renderStaffLink()}
@@ -1054,12 +1056,17 @@ function renderAddEmpSheet() {
   return `
     <div class="sheet-head"><div><h2>직원 추가</h2></div></div>
     <form id="add-employee" class="m-form">
+      <span class="sheet-label" id="f-role-label">구분</span>
+      <div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>매니저</span></label></div>
       <label class="sheet-label" for="f-name">이름</label>
       <input id="f-name" class="field" placeholder="홍길동" required autocomplete="off" />
       <label class="sheet-label" for="f-phone">전화번호 (선택)</label>
       <input id="f-phone" class="field phone" type="text" inputmode="numeric" placeholder="010-0000-0000" />
-      <label class="sheet-label" for="f-wage">시급(원)</label>
-      <input id="f-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required />
+      <div class="f-wage-wrap">
+        <label class="sheet-label" for="f-wage">시급(원)</label>
+        <input id="f-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required />
+      </div>
+      <p class="f-mgr-note" hidden>매니저는 월급제예요. 월급은 추가한 뒤 급여 화면 <b>명세서</b>에서 입력해요.</p>
       <div class="sheet-actions">
         <button type="button" class="btn-ghost" data-action="close-sheet">취소</button>
         <button type="submit" class="btn-primary">추가</button>
@@ -4143,24 +4150,40 @@ app.addEventListener("submit", (e) => {
   const name = document.getElementById("f-name").value.trim();
   const phone = formatPhone(document.getElementById("f-phone").value);
   const wage = parseMoney(document.getElementById("f-wage").value);
+  const manager = e.target.querySelector('input[name="f-role"]:checked')?.value === "manager";
   if (!name) return;
-  store.employees.push({
+  const emp = {
     id: uid(),
     name,
     phone: phone || null,
     hourlyWage: wage || DEFAULT_WAGE,
     active: true,
     weekly: {},
-  });
+    ...(manager ? { role: "manager" } : {}),
+  };
+  store.employees.push(emp);
+  // 매니저는 월급제(4대보험)로 시작
+  if (manager) {
+    store.salary = store.salary ?? {};
+    store.salary[emp.id] = { on: true, hist: [] };
+  }
   ensureColors();
   save();
   state.sheet = null;
   render();
-  showToast(`${name}님을 추가했어요`, "ok");
+  showToast(manager ? `${name}님을 매니저(월급제)로 추가했어요. 급여 화면 명세서에서 월급을 입력해주세요` : `${name}님을 알바로 추가했어요`, "ok");
 });
 
 app.addEventListener("change", (e) => {
   const t = e.target;
+  if (t.name === "f-role") {
+    const form = t.closest("form");
+    const manager = t.value === "manager";
+    form.querySelector(".f-wage-wrap").hidden = manager;
+    form.querySelector("#f-wage").required = !manager;
+    form.querySelector(".f-mgr-note").hidden = !manager;
+    return;
+  }
   if (t.dataset.wage) {
     const emp = employeeById(t.dataset.wage);
     const wage = parseMoney(t.value);

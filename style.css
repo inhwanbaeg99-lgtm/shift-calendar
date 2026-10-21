@@ -5214,3 +5214,71 @@ td.name {
   max-height: calc(100vh - 80px);
   overflow-y: auto;
 }
+
+/* 직원 추가: 알바 / 매니저 고르기 */
+.f-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-sub);
+}
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+.seg label {
+  margin: 0;
+  cursor: pointer;
+}
+.seg input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.seg span {
+  display: block;
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  transition: background 0.15s, color 0.15s;
+}
+.seg input:checked + span {
+  background: var(--paper);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+.seg input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.toolbar .seg label {
+  display: block;
+  font-size: inherit;
+  color: inherit;
+}
+.f-mgr-note {
+  margin: 0;
+  align-self: center;
+  font-size: 13px;
+  color: var(--ink-sub);
+}
+.m-form .seg {
+  display: flex;
+}
+.m-form .seg label {
+  flex: 1;
+  text-align: center;
+}
+.m-form .f-wage-wrap {
+  display: contents;
+}
+.m-form .f-wage-wrap[hidden] {
+  display: none;
+}
