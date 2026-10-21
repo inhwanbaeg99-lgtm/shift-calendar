@@ -1039,7 +1039,7 @@ const slipsOf = (empId) => remote?.pub?.slips?.[empId] ?? {};
 const slipMonths = (empId) => Object.keys(slipsOf(empId)).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort().reverse();
 
 // 지급일이 지난 달(최근 12개월)의 명세서를 올린다. 내용이 같으면 다시 올리지 않는다.
-let slipBusy = false;
+var slipBusy = false;
 async function publishSlips(onlyId = null) {
   if (!ADMIN_SITE || demoLoaded || !cloud || !storeId || !remote.privLoaded || slipBusy) return;
   const keys = remote.priv?.slipKeys ?? {};
@@ -1080,11 +1080,12 @@ async function publishSlips(onlyId = null) {
     slipBusy = false;
   }
 }
-let slipTimer = null;
-const queueSlipPublish = () => {
+// 시작할 때 save() 가 먼저 불릴 수 있어서 var · function 으로 (선언 전에 불러도 되게)
+var slipTimer = null;
+function queueSlipPublish() {
   clearTimeout(slipTimer);
   slipTimer = setTimeout(() => publishSlips(), 4000);
-};
+}
 
 async function setSlipPin(empId) {
   const emp = employeeById(empId);
