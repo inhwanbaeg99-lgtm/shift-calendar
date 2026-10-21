@@ -5282,3 +5282,16 @@ td.name {
 .m-form .f-wage-wrap[hidden] {
   display: none;
 }
+.toolbar .f-mgr-note {
+  flex-basis: 100%;
+  margin-top: -2px;
+}
+.m-form .f-mgr-wrap {
+  display: contents;
+}
+.m-form .f-mgr-wrap[hidden] {
+  display: none;
+}
+.m-form .f-mgr-wrap .sheet-label:first-child {
+  margin-top: 12px;
+}

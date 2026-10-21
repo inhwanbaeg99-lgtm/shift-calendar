@@ -888,8 +888,10 @@ function renderEmployees() {
       <div><label for="f-name">이름</label><input id="f-name" class="field" style="width:112px" placeholder="홍길동" required /></div>
       <div><label for="f-phone">전화번호 (선택)</label><input id="f-phone" class="field phone" style="width:144px" type="text" inputmode="numeric" placeholder="010-0000-0000" /></div>
       <div class="f-wage-wrap"><label for="f-wage">시급(원)</label><input id="f-wage" class="field money" style="width:112px" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required /></div>
-      <p class="f-mgr-note" hidden>매니저는 월급제예요. 월급은 추가한 뒤 급여 화면 <b>명세서</b>에서 입력해요.</p>
+      <div class="f-mgr-wrap" hidden><label for="f-salary">기본급 (월급)</label><input id="f-salary" class="field money" style="width:128px" type="text" inputmode="numeric" placeholder="2,000,000" /></div>
+      <div class="f-mgr-wrap" hidden><label for="f-meal">식대 (선택)</label><input id="f-meal" class="field money" style="width:104px" type="text" inputmode="numeric" placeholder="0" /></div>
       <button type="submit" class="pill">추가</button>
+      <p class="f-mgr-note" hidden>공제액(4대보험·근로소득세)은 추가한 뒤 급여 화면 <b>명세서</b>에서 입력해요.</p>
     </form>
     ${demoLoaded ? "" : renderStaffLink()}
     <div class="table-wrap">
@@ -1066,7 +1068,13 @@ function renderAddEmpSheet() {
         <label class="sheet-label" for="f-wage">시급(원)</label>
         <input id="f-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required />
       </div>
-      <p class="f-mgr-note" hidden>매니저는 월급제예요. 월급은 추가한 뒤 급여 화면 <b>명세서</b>에서 입력해요.</p>
+      <div class="f-mgr-wrap" hidden>
+        <label class="sheet-label" for="f-salary">기본급 (월급)</label>
+        <input id="f-salary" class="field money" type="text" inputmode="numeric" placeholder="2,000,000" />
+        <label class="sheet-label" for="f-meal">식대 (선택)</label>
+        <input id="f-meal" class="field money" type="text" inputmode="numeric" placeholder="0 · 비과세, 월 20만 원까지" />
+      </div>
+      <p class="f-mgr-note" hidden>공제액(4대보험·근로소득세)은 추가한 뒤 급여 화면 <b>명세서</b>에서 입력해요.</p>
       <div class="sheet-actions">
         <button type="button" class="btn-ghost" data-action="close-sheet">취소</button>
         <button type="submit" class="btn-primary">추가</button>
@@ -4162,16 +4170,19 @@ app.addEventListener("submit", (e) => {
     ...(manager ? { role: "manager" } : {}),
   };
   store.employees.push(emp);
-  // 매니저는 월급제(4대보험)로 시작
+  // 매니저는 월급제(4대보험)로 시작: 입력한 기본급·식대를 이번 달부터 (공제액은 나중에 급여 화면 명세서에서)
   if (manager) {
     store.salary = store.salary ?? {};
     store.salary[emp.id] = { on: true, hist: [] };
+    const salary = parseMoney(document.getElementById("f-salary").value);
+    const meal = parseMoney(document.getElementById("f-meal").value);
+    if (salary || meal) setSalary(emp.id, todayDateString().slice(0, 7), { salary, meal, ded: null });
   }
   ensureColors();
   save();
   state.sheet = null;
   render();
-  showToast(manager ? `${name}님을 매니저(월급제)로 추가했어요. 급여 화면 명세서에서 월급을 입력해주세요` : `${name}님을 알바로 추가했어요`, "ok");
+  showToast(manager ? `${name}님을 매니저(월급제)로 추가했어요. 공제액은 급여 화면 명세서에서 입력해주세요` : `${name}님을 알바로 추가했어요`, "ok");
 });
 
 app.addEventListener("change", (e) => {
@@ -4181,6 +4192,8 @@ app.addEventListener("change", (e) => {
     const manager = t.value === "manager";
     form.querySelector(".f-wage-wrap").hidden = manager;
     form.querySelector("#f-wage").required = !manager;
+    for (const el of form.querySelectorAll(".f-mgr-wrap")) el.hidden = !manager;
+    form.querySelector("#f-salary").required = manager;
     form.querySelector(".f-mgr-note").hidden = !manager;
     return;
   }
