@@ -160,7 +160,7 @@ function loadStore() {
 }
 
 // 관리자 사이트 둘러보기(로그인 전)에 보여 줄 샘플 매장. 이 기기에서만 만들고 어디에도 저장하지 않는다.
-const DEMO_NAME = "샘플 매장";
+const DEMO_NAME = "샘플";
 function demoData() {
   const people = [
     ["김민지", "#fff2cc", { 1: "07-12", 2: "07-12", 3: "07-12", 5: "07-12" }],
