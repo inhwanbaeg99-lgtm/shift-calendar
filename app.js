@@ -1,8 +1,8 @@
-// 품 (근무 달력) — 여러 매장이 각자 매장을 등록해서 쓰는 버전 (GitHub Pages + Firebase)
+// 근무콕 (근무 달력, 예전 이름 "품") — 여러 매장이 각자 매장을 등록해서 쓰는 버전 (GitHub Pages + Firebase)
 // 매장마다 데이터는 Firebase 의 stores/{매장 코드}/ 아래에 따로 저장되고, 이 브라우저의 localStorage 는 캐시로만 쓴다.
 
 const TIME_ZONE = "Asia/Seoul";
-const APP_NAME = "품";
+const APP_NAME = "근무콕";
 const LAST_STORE_KEY = "shift-calendar:store";
 // 이 기기에서 쓰는 매장 코드: 주소에 ?s=코드 가 있으면 그것, 없으면 마지막으로 쓴 매장
 let storeId = initStoreId();
@@ -510,7 +510,7 @@ const errorLine = () => (state.error ? `<p class="error">${esc(state.error)}</p>
 function renderLock() {
   const title = `
     <div class="lock-brand">
-      <span class="logo big" aria-hidden="true">품</span>
+      <span class="logo big" aria-hidden="true">콕</span>
       <p class="lock-title">관리자</p>
     </div>`;
   if (!state.authReady || state.busy === "check") return `<div class="lock-page">${title}</div>`;
@@ -577,7 +577,7 @@ function renderPick() {
   return `
     <div class="lock-page">
       <div class="lock-brand">
-        <span class="logo big" aria-hidden="true">품</span>
+        <span class="logo big" aria-hidden="true">콕</span>
         <p class="lock-title">${esc(APP_NAME)}</p>
       </div>
       <p class="lock-note">관리자에게 받은 매장 코드를 입력해주세요.</p>
@@ -2762,7 +2762,7 @@ function renderScheduleSheet({ wide = false } = {}) {
         ${rows}
       </div>
       ${compact ? actions : ""}
-      <p class="sc-brand">${esc(storeName())} · ${todayDateString().replaceAll("-", ".")} 출력 · 품</p>
+      <p class="sc-brand">${esc(storeName())} · ${todayDateString().replaceAll("-", ".")} 출력 · 근무콕</p>
     </div>`;
 }
 
@@ -3780,7 +3780,7 @@ function renderInstallHint() {
       : "브라우저 메뉴 → '홈 화면에 추가'를 누르면 앱처럼 쓸 수 있어요.";
   return `
     <div class="m-install">
-      <span class="logo" aria-hidden="true">품</span>
+      <span class="logo" aria-hidden="true">콕</span>
       <div><b>홈 화면에 추가하기</b><small>${how}</small></div>
       ${installEvent ? `<button type="button" class="pill" data-action="install-app">추가</button>` : ""}
       <button type="button" class="m-install-x" data-action="dismiss-install" aria-label="닫기">${ICON_CLOSE}</button>
