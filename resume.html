@@ -324,7 +324,9 @@
         align-items: center;
         gap: 14px;
         padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
-        background: rgba(0, 0, 0, 0.6);
+        background: rgba(0, 0, 0, 0.45);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
         overflow-y: auto;
       }
       .pv img {
@@ -509,8 +511,8 @@
         <section class="card">
           <h2>기본 정보</h2>
           <label class="f"><span>이름 <em>*</em></span><input type="text" name="name" autocomplete="name" placeholder="홍길동" /></label>
-          <label class="f"><span>생년월일</span><input type="text" name="birth" inputmode="numeric" placeholder="2005.03.14" maxlength="10" /></label>
-          <label class="f"><span>연락처 <em>*</em></span><input type="tel" name="phone" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000" maxlength="13" /></label>
+          <label class="f"><span>생년월일</span><input type="text" name="birth" inputmode="numeric" placeholder="20050314 또는 050314" maxlength="10" /></label>
+          <label class="f"><span>연락처 <em>*</em></span><input type="tel" name="phone" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000" maxlength="17" /></label>
           <label class="f"><span>사는 곳 <small>(동까지만)</small></span><input type="text" name="area" placeholder="춘천시 온의동" /></label>
           <label class="f"><span>학교 · 학력 <small>(선택)</small></span><input type="text" name="school" placeholder="○○대학교 2학년 휴학" /></label>
         </section>
@@ -639,6 +641,10 @@
             if (f.checked) v[f.name] = f.value;
           } else v[f.name] = f.value.trim();
         }
+        if (typeof fmtBirth === "function") {
+          v.birth = fmtBirth(v.birth);
+          v.phone = fmtPhone(v.phone);
+        }
         return v;
       }
       function keep() {
@@ -659,21 +665,46 @@
       if (!careers.length) careers = [{ w: "", p: "", j: "" }];
       drawCareers();
 
-      // 숫자만 쳐도 모양 맞추기: 생년월일 2005.03.14, 연락처 010-1234-5678
+      // 생년월일: 20021002 · 021002 · 2002-10-02 · 2002.10.2 → 2002.10.02
+      function fmtBirth(v) {
+        const s = String(v ?? "").trim();
+        const parts = s.split(/[^\d]+/).filter(Boolean);
+        let y, m, d;
+        if (parts.length === 3) [y, m, d] = parts;
+        else {
+          const n = s.replace(/\D/g, "");
+          if (n.length === 8) [y, m, d] = [n.slice(0, 4), n.slice(4, 6), n.slice(6)];
+          else if (n.length === 6) [y, m, d] = [n.slice(0, 2), n.slice(2, 4), n.slice(4)];
+          else return s;
+        }
+        if (y.length === 2) y = `${Number(y) > new Date().getFullYear() % 100 ? 19 : 20}${y}`;
+        if (y.length !== 4 || !(m >= 1 && m <= 12) || !(d >= 1 && d <= 31)) return s;
+        return `${y}.${String(Number(m)).padStart(2, "0")}.${String(Number(d)).padStart(2, "0")}`;
+      }
+      // 연락처: 01084864791 · 010 8486 4791 · +82 10-8486-4791 → 010-8486-4791
+      function fmtPhone(v) {
+        let n = String(v ?? "").replace(/\D/g, "");
+        if (n.startsWith("82")) n = `0${n.slice(2)}`;
+        n = n.slice(0, 11);
+        if (n.length < 4) return n;
+        if (n.length < 8) return `${n.slice(0, 3)}-${n.slice(3)}`;
+        if (n.startsWith("02")) return `02-${n.slice(2, n.length - 4)}-${n.slice(-4)}`;
+        return `${n.slice(0, 3)}-${n.slice(3, n.length - 4)}-${n.slice(-4)}`;
+      }
       form.addEventListener("input", (e) => {
         const t = e.target;
-        if (t.name === "birth") {
-          const d = t.value.replace(/\D/g, "").slice(0, 8);
-          t.value = [d.slice(0, 4), d.slice(4, 6), d.slice(6, 8)].filter(Boolean).join(".");
-        }
-        if (t.name === "phone") {
-          const d = t.value.replace(/\D/g, "").slice(0, 11);
-          t.value = d.length < 4 ? d : d.length < 8 ? `${d.slice(0, 3)}-${d.slice(3)}` : `${d.slice(0, 3)}-${d.slice(3, d.length - 4)}-${d.slice(-4)}`;
-        }
+        // 생년월일은 다 쓴 뒤(칸을 나갈 때) 바꾼다. 쓰는 중에는 숫자와 점만
+        if (t.name === "birth") t.value = t.value.replace(/[^\d.\-/ ]/g, "").slice(0, 10);
+        if (t.name === "phone" && !t.value.trim().startsWith("+")) t.value = fmtPhone(t.value);
         t.classList.remove("bad");
         keep();
       });
-      form.addEventListener("change", keep);
+      form.addEventListener("change", (e) => {
+        const t = e.target;
+        if (t.name === "birth") t.value = fmtBirth(t.value);
+        if (t.name === "phone") t.value = fmtPhone(t.value);
+        keep();
+      });
 
       // ---------- A4 이력서 (입력한 내용을 양식 칸에 채운다) ----------
       const DAYS = [["d1", "월"], ["d2", "화"], ["d3", "수"], ["d4", "목"], ["d5", "금"], ["d6", "토"], ["d0", "일"]];
