@@ -987,7 +987,7 @@ function renderMyPage() {
 
       <section class="me-card">
         <h2>이력서 양식</h2>
-        <p class="sub">지원자에게 이 주소를 보내면, 휴대폰에서 바로 써서 PDF로 저장해 보내 줘요. 종이로 받고 싶으면 열어서 빈 채로 인쇄해요.</p>
+        <p class="sub">지원자에게 이 주소를 보내면, 휴대폰에서 바로 쓰고 <b>카카오톡 전송하기</b>를 눌러 A4 이력서 사진으로 보내 줘요. 종이 양식은 열어서 ••• → 빈 양식 인쇄.</p>
         <div class="me-link"><span>${esc(resumeUrl())}</span><a class="pill plain-dark" href="${esc(resumeUrl())}" target="_blank" rel="noopener">열기</a><button type="button" class="pill" data-action="copy-resume-link">주소 복사</button></div>
       </section>
 
@@ -3590,7 +3590,7 @@ const TOURS = {
     { sel: ".me-card:nth-of-type(2)", title: "사업주 정보", text: "상호, 대표자, 주소, 연락처를 한 번 넣어 두면 <b>근로계약서</b>에 자동으로 들어가요." },
     { sel: ".me-card:nth-of-type(3) .me-link", title: "직원 링크", text: "이 주소를 <b>단톡방</b>에 한 번 올려 두세요. 직원이 눌러서 자기 PIN으로 자기 근무 상세와 명세서만 봐요." },
     { sel: ".me-pins", title: "직원별 PIN", text: "직원마다 <b>숫자 6자리 PIN</b>을 정하고 개인 톡으로 알려 주세요. 매달 지급일이 지나면 명세서가 자동으로 올라가서, 일일이 보낼 필요가 없어요." },
-    { sel: ".me-card:nth-of-type(4) .me-link", title: "이력서 양식", text: "지원자에게 이 주소를 보내면 휴대폰으로 써서 PDF로 보내 줘요. 열어서 인쇄하면 종이 양식이 돼요." },
+    { sel: ".me-card:nth-of-type(4) .me-link", title: "이력서 양식", text: "지원자에게 이 주소를 보내면 휴대폰으로 써서 A4 이력서 사진으로 카톡에 보내 줘요. 종이 양식은 열어서 ••• → 빈 양식 인쇄." },
     { sel: ".me-card:nth-of-type(5) .store-manage-actions", title: "기록 · 계정", text: "전체 기록을 엑셀로 받거나, 매장과 계정을 지워요. 지우기 전에 꼭 엑셀로 받아 두세요." },
   ],
   employees: (pc) =>
