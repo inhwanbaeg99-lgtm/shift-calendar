@@ -2690,7 +2690,7 @@ function exportLedger(button) {
     XLSX.utils.book_append_sheet(wb, ws3, "날짜별 근무시간");
     XLSX.utils.book_append_sheet(wb, ws4, "주휴수당 내역");
     const bytes = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const saved = await saveXlsxBytes(new Uint8Array(bytes), `${store_} ${m}월 급여대장.xlsx`);
+    const saved = await saveXlsxBytes(new Uint8Array(bytes), `${store_} ${m}월.xlsx`);
     if (!saved) return;
     const pending = salaried.filter((r) => !r.ded).map((r) => r.emp.name);
     if (pending.length) uiAlert(`저장했어요. 다만 ${pending.join(", ")}님은 공제액이 아직 없어서 세후 금액이 비어 있어요.\n세무사 금액을 명세서에 입력하면 채워져요.`);
