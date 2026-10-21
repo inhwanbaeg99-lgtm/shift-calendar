@@ -4334,41 +4334,6 @@ td.name {
   font-weight: 700;
 }
 
-/* 교육생 · 교육 근무 표시 */
-.train-tag {
-  font-weight: 600;
-  color: #d97706;
-}
-.status.train,
-.m-toggle.train {
-  background: #fff4e5;
-  color: #b45309;
-}
-.m-chip.train {
-  background: #fff4e5;
-  color: #b45309;
-}
-.ps-train-note {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #fff4e5;
-  font-size: 13px;
-  color: #92400e;
-}
-@media (prefers-color-scheme: dark) {
-  .status.train,
-  .m-toggle.train,
-  .m-chip.train,
-  .ps-train-note {
-    background: rgb(251 191 36 / 0.16);
-    color: #fbbf24;
-  }
-  .train-tag {
-    color: #fbbf24;
-  }
-}
-
 /* ---------- 휴대폰: 오늘 카드 · 홈 화면에 추가 ---------- */
 @media (max-width: 767px) {
   .m-today {

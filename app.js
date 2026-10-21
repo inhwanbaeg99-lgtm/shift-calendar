@@ -286,7 +286,6 @@ function clockIn(employeeId) {
     clockIn: kstIso(date, start),
     clockOut: scheduledEnd(emp, date),
     createdAt: new Date().toISOString(),
-    ...(traineeOn(emp, date) ? { training: true } : {}),
   });
   save();
   return null;
@@ -299,18 +298,12 @@ function setRecordTimes(empId, date, start, end) {
   const clockOut = endIso(date, start, end);
   const rec = recordFor(empId, date);
   if (rec) Object.assign(rec, { clockIn, clockOut, edited: true });
-  else store.records.push({ id: uid(), employeeId: empId, date, clockIn, clockOut, createdAt: new Date().toISOString(), edited: true, ...(traineeOn(employeeById(empId), date) ? { training: true } : {}) });
+  else store.records.push({ id: uid(), employeeId: empId, date, clockIn, clockOut, createdAt: new Date().toISOString(), edited: true });
   if (store.absent) delete store.absent[`${empId}|${date}`];
 }
 
-// 교육생(직원용 달력 + 로 처음 들어온 사람) · 교육으로 일한 기록은 이름 옆에 (교육)
-const isTrainingRec = (r) => Boolean(r?.training);
-// 그날 교육생인지: 근무표에 넣으면서 "근무표 시작일부터 직원"으로 정해 둔 사람(promoteFrom)은 그날부터 직원
-const traineeOn = (emp, date) => Boolean(emp?.trainee) && !(emp.promoteFrom && date >= emp.promoteFrom);
-const monthDay = (date) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}`;
-function nameLabel(emp, rec) {
-  const training = rec ? isTrainingRec(rec) : traineeOn(emp, todayDateString());
-  return `${esc(emp.name)}${training ? `<span class="train-tag"> (교육)</span>` : ""}`;
+function nameLabel(emp) {
+  return esc(emp.name);
 }
 
 // 관리자가 대신 출근 처리: 그날 근무 시간(근무표 또는 그날 바꾼 시간) 그대로 기록한다
@@ -318,7 +311,7 @@ function adminClockIn(empId, date) {
   const emp = employeeById(empId);
   if (!emp || recordFor(empId, date)) return;
   const { start } = shiftFor(emp, date);
-  store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: kstIso(date, start), clockOut: scheduledEnd(emp, date), createdAt: new Date().toISOString(), ...(traineeOn(emp, date) ? { training: true } : {}) });
+  store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: kstIso(date, start), clockOut: scheduledEnd(emp, date), createdAt: new Date().toISOString() });
   if (store.absent) delete store.absent[`${empId}|${date}`];
   save();
 }
@@ -876,9 +869,7 @@ function renderEmployees() {
         <td class="wage-cell" data-label="시급"><input class="field money" style="width:88px;padding:4px 8px" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /></td>
         <td><button type="button" class="status${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button></td>
         <td>${
-          e.trainee
-            ? `<button type="button" class="status train" data-action="promote-trainee" data-id="${e.id}" title="교육을 마치면 직원으로 등록해요. 그 전 교육 근무는 계속 교육수당으로 계산돼요">${e.promoteFrom ? `${monthDay(e.promoteFrom)}부터 직원` : "직원 등록"}</button>`
-            : `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저는 근무표에만 나오고 출근·급여 계산에서 빠져요">${isManager(e) ? "매니저" : "알바"}</button>`
+          `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저는 근무표에만 나오고 출근·급여 계산에서 빠져요">${isManager(e) ? "매니저" : "알바"}</button>`
         }</td>
         <td><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
       </tr>`,
@@ -994,7 +985,7 @@ function renderEmployeesMobile() {
       <button type="button" class="m-row" style="--i:${i}" data-action="open-sheet" data-sheet="emp" data-id="${e.id}">
         <span class="swatch big" style="background:${cssColor(e.color)}"></span>
         <span class="m-row-body">
-          <b>${esc(e.name)}${e.trainee ? `<em class="m-chip train">교육</em>` : ""}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}${e.active ? "" : `<em class="m-chip off">비활성</em>`}</b>
+          <b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}${e.active ? "" : `<em class="m-chip off">비활성</em>`}</b>
           <small>${esc(weeklySummary(e))}</small>
         </span>
         <span class="m-chev">${ICON_CHEVRON}</span>
@@ -1040,11 +1031,7 @@ function renderEmpSheet(e) {
     <div class="m-wage"><input id="m-wage" class="field money" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /><span>원</span></div>
     <div class="m-toggles">
       <button type="button" class="m-toggle${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button>
-      ${
-        e.trainee
-          ? `<button type="button" class="m-toggle train" data-action="promote-trainee" data-id="${e.id}">${e.promoteFrom ? `${monthDay(e.promoteFrom)}부터 직원 · 지금 등록` : "직원으로 등록"}</button>`
-          : `<button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>`
-      }
+      <button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>
     </div>
     <p class="sheet-note">매니저는 근무표에만 나오고 출근·급여 계산에서 빠져요.</p>
     <div class="sheet-actions">
@@ -1248,7 +1235,7 @@ function plannedHours(emp, days) {
 
 // 4주(그 주 포함, 28일) 평균 1주 소정근로시간. 처음 일한 주부터 4주가 안 됐으면 그 기간으로 평균
 function avgPlannedHours(emp, sun) {
-  const firstWork = store.records.filter((r) => r.employeeId === emp.id && !isTrainingRec(r)).reduce((min, r) => (r.date < min ? r.date : min), sun);
+  const firstWork = store.records.filter((r) => r.employeeId === emp.id).reduce((min, r) => (r.date < min ? r.date : min), sun);
   const firstMon = addDays(firstWork, -((weekdayOf(firstWork) + 6) % 7)); // 처음 일한 주의 월요일
   let from = addDays(sun, -27);
   if (firstMon > from) from = firstMon;
@@ -1268,7 +1255,7 @@ function weeklyAllowance(emp, ym) {
     const sun = d;
     const mon = addDays(sun, -6);
     const days = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
-    const recs = store.records.filter((r) => r.employeeId === emp.id && r.date >= mon && r.date <= sun && !isTrainingRec(r));
+    const recs = store.records.filter((r) => r.employeeId === emp.id && r.date >= mon && r.date <= sun);
     const hours = recs.reduce((sum, r) => sum + hoursBetween(r.clockIn, r.clockOut), 0);
     if (!recs.length) continue;
     const planned = plannedHours(emp, days);
@@ -1292,18 +1279,11 @@ function taxes(gross) {
   return { income, local: floor10(income * 0.1) };
 }
 
-// 직원별·월별 추가 수당 (교육수당, 특근수당 등). 기본은 교육수당 한 줄.
+// 직원별·월별 추가 수당 (특근수당 등)
 function allowancesFor(ym, empId) {
-  return store.allowances?.[ym]?.[empId] ?? [{ name: "교육수당", amount: 0 }];
+  return store.allowances?.[ym]?.[empId] ?? [];
 }
 
-// 입력한 수당 목록의 교육수당에 교육 근무 금액을 더한 목록 (저장된 수당은 그대로 두고 계산할 때만 더한다)
-function withTrainingPay(list, trainPay) {
-  if (!trainPay) return list;
-  const i = list.findIndex((a) => (a.name || "").trim() === "교육수당");
-  if (i < 0) return [{ name: "교육수당", amount: trainPay, auto: trainPay }, ...list];
-  return list.map((a, j) => (j === i ? { ...a, amount: (Number(a.amount) || 0) + trainPay, auto: trainPay } : a));
-}
 
 function setAllowances(ym, empId, list) {
   store.allowances = store.allowances ?? {};
@@ -1313,12 +1293,9 @@ function setAllowances(ym, empId, list) {
 function payrollRow(emp, ym, recs, allowanceOverride) {
   const mine = recs.filter((r) => r.employeeId === emp.id);
   const hours = mine.reduce((sum, r) => sum + hoursBetween(r.clockIn, r.clockOut), 0);
-  // 교육으로 일한 시간은 기본급이 아니라 교육수당으로 (시간 × 시급)
-  const trainHours = mine.filter(isTrainingRec).reduce((sum, r) => sum + hoursBetween(r.clockIn, r.clockOut), 0);
-  const trainPay = Math.round(trainHours * emp.hourlyWage);
-  const base = Math.round((hours - trainHours) * emp.hourlyWage);
+  const base = Math.round(hours * emp.hourlyWage);
   const weekly = weeklyAllowance(emp, ym);
-  const allowances = withTrainingPay(allowanceOverride ?? allowancesFor(ym, emp.id), trainPay);
+  const allowances = allowanceOverride ?? allowancesFor(ym, emp.id);
   const extra = allowances.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
   const gross = base + weekly.total + extra;
   const tax = taxes(gross);
@@ -1363,9 +1340,9 @@ function monthDays(ym) {
 
 // 월별 근무표: 한 사람이 한 줄, 1일~말일 칸에 그날 근무시간
 // includeAll: 기록이 없어도 재직 중인 알바는 줄을 보여준다 (화면에서 시간을 직접 입력할 수 있게)
-function timesheet(ym, employeeId, { includeAll = false, excludeTraining = false } = {}) {
+function timesheet(ym, employeeId, { includeAll = false } = {}) {
   const days = monthDays(ym);
-  const recs = monthRecords(ym, employeeId).filter((r) => !(excludeTraining && isTrainingRec(r)));
+  const recs = monthRecords(ym, employeeId);
   const ids = new Set(recs.map((r) => r.employeeId));
   const people = store.employees.filter(
     (e) => ids.has(e.id) || (includeAll && e.active && !isManager(e) && (!employeeId || e.id === employeeId)),
@@ -1508,14 +1485,12 @@ function renderPayslipModal() {
   // 명세서 창에서는 저장 전까지 수정 중인 수당(state.allowDraft)으로 미리 계산
   const r = payrollRow(emp, month, monthRecords(month, empId), state.allowDraft);
   const list = state.allowDraft ?? allowancesFor(month, empId);
-  const auto = r.allowances.find((a) => a.auto)?.auto ?? 0;
   return `
     <div class="ps-backdrop${state.modalEnter ? " enter" : ""}" data-action="close-payslip">
       <div class="ps-dialog" data-stop>
         <div class="ps-side">
           <p class="staff-title">${esc(emp.name)} · ${Number(month.slice(5, 7))}월 명세서</p>
           <p class="sub">수당을 입력하면 지급액과 세금이 다시 계산돼요. 저장한 뒤 근무 기록의 <b>명세서 PDF</b>로 한꺼번에 받을 수 있어요.</p>
-          ${auto ? `<p class="ps-train-note">교육 근무 <b>${won(auto)}</b>은 교육수당에 자동으로 더해져요.</p>` : ""}
           <div class="ps-allow">
             ${list
               .map(
@@ -1620,7 +1595,7 @@ function renderRecords() {
     ${helpToggle(
       "records",
       `주휴수당: 월~일 한 주 동안 근무표상 근무일에 모두 출근했고, 그 주까지 4주 평균 1주 소정근로시간(근무표의 고정 근무 시간)이 15시간 이상이면 (소정근로시간 ÷ 40) × 8시간 × 시급. 대타·추가 근무 시간은 넣지 않아요. 그 주가 끝나는 일요일이 속한 달에 포함되고, 아직 끝나지 않은 주는 빠져요. 금액에 마우스를 올리면 주별 내역이 보여요.<br />
-      수당(교육수당·특근수당 등)은 이름 옆 <b>명세서</b>를 눌러 입력해요.<br />
+      수당(특근수당 등)은 이름 옆 <b>명세서</b>를 눌러 입력해요.<br />
       ${taxOn ? "세금: 소득세 3% + 지방소득세(소득세의 10%), 10원 미만 절사. 소득세가 1,000원 미만이면 공제하지 않아요." : "세금을 공제하지 않고 계산했어요."}`,
     )}
     ${renderPayslipModal()}`,
@@ -2217,7 +2192,7 @@ function fillScheduleSheet(fflate, zip, month) {
 
 // 풀어놓은 기본양식(zip)을 이 달에 맞게 바꾸고, 근무표·근무시간·수당을 채운다.
 function fillWorkbook(fflate, zip, month, employeeId) {
-    const ts = timesheet(month, employeeId, { excludeTraining: true });
+    const ts = timesheet(month, employeeId);
     if (!ts.rows.length) throw new Error("이 달에는 입력할 근무 기록이 없어요.");
     const dec = (name) => fflate.strFromU8(zip[name]);
     adaptWorkbookMonth(fflate, zip, month);
@@ -2634,39 +2609,14 @@ function commitSchedule() {
   const work = schedWork();
   if (work.meta) store.scheduleMeta = work.meta; // 기간이 바뀌면 적용 시작일도 바뀌므로 먼저
   pinPeriodYear();
-  // 근무표에 근무 시간을 넣은 교육생은 근무표 시작일부터 직원으로 등록
-  const promoted = store.employees.filter((e) => e.trainee && Object.values(work.weekly[e.id] ?? {}).some(Boolean));
   for (const [empId, days] of Object.entries(work.weekly)) {
     const emp = employeeById(empId);
     if (!emp) continue;
     for (const [wd, range] of Object.entries(days)) setWeekly(emp, wd, range);
   }
-  const start = scheduleStart();
-  const today = todayDateString();
-  for (const emp of promoted) {
-    if (start <= today) {
-      delete emp.trainee;
-      delete emp.promoteFrom;
-    } else emp.promoteFrom = start; // 그 전까지는 교육으로 일하고, 시작일부터 직원
-    // 시작일부터의 근무는 직원 근무 (교육수당이 아니라 기본급)
-    for (const r of store.records) if (r.employeeId === emp.id && r.date >= start) delete r.training;
-  }
   delete store.scheduleDraft;
   state.schedWork = { weekly: {}, meta: null };
   save();
-  return promoted.map((e) => (start <= today ? `${e.name}님을 직원으로 등록했어요` : `${e.name}님은 ${monthDay(start)}부터 직원이에요`));
-}
-
-// 시작일이 된 교육생은 직원으로 (관리자가 열 때)
-function promoteDueTrainees() {
-  if (!ADMIN_SITE || !isAdmin() || demoLoaded) return;
-  const today = todayDateString();
-  const due = store.employees.filter((e) => e.trainee && e.promoteFrom && e.promoteFrom <= today);
-  for (const e of due) {
-    delete e.trainee;
-    delete e.promoteFrom;
-  }
-  if (due.length) save();
 }
 
 // 근무표: 가로 타임라인 — 요일이 줄, 시간이 가로. 겹치는 근무는 그 요일 아래에 한 줄씩 더 쌓는다
@@ -2836,7 +2786,7 @@ function renderSlotPanel() {
           ? `<input type="hidden" id="slot-emp" value="${ed.addEmpId}" />`
           : `<select id="slot-emp" class="field" aria-label="직원">
               <option value="">직원 선택</option>
-              ${choices.map((e) => `<option value="${e.id}"${e.id === ed.addEmpId ? " selected" : ""}>${esc(e.name)}${isManager(e) ? " (매니저)" : e.trainee ? " (교육)" : ""}</option>`).join("")}
+              ${choices.map((e) => `<option value="${e.id}"${e.id === ed.addEmpId ? " selected" : ""}>${esc(e.name)}${isManager(e) ? " (매니저)" : ""}</option>`).join("")}
             </select>`
       }
       <div class="edit-row">
@@ -3345,18 +3295,6 @@ app.addEventListener("click", (e) => {
     case "cancel-add":
       state.adding = false;
       break;
-    case "promote-trainee": {
-      const emp = employeeById(id);
-      uiConfirm(`${emp.name}님을 직원으로 등록할까요?\n지금까지 교육으로 일한 날은 계속 교육수당으로 계산돼요.`, { ok: "등록" }).then((yes) => {
-        if (!yes) return;
-        delete emp.trainee;
-        delete emp.promoteFrom;
-        save();
-        queueToast(`${emp.name}님을 직원으로 등록했어요`);
-        render();
-      });
-      return;
-    }
     case "admin-clock-in": {
       // 관리자: 출근을 못 찍은 직원을 그날 근무 시간대로 출근 처리 (오늘·지난 날짜)
       const date = activeDate();
@@ -3521,8 +3459,8 @@ app.addEventListener("click", (e) => {
           if (!yes) return;
           state.slotEdit = null;
           state.periodTyped = false;
-          const notes = commitSchedule();
-          showToast(["근무표를 저장했어요", ...notes].join(" · "), "ok");
+          commitSchedule();
+          showToast("근무표를 저장했어요", "ok");
         });
       }
       return;
@@ -3981,10 +3919,10 @@ async function addExtra() {
     return;
   }
   let emp = store.employees.find((x) => x.active && x.name === name);
-  // 처음 보는 이름은 직원이 아니라 교육생 (교육)으로 넣는다. 직원 등록은 관리자가 직원 화면에서.
-  if (!emp && !(await uiConfirm(`'${name}'님은 등록된 직원이 아니에요.\n교육(교육생)으로 등록할까요?\n직원 등록은 사장님이 해요.`, { ok: "등록" }))) return;
+  // 오타로 직원이 새로 생기지 않게: 처음 보는 이름이면 한 번 묻는다
+  if (!emp && !(await uiConfirm(`'${name}'님은 등록된 직원이 아니에요.\n새 직원으로 등록할까요?`, { ok: "등록" }))) return;
   if (!emp) {
-    emp = { id: uid(), name, phone: null, hourlyWage: DEFAULT_WAGE, active: true, weekly: {}, trainee: true };
+    emp = { id: uid(), name, phone: null, hourlyWage: DEFAULT_WAGE, active: true, weekly: {} };
     store.employees.push(emp);
     ensureColors();
   }
@@ -4140,7 +4078,7 @@ const storePath = (sub) => `stores/${storeId}/${sub}`;
 var cloud = null; // { auth, db } — SDK 를 못 불러오면 이 기기에만 저장
 var remote = { pub: null, priv: null, pubLoaded: false, privLoaded: false, last: {}, seedAsked: false };
 
-const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory", "trainee", "promoteFrom"];
+const PUBLIC_EMP_KEYS = ["id", "name", "active", "role", "color", "weekly", "weeklyBase", "weeklyHistory"];
 
 // store → { "경로": "JSON 문자열" }
 function flattenStore(withPrivate) {
@@ -4215,7 +4153,6 @@ function cleanStore(data) {
       name: e.name.slice(0, 40),
       color: e.color ? cssColor(e.color) : e.color,
       weekly: cleanWeekly(e.weekly),
-      ...(e.promoteFrom ? { promoteFrom: safeDate(e.promoteFrom) ? e.promoteFrom : undefined } : {}),
       ...(e.weeklyBase ? { weeklyBase: cleanWeekly(e.weeklyBase) } : {}),
       ...(Array.isArray(e.weeklyHistory)
         ? { weeklyHistory: e.weeklyHistory.filter((h) => h && safeDate(h.from)).map((h) => ({ from: h.from, weekly: cleanWeekly(h.weekly) })) }
@@ -4308,7 +4245,6 @@ function applyRemote() {
     return;
   }
   store = storeFromRemote();
-  promoteDueTrainees();
   saveCache();
   requestRender();
 }
