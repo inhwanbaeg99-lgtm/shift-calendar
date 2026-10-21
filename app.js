@@ -2442,7 +2442,7 @@ async function payslipPdf(button, empIds) {
         const canvas = await html2canvas(stage.firstElementChild, { scale: 2, backgroundColor: "#ffffff" });
         const pdf = new jsPDF({ unit: "mm", format: "a4" });
         pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297);
-        pdf.save(`급여명세서_${month}_${emp.name}.pdf`);
+        pdf.save(`${emp.name} ${Number(month.slice(5, 7))}월 급여명세서.pdf`);
         if (empIds.length > 1) await new Promise((resolve) => setTimeout(resolve, 400)); // 연속 다운로드가 막히지 않게
       }
       if (empIds.length > 1) showToast(`명세서 ${empIds.length}개를 각각 저장했어요`, "ok");
