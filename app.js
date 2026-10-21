@@ -500,6 +500,12 @@ const state = {
 
 const storeName = () => (demoLoaded ? DEMO_NAME : state.storeName || APP_NAME);
 const BACK_TO_DEMO = `<a class="lock-link" href="#/employees">← 샘플 매장 둘러보기</a>`;
+// 개인정보처리방침 · 이용약관 (관리자 사이트는 한 단계 위 폴더)
+const policyUrl = (page) => `${ADMIN_SITE ? "../" : ""}${page}.html`;
+const policyLinks = (cls = "policy-links") =>
+  `<p class="${cls}"><a href="${policyUrl("terms")}" target="_blank" rel="noopener">이용약관</a> · <a href="${policyUrl("privacy")}" target="_blank" rel="noopener"><b>개인정보처리방침</b></a></p>`;
+const agreeBox = () => `
+  <label class="agree"><input type="checkbox" id="agree" required /><span>(필수) <a href="${policyUrl("terms")}" target="_blank" rel="noopener">이용약관</a>과 <a href="${policyUrl("privacy")}" target="_blank" rel="noopener">개인정보처리방침</a>에 동의해요. 직원 정보는 직원에게 알리고 입력할게요.</span></label>`;
 const errorLine = () => (state.error ? `<p class="error">${esc(state.error)}</p>` : "");
 
 // 관리자 사이트 첫 화면: 로그인 / 매장 등록(회원가입) / 로그인했는데 매장이 없으면 매장 만들기
@@ -525,6 +531,7 @@ function renderLock() {
         <p class="lock-note">${esc(cloud.auth.currentUser.email ?? "")} 계정에 등록된 매장이 없어요.<br />매장 이름을 넣고 매장을 만들어주세요.</p>
         <form class="lock-form" id="store-form">
           <input id="store-name" class="field" maxlength="40" autocomplete="off" placeholder="매장 이름" aria-label="매장 이름" required />
+          ${agreeBox()}
           <button type="submit" class="btn-primary"${busy ? " disabled" : ""}>${busy ? "만드는 중…" : "매장 만들기"}</button>
           ${errorLine()}
         </form>
@@ -542,11 +549,13 @@ function renderLock() {
             <input id="login-password" class="field" type="password" minlength="6" autocomplete="new-password" placeholder="비밀번호 (6자 이상)" aria-label="비밀번호" required />
             <button type="button" class="pw-eye" data-action="toggle-password" aria-label="비밀번호 보기" aria-pressed="false">${ICON_EYE}</button>
           </div>
+          ${agreeBox()}
           <button type="submit" class="btn-primary"${busy ? " disabled" : ""}>${busy ? "등록 중…" : "매장 등록"}</button>
           ${errorLine()}
         </form>
         <a class="lock-link" href="#/login">이미 등록했어요 · 로그인</a>
         ${BACK_TO_DEMO}
+        ${policyLinks()}
       </div>`;
   }
   return `
@@ -565,6 +574,7 @@ function renderLock() {
       <button type="button" class="lock-link" data-action="reset-password">비밀번호를 잊었어요</button>
       <a class="lock-link" href="#/signup">처음이에요 · 매장 등록하기</a>
       ${BACK_TO_DEMO}
+      ${policyLinks()}
     </div>`;
 }
 
@@ -790,6 +800,7 @@ function renderHome() {
     <div class="home">
       <div class="home-inner">${renderCalendarCard()}</div>
     </div>
+    ${policyLinks("policy-links home-policy")}
     <button type="button" class="tour-fab" data-action="start-tour" aria-label="사용법 보기"><span>?</span>사용법</button>
     ${toastHtml()}`;
 }
@@ -911,9 +922,27 @@ function renderEmployees() {
       `요일 칸에 <b>7-12</b>, <b>18-2230</b> 처럼 입력하면 근무 시간이 저장돼요. 비우면 쉬는 날이에요.<br />
       이름 앞 색은 근무표 색이에요(자동으로 겹치지 않게 정해져요). 근무표에서 같은 시각에 시작하면 위에 있는 사람이 왼쪽 칸에 들어가요.<br />
       구분을 <b>매니저</b>로 바꾸면 자동으로 월급제(4대보험), <b>알바</b>로 바꾸면 시급제(3.3%)가 돼요. 알바인데 월급제면 급여 칸의 <b>월급으로</b>를 눌러요. 월급·식대·공제액은 급여 화면에서 이름 옆 <b>명세서</b>를 눌러 입력해요.`,
-    )}`,
+    )}
+    ${renderStoreManage()}`,
     { center: true },
   );
+}
+
+// 직원 화면 맨 아래: 전체 기록 받기, 매장·계정 삭제, 정책 링크
+function renderStoreManage() {
+  if (demoLoaded) return policyLinks();
+  return `
+    <section class="store-manage">
+      <div>
+        <p class="store-manage-title">매장 관리 · ${esc(storeName())}</p>
+        <p class="sub">기록은 언제든 엑셀로 받을 수 있어요. 매장을 삭제하면 모든 기록이 지워지고 되살릴 수 없어요.</p>
+      </div>
+      <div class="store-manage-actions">
+        <button type="button" class="pill plain-dark" data-action="export-all">전체 기록 엑셀 받기</button>
+        <button type="button" class="pill danger-pill" data-action="delete-store">매장 · 계정 삭제</button>
+      </div>
+    </section>
+    ${policyLinks()}`;
 }
 
 // 직원용 달력으로 가는 버튼 (새 탭)
@@ -1020,7 +1049,8 @@ function renderEmployeesMobile() {
             <button type="button" class="pill" data-action="copy-staff-link">주소 복사</button>
           </div>`
     }
-    <div class="m-list">${list || `<p class="m-empty">아직 직원이 없어요.<br />오른쪽 위 <b>+ 추가</b>로 등록해주세요.</p>`}</div>`,
+    <div class="m-list">${list || `<p class="m-empty">아직 직원이 없어요.<br />오른쪽 위 <b>+ 추가</b>로 등록해주세요.</p>`}</div>
+    ${renderStoreManage()}`,
   );
 }
 
@@ -1833,7 +1863,7 @@ function uiDialog({ message, ok = "확인", cancel = null, danger = false }) {
 const uiAlert = (message) => uiDialog({ message });
 
 // 숫자를 입력받는 창 (출근 PIN). 확인이면 입력한 글자, 취소면 null
-function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false } = {}) {
+function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false, kind = "pin", danger = false } = {}) {
   return new Promise((resolve) => {
     const prev = document.activeElement;
     const back = document.createElement("div");
@@ -1841,11 +1871,15 @@ function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false
     back.innerHTML = `
       <form class="ui-box" role="dialog" aria-modal="true" aria-describedby="ui-msg">
         <p class="ui-msg" id="ui-msg"></p>
-        <input class="field ui-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${esc(placeholder)}" aria-label="PIN" />
+        ${
+          kind === "pin"
+            ? `<input class="field ui-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${esc(placeholder)}" aria-label="PIN" />`
+            : `<input class="field ui-input ui-input-text" type="${kind === "password" ? "password" : "text"}" maxlength="60" autocomplete="${kind === "password" ? "current-password" : "off"}" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder || "입력")}" />`
+        }
         <p class="ui-err" hidden></p>
         <div class="ui-actions">
           <button type="button" class="ui-btn ui-no" data-ui="no">취소</button>
-          <button type="submit" class="ui-btn ui-yes">${esc(ok)}</button>
+          <button type="submit" class="ui-btn ui-yes${danger ? " danger" : ""}">${esc(ok)}</button>
         </div>
       </form>`;
     back.querySelector(".ui-msg").textContent = message;
@@ -1867,13 +1901,14 @@ function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false
         close(null);
       }
     };
-    input.addEventListener("input", () => (input.value = input.value.replace(/\D/g, "").slice(0, 4)));
+    if (kind === "pin") input.addEventListener("input", () => (input.value = input.value.replace(/\D/g, "").slice(0, 4)));
     back.querySelector("form").addEventListener("submit", (e) => {
       e.preventDefault();
-      const v = input.value;
-      if ((v === "" && allowEmpty) || /^\d{4}$/.test(v)) close(v);
+      const v = kind === "pin" ? input.value : input.value.trim();
+      if (kind !== "pin" && v) close(v);
+      else if ((v === "" && allowEmpty) || /^\d{4}$/.test(v)) close(v);
       else {
-        err.textContent = "숫자 4자리를 입력해주세요.";
+        err.textContent = kind === "pin" ? "숫자 4자리를 입력해주세요." : "입력해주세요.";
         err.hidden = false;
         input.focus();
       }
@@ -2092,6 +2127,115 @@ function exportLedger(button) {
     if (pending.length) uiAlert(`저장했어요. 다만 ${pending.join(", ")}님은 공제액이 아직 없어서 세후 금액이 비어 있어요.\n세무사 금액을 명세서에 입력하면 채워져요.`);
     else showToast("급여대장을 저장했어요", "ok");
   });
+}
+
+// ---------- 전체 기록 엑셀 (매장을 떠나거나 3년 보관용) ----------
+function exportAll(button) {
+  return withBusy(button, "만드는 중…", async () => {
+    const XLSX = await loadLib("xlsx");
+    const head = { font: { bold: true }, fill: { fgColor: { rgb: "E2F4F2" } } };
+    const sheet = (rows, widths) => {
+      const ws = XLSX.utils.aoa_to_sheet(rows.map((r, i) => (i === 0 ? r.map((v) => ({ v, t: "s", s: head })) : r)));
+      ws["!cols"] = widths.map((wch) => ({ wch }));
+      return ws;
+    };
+    const order = [1, 2, 3, 4, 5, 6, 0];
+    const emps = sheet(
+      [
+        ["이름", "구분", "급여 방식", "시급", "전화번호", "상태", ...order.map((wd) => `${WEEKDAYS[wd]}요일`)],
+        ...store.employees.map((e) => [
+          e.name, isManager(e) ? "매니저" : "알바", isSalaried(e) ? "월급제" : "시급제", e.hourlyWage ?? "", e.phone ? formatPhone(e.phone) : "",
+          e.active ? "재직중" : "비활성", ...order.map((wd) => formatRange(e.weekly?.[wd])),
+        ]),
+      ],
+      [10, 7, 8, 8, 14, 7, 12, 12, 12, 12, 12, 12, 12],
+    );
+    const recs = [...store.records].sort((a, b) => (a.date === b.date ? (a.clockIn < b.clockIn ? -1 : 1) : a.date < b.date ? -1 : 1));
+    const records = sheet(
+      [
+        ["날짜", "이름", "출근", "퇴근", "시간", "비고"],
+        ...recs.map((r) => [
+          r.date, employeeById(r.employeeId)?.name ?? "(삭제된 직원)", formatTime(r.clockIn), r.clockOut ? formatTime(r.clockOut) : "",
+          r.clockOut ? Number(hoursBetween(r.clockIn, r.clockOut).toFixed(2)) : "", r.manual ? "관리자 출근 처리" : r.edited ? "시간 고침" : "",
+        ]),
+      ],
+      [12, 10, 8, 8, 7, 16],
+    );
+    const months = [...new Set(store.records.map((r) => r.date.slice(0, 7)))].sort();
+    const pay = sheet(
+      [
+        ["달", "이름", "근무일", "근무시간", "기본급", "주휴수당", "식대(비과세)", "기타수당", "지급총액(세전)", "공제합계", "실지급액(세후)"],
+        ...months.flatMap((ym) =>
+          payrollFor(ym, "").rows.map((r) => [ym, r.emp.name, r.days, Number(r.hours.toFixed(2)), r.base, r.weekly.total, r.meal, r.extra, r.gross, r.dedTotal, r.net ?? "공제 입력 필요"]),
+        ),
+      ],
+      [9, 10, 7, 9, 11, 10, 11, 10, 13, 10, 13],
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, emps, "직원");
+    XLSX.utils.book_append_sheet(wb, records, "출퇴근 기록");
+    XLSX.utils.book_append_sheet(wb, pay, "월별 급여");
+    const bytes = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const saved = await saveXlsxBytes(new Uint8Array(bytes), `${storeName()} 전체 기록 ${todayDateString()}.xlsx`);
+    if (saved) showToast("전체 기록을 엑셀로 저장했어요", "ok");
+  });
+}
+
+// ---------- 매장 · 계정 삭제 ----------
+// 매장 이름을 다시 입력하고 비밀번호로 한 번 더 확인한 뒤, 매장 기록 전부와 관리자 계정을 지운다
+async function deleteStore() {
+  const name = storeName();
+  const yes = await uiConfirm(`매장과 계정을 삭제할까요?\n직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어요.\n먼저 [전체 기록 엑셀 받기]로 보관해 두세요.`, { ok: "계속", danger: true });
+  if (!yes) return;
+  const typed = await uiPrompt(`확인을 위해 매장 이름을 똑같이 입력해주세요.\n${name}`, { kind: "text", placeholder: name, ok: "다음", danger: true });
+  if (typed === null) return;
+  if (typed !== name) {
+    uiAlert("매장 이름이 달라서 삭제하지 않았어요.");
+    return;
+  }
+  const password = await uiPrompt("마지막으로 관리자 비밀번호를 입력해주세요.", { kind: "password", placeholder: "비밀번호", ok: "삭제", danger: true });
+  if (password === null) return;
+  const user = cloud?.auth.currentUser;
+  if (!user) return;
+  try {
+    await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, password));
+  } catch {
+    uiAlert("비밀번호가 맞지 않아서 삭제하지 않았어요.");
+    return;
+  }
+  const code = storeId;
+  // 먼저 연결을 끊는다 (지우는 동안 "저장소가 비었다"며 이 기기 기록을 다시 올리지 않게)
+  watchPrivate(false);
+  storeId = null;
+  watchStore();
+  store = initialData();
+  try {
+    // 규칙상 public · private 은 meta(주인 정보)가 있어야 지울 수 있어서 meta 를 마지막에
+    await cloud.db.ref(`stores/${code}/public`).remove();
+    await cloud.db.ref(`stores/${code}/private`).remove();
+    await cloud.db.ref(`stores/${code}/meta`).remove();
+  } catch (err) {
+    console.warn(err);
+    storeId = code; // 다시 연결
+    watchStore();
+    watchPrivate(true);
+    uiAlert("삭제하지 못했어요. 인터넷 연결을 확인하고 다시 시도해주세요.");
+    return;
+  }
+  // 이 기기에 남은 캐시도 지운다
+  try {
+    localStorage.removeItem(`shift-calendar:${code}`);
+    if (localStorage.getItem(LAST_STORE_KEY) === code) localStorage.removeItem(LAST_STORE_KEY);
+  } catch {}
+  try {
+    await user.delete();
+  } catch (err) {
+    console.warn("계정 삭제 실패", err);
+    await cloud.auth.signOut();
+  }
+  state.notice = "매장과 계정을 삭제했어요. 그동안 써 주셔서 고마워요.";
+  location.hash = "#/login";
+  render();
 }
 
 // ---------- PDF (급여명세서) ----------
@@ -3465,6 +3609,12 @@ app.addEventListener("click", (e) => {
       return;
     case "start-tour":
       startTour(route().name);
+      return;
+    case "export-all":
+      exportAll(el);
+      return;
+    case "delete-store":
+      deleteStore();
       return;
     case "export-ledger":
       exportLedger(el);

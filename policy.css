@@ -1,0 +1,128 @@
+/* 개인정보처리방침 · 이용약관 페이지 */
+:root {
+  --bg: #f2f4f6;
+  --paper: #ffffff;
+  --ink: #191f28;
+  --ink-sub: #6b7684;
+  --line: #e5e8eb;
+  --accent: #0ea5a0;
+  --todo: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101013;
+    --paper: #1d1d22;
+    --ink: #f2f4f6;
+    --ink-sub: #8b95a1;
+    --line: #2c2c34;
+    --accent: #2cc9c2;
+    --todo: #fbbf24;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Pretendard Variable", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  font-size: 15px;
+  line-height: 1.75;
+  padding: 24px max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px));
+}
+.doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px clamp(18px, 4vw, 40px) 40px;
+  border-radius: 20px;
+  background: var(--paper);
+}
+.doc-back {
+  font-size: 14px;
+  color: var(--ink-sub);
+  text-decoration: none;
+}
+.doc-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 4px;
+  font-weight: 800;
+  color: var(--ink-sub);
+}
+.logo {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+}
+h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+.doc-date {
+  margin: 4px 0 24px;
+  font-size: 13px;
+  color: var(--ink-sub);
+}
+h2 {
+  margin: 32px 0 8px;
+  font-size: 18px;
+}
+p,
+ul {
+  margin: 8px 0;
+}
+ul {
+  padding-left: 20px;
+}
+a {
+  color: var(--accent);
+}
+.doc-table {
+  overflow-x: auto;
+  margin: 10px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+th,
+td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+tr:last-child th,
+tr:last-child td {
+  border-bottom: 0;
+}
+th {
+  width: 28%;
+  color: var(--ink-sub);
+  font-weight: 600;
+  background: var(--bg);
+}
+thead th {
+  width: auto;
+}
+.todo {
+  color: var(--todo);
+  font-size: 13px;
+}
+.doc-note {
+  margin-top: 32px;
+  color: var(--ink-sub);
+  font-size: 14px;
+}

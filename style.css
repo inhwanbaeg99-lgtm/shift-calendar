@@ -5511,3 +5511,89 @@ td.name {
   letter-spacing: 0;
   font-size: 15px;
 }
+.ui-input-text {
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+/* ---------- 동의 · 정책 링크 · 매장 관리 ---------- */
+.agree {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 2px 0 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-sub);
+  text-align: left;
+  cursor: pointer;
+}
+.agree input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+}
+.agree a,
+.policy-links a {
+  color: var(--ink-sub);
+}
+.policy-links {
+  margin: 20px 0 0;
+  font-size: 12px;
+  color: var(--ink-sub);
+  text-align: center;
+}
+.policy-links a {
+  text-decoration: none;
+}
+.policy-links a:hover {
+  text-decoration: underline;
+}
+.home-policy {
+  margin: 0 0 24px;
+}
+.store-manage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 32px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.store-manage-title {
+  margin: 0 0 2px;
+  font-weight: 800;
+}
+.store-manage .sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-sub);
+}
+.store-manage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pill.danger-pill {
+  background: none;
+  color: var(--red);
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+@media (max-width: 767px) {
+  .store-manage {
+    margin: 24px 16px 0;
+    padding: 16px;
+  }
+  .store-manage-actions {
+    width: 100%;
+  }
+  .store-manage-actions .pill {
+    flex: 1;
+  }
+}
