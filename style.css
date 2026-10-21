@@ -5299,7 +5299,7 @@ td.name {
 /* ---------- 사용법 튜토리얼 (관리자 화면 ?) ---------- */
 .tour-fab {
   position: fixed;
-  right: max(20px, env(safe-area-inset-right, 0px));
+  left: max(20px, env(safe-area-inset-left, 0px));
   bottom: max(20px, env(safe-area-inset-bottom, 0px));
   z-index: 40;
   display: flex;
