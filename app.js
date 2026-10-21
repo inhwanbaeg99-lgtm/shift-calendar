@@ -2568,7 +2568,8 @@ const TOURS = {
           { scene: "slot", sel: "#tl-edit", title: "근무 고치기 · 삭제", text: "시간을 고치면 바로 반영돼요. <b>근무 삭제</b>로 그 요일 근무를 뺄 수 있어요." },
           { sel: ".sc-actions [data-action=schedule-temp]", title: "임시저장", text: "고친 내용을 보관만 해요. 직원 화면·달력·근무 기록에는 아직 반영되지 않아요." },
           { sel: ".sc-actions [data-action=schedule-save]", title: "저장", text: "시작 날짜부터 직원 화면, 달력, 근무 기록에 반영돼요." },
-          { sel: ".sc-actions [data-action=schedule-share]", title: "카카오톡 전송하기", text: "근무표를 사진으로 만들어요. 복사해서 단톡방에 붙여넣으면 돼요." },
+          { sel: ".sc-actions [data-action=schedule-share]", title: "카카오톡 전송하기", text: "누르면 근무표를 사진으로 만들어요." },
+          { scene: "schedShare", sel: ".share-box", title: "근무표 사진", text: "이런 사진이 만들어져요. <b>복사하기</b>를 누르고 단톡방에 붙여넣으면 돼요." },
         ]
       : [
           { sel: ".m-period", title: "근무표 시작 날짜", text: "이 근무표를 언제부터 쓸지 숫자 8자리로 입력해요. 저장할 때마다 한 번씩 다시 입력해야 저장돼요." },
@@ -2579,6 +2580,7 @@ const TOURS = {
           { scene: "slotAdd", sel: ".sheet", title: "근무자 추가 창", text: "직원을 고르고 시간을 넣은 뒤 <b>완료</b>를 눌러요." },
           { sel: ".m-fold > summary", title: "근무표 한눈에 보기", text: "일주일 근무표 전체를 볼 수 있어요." },
           { sel: ".m-savebar", title: "저장 · 카톡 전송", text: "<b>저장</b>하면 시작 날짜부터 반영돼요. <b>카톡 전송</b>은 근무표를 사진으로 보내요." },
+          { scene: "schedShare", sel: ".share-box", title: "근무표 사진", text: "이런 사진이 만들어져요. <b>카카오톡 전송하기</b>로 단톡방에 보내요." },
         ],
   calendar: (pc) => [
     ...(pc ? [] : [{ sel: ".m-today", title: "오늘 근무자", text: "오늘 일할 사람과 출근했는지가 보여요. 누르면 오늘 화면으로 가요." }]),
@@ -2594,16 +2596,19 @@ const TOURS = {
       ? [
           { sel: ".month-nav", title: "달 바꾸기", text: "화살표로 지난달 급여를 볼 수 있어요." },
           { sel: "#r-emp", title: "직원 고르기", text: "한 명을 고르면 그 사람 것만 보여요." },
-          { scene: "emp", sel: "[data-action=share-ts-image]", title: "카카오톡 전송하기", text: "직원을 고르면 나타나요. 이 직원의 한 달 근무를 달력 사진으로 만들고, <b>복사하기</b>를 누르면 다음 직원으로 넘어가요." },
+          { scene: "emp", sel: "[data-action=share-ts-image]", title: "카카오톡 전송하기", text: "직원을 고르면 나타나요. 누르면 이 직원의 한 달 근무를 달력 사진으로 만들어요." },
+          { scene: "share", sel: ".share-box img", title: "근무 사진 미리보기", text: "이런 사진이 만들어져요. 날짜별 근무 시간과 출퇴근 시간, 한 달 합계가 들어가요." },
+          { scene: "share", sel: ".share-actions", title: "복사하기 · 사진 저장", text: "<b>복사하기</b>를 누르고 카톡 채팅방에 붙여넣으면 사진으로 보내져요. 복사하면 <b>다음 직원으로 자동으로 넘어가서</b> 한 명씩 차례로 보낼 수 있어요." },
           { scene: "emp", sel: [".ts-wrap", ".timesheet"], title: "이 직원 근무 상세", text: "날짜별 근무 시간이에요. 근무표보다 더 일하면 파랑, 덜 일하면 빨강으로 보여요." },
           { sel: "#r-tax", title: "세금", text: "알바(시급제) 세금이에요. 보통 3.3%를 떼요. 월급제 직원의 공제액은 명세서에서 따로 입력해요." },
           { sel: "[data-action=export-ledger]", title: "급여대장 받기", text: "세무사에게 보낼 엑셀이에요. 알바·직원(4대보험)·날짜별 근무시간·주휴수당 내역이 한 파일에 들어가요." },
           { sel: ".pay-table", title: "급여 정산", text: "기본급, 주휴수당, 수당, 세금, 실지급액이 계산돼요. 주휴수당에 마우스를 올리면 주별 내역이 보여요." },
-          { sel: ".pay-table [data-action=open-payslip]", title: "명세서", text: "이름 옆 <b>명세서</b>를 누르면 명세서 창이 열려요." },
-          { scene: "payslip", sel: ".ps-allow", title: "수당 입력", text: "특근수당 같은 수당을 이름과 금액으로 넣어요. <b>+ 수당 추가</b>로 여러 개 넣을 수 있어요." },
-          { scene: "payslip", sel: ".ps-preview", title: "명세서 미리보기", text: "입력하는 대로 바로 바뀌어요. 이 모양 그대로 PDF가 돼요." },
-          { scene: "payslipMgr", sel: ".sal-box", title: "매니저 월급 · 공제액", text: "매니저(월급제)는 여기서 기본급·식대와 세무사에게 받은 공제액을 넣어요. 한 번 넣으면 다음 달에도 그대로 이어져요." },
-          { scene: "payslip", sel: ".ps-side [data-action=save-payslip]", title: "저장", text: "저장하면 급여 정산과 명세서에 반영돼요." },
+          { sel: ".pay-table [data-action=open-payslip]", title: "명세서", text: "이름 옆 <b>명세서</b>를 누르면 명세서 창이 열려요. 알바와 직원(매니저)은 창이 조금 달라요." },
+          { scene: "payslipAlba", sel: ".ps-allow", title: "알바 명세서 · 수당 입력", text: "특근수당 같은 수당을 이름과 금액으로 넣어요. <b>+ 수당 추가</b>로 여러 개 넣을 수 있어요." },
+          { scene: "payslipAlba", sel: ".ps-preview", title: "알바 명세서", text: "기본급, 주휴수당, 수당에서 3.3%를 뗀 금액이에요. 입력하는 대로 바로 바뀌고, 이 모양 그대로 PDF가 돼요." },
+          { scene: "payslipAlba", sel: ".ps-side [data-action=save-payslip]", title: "저장", text: "저장하면 급여 정산과 명세서에 반영돼요." },
+          { scene: "payslipMgr", sel: ".sal-box", title: "직원(매니저) 명세서 · 월급 · 공제액", text: "매니저(월급제)는 기본급·식대와 세무사에게 받은 공제액 6가지를 넣어요. 한 번 넣으면 다음 달에도 그대로 이어지고, 바뀐 달에만 고치면 돼요." },
+          { scene: "payslipMgr", sel: ".ps-preview", title: "직원(매니저) 명세서", text: "기본급·식대에서 4대보험과 근로소득세를 뗀 금액이에요. 공제액을 아직 안 넣었으면 \"공제액 입력 필요\"로 보여요." },
           { sel: ".section-head [data-action=payslip-pdf-all]", title: "명세서 PDF", text: "직원마다 따로 급여명세서 PDF를 받아요. 직원에게 보내 주면 돼요." },
         ]
       : [
@@ -2611,9 +2616,12 @@ const TOURS = {
           { sel: ".m-hero", title: "이번 달 합계", text: "실지급액 합계예요. 오른쪽에서 알바 세금(3.3% / 공제 안 함)을 바꿔요." },
           { sel: ".m-pay", title: "직원 누르기", text: "직원을 누르면 그 사람 급여 내역이 열려요." },
           { scene: "paySheet", sel: ".sheet .m-hero", title: "받을 금액", text: "이 직원이 받을 금액과 기본급, 주휴수당, 세금 내역이에요." },
-          { scene: "paySheet", sel: ".sheet .m-share", title: "카카오톡 전송하기", text: "이 직원의 한 달 근무를 달력 사진으로 만들어 카톡으로 보내요." },
+          { scene: "paySheet", sel: ".sheet .m-share", title: "카카오톡 전송하기", text: "누르면 이 직원의 한 달 근무를 달력 사진으로 만들어요." },
+          { scene: "share", sel: ".share-box img", title: "근무 사진 미리보기", text: "이런 사진이 만들어져요. 날짜별 근무 시간과 한 달 합계가 들어가요." },
+          { scene: "share", sel: ".share-actions", title: "카카오톡 전송하기", text: "<b>카카오톡 전송하기</b>를 누르면 공유 창이 열려서 카톡 채팅방을 고르면 돼요. <b>사진 저장</b>으로 앨범에 저장할 수도 있어요." },
           { scene: "paySheet", sel: ".sheet .sheet-actions", title: "수당 · 명세서 / 명세서 PDF", text: "<b>수당 · 명세서</b>에서 수당(매니저는 월급·공제액)을 넣고, <b>명세서 PDF</b>로 명세서를 받아요." },
-          { scene: "payslip", sel: ".ps-allow", title: "수당 입력", text: "특근수당 같은 수당을 이름과 금액으로 넣고 <b>저장</b>해요." },
+          { scene: "payslipAlba", sel: ".ps-allow", title: "알바 명세서 · 수당 입력", text: "특근수당 같은 수당을 이름과 금액으로 넣고 <b>저장</b>해요." },
+          { scene: "payslipMgr", sel: ".sal-box", title: "직원(매니저) 명세서 · 월급 · 공제액", text: "매니저는 기본급·식대와 세무사에게 받은 공제액을 넣어요. 한 번 넣으면 다음 달에도 그대로 이어져요." },
           { sel: ".m-fold > summary", title: "날짜별 근무 시간", text: "전체 직원의 날짜별 근무 시간 표예요." },
           { sel: ".m-btns [data-action=export-ledger]", title: "급여대장 받기", text: "세무사에게 보낼 엑셀이에요." },
           { sel: ".m-btns [data-action=payslip-pdf-all]", title: "명세서 PDF 전체", text: "직원마다 따로 급여명세서 PDF를 받아요." },
@@ -2622,6 +2630,9 @@ const TOURS = {
 
 // 튜토리얼이 잠깐 펼쳐 보이는 화면 (끝나면 원래대로). hash 가 있으면 그 화면으로 갔다가 set 을 한다.
 const firstPayEmp = () => payrollFor(state.payroll.month, "").rows[0]?.emp.id ?? null;
+const firstAlbaEmp = () => payrollFor(state.payroll.month, "").rows.find((r) => !r.salaried)?.emp.id ?? null;
+// 튜토리얼이 띄운 사진 미리보기 창 닫기
+const closeTourShare = () => document.querySelectorAll(".share-back [data-share=close]").forEach((b) => b.click());
 function tourSlot(add) {
   const wd = isDesktop() ? 1 : state.schedDay ?? weekdayOf(todayDateString());
   const emp = store.employees.find((e) => e.active && effWeekly(e)[wd]);
@@ -2646,6 +2657,26 @@ const TOUR_SCENES = {
   add: { hash: () => (isDesktop() ? null : `#/day/${todayDateString()}`), set: () => Object.assign(state, isDesktop() ? { selectedDate: todayDateString(), animateOpen: false, adding: true } : { adding: true }) },
   emp: { set: () => (state.payroll.employeeId = firstPayEmp() ?? "") },
   payslip: { set: () => firstPayEmp() && openPayslipState(firstPayEmp()) },
+  payslipAlba: {
+    set: () => {
+      const id = firstAlbaEmp();
+      if (!id) return;
+      openPayslipState(id);
+      // 보여 주기용 예시 수당 (저장하지 않음, 튜토리얼이 끝나면 사라짐)
+      if (!state.allowDraft.length) state.allowDraft = [{ name: "특근수당", amount: 20000 }];
+    },
+  },
+  share: {
+    set: async () => {
+      const id = firstAlbaEmp() ?? firstPayEmp();
+      if (!id) return;
+      if (isDesktop()) state.payroll.employeeId = id;
+      else state.sheet = { type: "pay", id };
+      render();
+      await shareTimesheetImage(document.createElement("button"), id);
+    },
+  },
+  schedShare: { set: async () => scheduleShare(document.createElement("button")) },
   payslipMgr: { set: () => { const e = store.employees.find((x) => x.active && isSalaried(x)); if (e) openPayslipState(e.id); } },
   paySheet: { set: () => (state.sheet = { type: "pay", id: firstPayEmp() }) },
   slot: { set: () => tourSlot(false) },
@@ -2659,6 +2690,7 @@ async function applyTourScene(name) {
   if (tour.scene === name) return;
   const b = tour.base;
   // 튜토리얼 시작 때 모습으로 되돌린 뒤 이 단계의 화면을 펼친다
+  closeTourShare();
   Object.assign(state, { selectedDate: b.selectedDate, expandedId: null, adding: false, editingId: null, editingWhere: null, sheet: null, payslipId: null, allowDraft: null, salDraft: null, slotEdit: null });
   state.payroll.employeeId = b.payrollEmp;
   const sc = name ? TOUR_SCENES[name] : null;
@@ -2669,9 +2701,10 @@ async function applyTourScene(name) {
     await sleep(80); // 화면이 바뀐 뒤에 펼친다
     tour.nav = false;
   }
-  sc?.set();
+  const done = sc?.set();
   Object.assign(state, { modalEnter: false, sheetEnter: false, dayEnter: false, expandEnter: false });
   render();
+  if (done instanceof Promise) await done.catch(() => {}); // 사진 만들기처럼 시간이 걸리는 장면
   tour.scene = name;
   await sleep(30);
 }
@@ -2680,8 +2713,8 @@ let tour = null; // { steps, i, timer }
 
 function tourEl(sel) {
   for (const one of [].concat(sel)) {
-    const el = app.querySelector(one);
-    if (el && el.getClientRects().length) return el;
+    const el = document.querySelector(`#app ${one}`) ?? document.querySelector(one);
+    if (el && el.getClientRects().length && !el.closest(".tour")) return el;
   }
   return null;
 }
@@ -2793,6 +2826,7 @@ function endTour() {
   if (!tour) return;
   const t = tour;
   // 펼쳐 둔 화면을 시작할 때 모습으로
+  closeTourShare();
   if (t.scene) {
     Object.assign(state, { selectedDate: t.base.selectedDate, expandedId: null, adding: false, sheet: null, payslipId: null, allowDraft: null, salDraft: null, slotEdit: null });
     state.payroll.employeeId = t.base.payrollEmp;
