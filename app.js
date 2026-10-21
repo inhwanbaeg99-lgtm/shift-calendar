@@ -873,7 +873,7 @@ function renderEmployees() {
         }<button type="button" class="pay-switch" data-action="toggle-paytype" data-id="${e.id}" title="${isSalaried(e) ? "시급제(3.3%)로 바꾸기" : "월급제(4대보험)로 바꾸기"}">${isSalaried(e) ? "시급으로" : "월급으로"}</button></td>
         <td><button type="button" class="status${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button></td>
         <td>${
-          `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저는 근무표에만 나오고 출근에서 빠져요 (월급제로 하면 급여에 나와요)">${isManager(e) ? "매니저" : "알바"}</button>`
+          `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요">${isManager(e) ? "매니저" : "알바"}</button>`
         }</td>
         <td><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
       </tr>`,
@@ -900,7 +900,7 @@ function renderEmployees() {
       "employees",
       `요일 칸에 <b>7-12</b>, <b>18-2230</b> 처럼 입력하면 근무 시간이 저장돼요. 비우면 쉬는 날이에요.<br />
       이름 앞 색은 근무표 색이에요(자동으로 겹치지 않게 정해져요). 근무표에서 같은 시각에 시작하면 위에 있는 사람이 왼쪽 칸에 들어가요.<br />
-      <b>월급으로</b>를 누르면 월급제(4대보험) 직원이 돼요. 월급·식대·공제액은 급여 화면에서 이름 옆 <b>명세서</b>를 눌러 입력해요.`,
+      구분을 <b>매니저</b>로 바꾸면 자동으로 월급제(4대보험), <b>알바</b>로 바꾸면 시급제(3.3%)가 돼요. 알바인데 월급제면 급여 칸의 <b>월급으로</b>를 눌러요. 월급·식대·공제액은 급여 화면에서 이름 옆 <b>명세서</b>를 눌러 입력해요.`,
     )}`,
     { center: true },
   );
@@ -1043,7 +1043,7 @@ function renderEmpSheet(e) {
       <button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>
       <button type="button" class="m-toggle${isSalaried(e) ? " on" : ""}" data-action="toggle-paytype" data-id="${e.id}">${isSalaried(e) ? "월급제" : "시급제"}</button>
     </div>
-    <p class="sheet-note">매니저는 근무표에만 나오고 출근에서 빠져요. 월급제로 하면 출근 기록이 없어도 급여에 나와요.</p>
+    <p class="sheet-note">매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요. 매니저는 출근을 안 찍어도 근무표대로 급여에 나와요.</p>
     <div class="sheet-actions">
       <button type="button" class="btn-ghost danger-ghost" data-action="remove-employee" data-id="${e.id}">삭제</button>
       <button type="button" class="btn-primary" data-action="close-sheet">완료</button>
@@ -1306,7 +1306,8 @@ function allowancesFor(ym, empId) {
 // 월급·식대·공제액은 세무사에게 받은 금액을 한 번 입력하면 그달부터 다음 달, 그다음 달에도 그대로 이어진다.
 // 금액이 바뀐 달에만 새로 입력하면 그달부터 새 금액. 지난달 명세서는 그때 금액 그대로.
 const DED_KEYS = [["pension", "국민연금"], ["health", "건강보험"], ["care", "장기요양보험"], ["employ", "고용보험"], ["income", "근로소득세"], ["local", "지방소득세"]];
-const isSalaried = (emp) => Boolean(emp && store.salary?.[emp.id]?.on);
+// 따로 정하지 않았으면 매니저는 월급제, 알바는 시급제
+const isSalaried = (emp) => Boolean(emp) && (store.salary?.[emp.id]?.on ?? isManager(emp));
 
 function salaryFor(empId, ym) {
   let cur = null;
@@ -3646,7 +3647,7 @@ app.addEventListener("click", (e) => {
     case "toggle-paytype": {
       const emp = employeeById(id);
       store.salary = store.salary ?? {};
-      const rec = (store.salary[emp.id] = store.salary[emp.id] ?? { on: false, hist: [] });
+      const rec = (store.salary[emp.id] = store.salary[emp.id] ?? { on: isSalaried(emp), hist: [] });
       rec.on = !rec.on;
       save();
       queueToast(rec.on ? `${emp.name}님을 월급제(4대보험)로 바꿨어요. 급여 화면 명세서에서 월급을 입력해주세요` : `${emp.name}님을 시급제(3.3%)로 바꿨어요`);
@@ -3657,8 +3658,11 @@ app.addEventListener("click", (e) => {
       emp.role = isManager(emp) ? undefined : "manager";
       if (!isManager(emp)) emp.color = null;
       ensureColors();
+      // 매니저는 월급제(4대보험), 알바는 시급제(3.3%)로 같이 바꾼다 (전에 넣은 월급·공제액은 지우지 않고 둔다)
+      store.salary = store.salary ?? {};
+      store.salary[emp.id] = { hist: [], ...store.salary[emp.id], on: isManager(emp) };
       save();
-      queueToast(`${emp.name}님을 ${isManager(emp) ? "매니저로" : "알바로"} 바꿨어요`);
+      queueToast(isManager(emp) ? `${emp.name}님을 매니저(월급제)로 바꿨어요. 급여 화면 명세서에서 월급을 입력해주세요` : `${emp.name}님을 알바(시급제)로 바꿨어요`);
       break;
     }
     case "open-sheet":
