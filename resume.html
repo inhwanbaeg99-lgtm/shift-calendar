@@ -289,6 +289,7 @@
         background: none;
         font: inherit;
         font-size: 15px;
+        font-weight: 600;
         text-align: left;
         cursor: pointer;
       }
@@ -576,9 +577,7 @@
       const KEY = "kok-resume";
       const $ = (s) => document.querySelector(s);
       const form = $("#form");
-      const params = new URLSearchParams(location.search);
-      const store = (params.get("store") || "").slice(0, 40);
-      const tel = (params.get("tel") || "").replace(/[^\d-]/g, "").slice(0, 13);
+      const store = (new URLSearchParams(location.search).get("store") || "").slice(0, 40);
       if (store) {
         $("#for").textContent = `${store} 아르바이트 지원서 · 다 쓰고 아래 문자 전송하기를 눌러 보내 주세요`;
         document.title = `이력서 · ${store}`;
@@ -784,7 +783,7 @@
         pv.className = "pv";
         pv.innerHTML = `
           <img src="${url}" alt="이력서 미리보기" />
-          <p class="pv-tip">${canShare ? `공유창에서 <b>메시지</b>를 골라 ${tel ? `매장 번호 <b>${esc(tel)}</b>` : "매장 번호"}로 보내 주세요.` : canCopy ? `복사한 뒤 메시지 창에 붙여넣기(${mac ? "⌘V" : "Ctrl+V"}) 하면 사진으로 보내져요.${tel ? ` 매장 번호 <b>${esc(tel)}</b>` : ""}` : `사진을 저장한 뒤 문자로 보내 주세요.${tel ? ` 매장 번호 <b>${esc(tel)}</b>` : ""} 사진을 길게 눌러 저장할 수도 있어요.`}</p>
+          <p class="pv-tip">${canShare ? "공유창에서 <b>메시지</b>를 골라, <b>이 주소를 보내 준 번호</b>로 보내 주세요." : canCopy ? `복사한 뒤 메시지 창에 붙여넣기(${mac ? "⌘V" : "Ctrl+V"}) 해서 <b>이 주소를 보내 준 번호</b>로 보내 주세요.` : "사진을 저장한 뒤 <b>이 주소를 보내 준 번호</b>로 문자 보내 주세요. 사진을 길게 눌러 저장할 수도 있어요."}</p>
           <div class="pv-actions">
             <button type="button" class="ghost" data-pv="close">닫기</button>
             ${canShare ? `<button type="button" class="primary" data-pv="share">문자 전송하기</button>` : canCopy ? `<button type="button" class="primary" data-pv="copy">복사하기</button>` : `<button type="button" class="primary" data-pv="save">사진 저장</button>`}

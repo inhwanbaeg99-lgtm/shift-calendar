@@ -937,10 +937,7 @@ function renderEmployees() {
 }
 
 // ---------- 마이페이지 (매장 이름을 누르면): 사업주 정보 · 직원 명세서 링크 · 전체 기록 · 매장 삭제 ----------
-const resumeUrl = () => {
-  const tel = (store.settings?.biz?.phone ?? "").replace(/[^\d-]/g, "");
-  return new URL(`../resume.html?store=${encodeURIComponent(storeName())}${tel ? `&tel=${tel}` : ""}`, location.href).href;
-};
+const resumeUrl = () => new URL(`../resume.html?store=${encodeURIComponent(storeName())}`, location.href).href;
 const payUrl = () => new URL(`../?s=${storeId}#/my`, location.href).href;
 
 function renderMyPage() {
@@ -990,7 +987,7 @@ function renderMyPage() {
 
       <section class="me-card">
         <h2>이력서 양식</h2>
-        <p class="sub">지원자에게 이 주소를 문자로 보내면, 휴대폰에서 바로 쓰고 <b>문자 전송하기</b>를 눌러 A4 이력서 사진으로 보내 줘요. 사업주 정보의 연락처가 보낼 번호로 안내돼요. 종이 양식은 열어서 ••• → 빈 양식 인쇄.</p>
+        <p class="sub">지원자에게 이 주소를 문자로 보내면, 휴대폰에서 바로 쓰고 <b>문자 전송하기</b>를 눌러 A4 이력서 사진으로 보내 줘요. 종이 양식은 열어서 ••• → 빈 양식 인쇄.</p>
         <div class="me-link"><span>${esc(resumeUrl())}</span><a class="pill plain-dark" href="${esc(resumeUrl())}" target="_blank" rel="noopener">열기</a><button type="button" class="pill" data-action="copy-resume-link">주소 복사</button></div>
       </section>
 
