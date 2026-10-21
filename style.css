@@ -6140,3 +6140,33 @@ a.m-store span {
   font-weight: 700;
   text-decoration: none;
 }
+.me-link-label {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.pay-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--paper);
+}
+.pay-tabs a {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: 9px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  text-decoration: none;
+}
+.pay-tabs a.on {
+  background: var(--ink);
+  color: var(--bg);
+}
+.pay-wait {
+  padding: 20px;
+}
