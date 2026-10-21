@@ -1,6 +1,6 @@
 {
-  "name": "근무콕",
-  "short_name": "근무콕",
+  "name": "콕",
+  "short_name": "콕",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

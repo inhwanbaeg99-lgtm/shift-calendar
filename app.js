@@ -1,8 +1,8 @@
-// 근무콕 (근무 달력, 예전 이름 "품") — 여러 매장이 각자 매장을 등록해서 쓰는 버전 (GitHub Pages + Firebase)
+// 콕 (근무 달력, 예전 이름 "근무콕" · "품") — 여러 매장이 각자 매장을 등록해서 쓰는 버전 (GitHub Pages + Firebase)
 // 매장마다 데이터는 Firebase 의 stores/{매장 코드}/ 아래에 따로 저장되고, 이 브라우저의 localStorage 는 캐시로만 쓴다.
 
 const TIME_ZONE = "Asia/Seoul";
-const APP_NAME = "근무콕";
+const APP_NAME = "콕";
 const LAST_STORE_KEY = "shift-calendar:store";
 // 이 기기에서 쓰는 매장 코드: 주소에 ?s=코드 가 있으면 그것, 없으면 마지막으로 쓴 매장
 let storeId = initStoreId();
@@ -2762,7 +2762,7 @@ function renderScheduleSheet({ wide = false } = {}) {
         ${rows}
       </div>
       ${compact ? actions : ""}
-      <p class="sc-brand">${esc(storeName())} · ${todayDateString().replaceAll("-", ".")} 출력 · 근무콕</p>
+      <p class="sc-brand">${esc(storeName())} · ${todayDateString().replaceAll("-", ".")} 출력 · 콕</p>
     </div>`;
 }
 

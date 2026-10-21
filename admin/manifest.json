@@ -1,6 +1,6 @@
 {
-  "name": "근무콕 관리자",
-  "short_name": "근무콕 관리자",
+  "name": "콕 관리자",
+  "short_name": "콕 관리자",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
