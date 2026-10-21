@@ -1172,8 +1172,9 @@ function renderRecordsMobile() {
       ${renderTimesheet(month, "")}
     </details>
     <div class="m-btns">
-      <button type="button" class="btn-ghost" data-action="export-xlsx"${recs.length ? "" : " disabled"}>엑셀 다운로드</button>
-      <button type="button" class="btn-primary" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF 전체</button>
+      <button type="button" class="btn-ghost" data-action="save-xlsx-template" title="매장 엑셀 양식(\"N월 근로현황\" 시트가 있는 파일)을 골라 이 브라우저에 저장해요">엑셀 양식 저장</button>
+      <button type="button" class="btn-ghost" data-action="fill-template-xlsx"${recs.length ? "" : " disabled"} title="저장한 엑셀 양식에 이 달 근무·급여를 채운 새 파일을 받아요">엑셀로 옮기기</button>
+      <button type="button" class="btn-primary" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF${rows.length > 1 ? " (개인별)" : ""}</button>
     </div>
     ${renderPayslipModal()}`,
   );
@@ -1593,15 +1594,15 @@ function renderRecords() {
       <h3>근무 상세</h3>
       <div class="head-actions">
         ${employeeId ? `<button type="button" class="pill" data-action="share-ts-image" data-id="${employeeId}">카카오톡 전송하기</button>` : ""}
-        <button type="button" class="pill plain-dark" data-action="fill-template-xlsx"${recs.length ? "" : " disabled"} title="처음 한 번 고른 매장 엑셀 양식에 이 달 근무를 채워 저장해요 (PC Chrome·Edge)">기본양식으로 저장</button>
-        <button type="button" class="pill plain-dark" data-action="export-xlsx"${recs.length ? "" : " disabled"}>엑셀 다운로드</button>
+        <button type="button" class="pill plain-dark" data-action="save-xlsx-template" title="매장 엑셀 양식(\"N월 근로현황\" 시트가 있는 파일)을 골라 이 브라우저에 저장해요">엑셀 양식 저장</button>
+        <button type="button" class="pill plain-dark" data-action="fill-template-xlsx"${recs.length ? "" : " disabled"} title="저장한 엑셀 양식에 이 달 근무·급여를 채운 새 파일을 받아요">엑셀로 옮기기</button>
       </div>
     </div>
     ${renderTimesheet(month, employeeId)}
 
     <div class="section-head">
       <h3>급여 정산</h3>
-      <button type="button" class="pill" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF${rows.length > 1 ? " (전체)" : ""}</button>
+      <button type="button" class="pill" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF${rows.length > 1 ? " (개인별)" : ""}</button>
     </div>
     <div class="table-wrap pay-wrap">
       <table class="pay-table">
@@ -1629,7 +1630,6 @@ function renderRecords() {
 // ---------- 외부 라이브러리 (필요할 때만 불러옴) ----------
 
 const LIBS = {
-  xlsx: { src: "https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js", ready: () => window.XLSX },
   html2canvas: { src: "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js", ready: () => window.html2canvas },
   jspdf: { src: "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js", ready: () => window.jspdf?.jsPDF },
   fflate: { src: "https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js", ready: () => window.fflate },
@@ -1715,98 +1715,7 @@ async function withBusy(button, text, task) {
   }
 }
 
-// ---------- 엑셀 ----------
-
-function exportXlsx(button) {
-  return withBusy(button, "만드는 중…", async () => {
-    const XLSX = await loadLib("xlsx");
-    const { month, employeeId } = state.payroll;
-    const { recs, rows, total } = payrollFor(month, employeeId);
-    const round2 = (n) => Math.round(n * 100) / 100;
-
-    const thin = { style: "thin", color: { rgb: "000000" } };
-    const border = { top: thin, bottom: thin, left: thin, right: thin };
-    const center = { horizontal: "center", vertical: "center" };
-    const style = (extra = {}) => ({ border, alignment: center, font: { name: "맑은 고딕", sz: 10 }, ...extra });
-    const blue = { fill: { patternType: "solid", fgColor: { rgb: "DCE9F7" } } };
-
-    // 근무표 시트: 사진처럼 No. / 성명 / 요일·날짜 / 시간
-    const ts = timesheet(month, employeeId, { excludeTraining: true });
-    const isWeekend = (d) => [0, 6].includes(weekdayOf(d));
-    const head1 = ["No.", "성명", ...ts.days.map((d) => WEEKDAYS[weekdayOf(d)]), "시간"];
-    const head2 = ["", "", ...ts.days.map((d) => Number(d.slice(8))), ""];
-    const body = ts.rows.map((r, i) => [i + 1, r.emp.name, ...r.cells.map((h) => (h ? round2(h) : "")), round2(r.total)]);
-    const wsTs = XLSX.utils.aoa_to_sheet([head1, head2, ...body]);
-    const lastCol = head1.length - 1;
-    for (let R = 0; R < body.length + 2; R++) {
-      for (let C = 0; C <= lastCol; C++) {
-        const ref = XLSX.utils.encode_cell({ r: R, c: C });
-        wsTs[ref] = wsTs[ref] ?? { t: "s", v: "" };
-        const day = C >= 2 && C < lastCol ? ts.days[C - 2] : null;
-        const s = style(day && isWeekend(day) ? blue : {});
-        if (R < 2) s.font = { ...s.font, bold: true };
-        if (R >= 2 && day && typeof wsTs[ref].v === "number") wsTs[ref].z = "0.0";
-        if (R >= 2 && C === lastCol) {
-          wsTs[ref].z = "0.0";
-          s.font = { ...s.font, bold: true };
-        }
-        wsTs[ref].s = s;
-      }
-    }
-    wsTs["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },
-      { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } },
-      { s: { r: 0, c: lastCol }, e: { r: 1, c: lastCol } },
-    ];
-    wsTs["!cols"] = [{ wch: 5 }, { wch: 9 }, ...ts.days.map(() => ({ wch: 4.5 })), { wch: 7 }];
-    wsTs["!rows"] = [{ hpt: 22 }, { hpt: 22 }, ...body.map(() => ({ hpt: 22 }))];
-
-    const summary = [
-      ["이름", "근무일", "근무시간", "시급", "기본급", "주휴수당", "수당", "지급총액", "소득세", "지방소득세", "실지급액"],
-      ...rows.map((r) => [r.emp.name, r.days, round2(r.hours), r.emp.hourlyWage, r.base, r.weekly.total, r.extra, r.gross, r.income, r.local, r.net]),
-    ];
-    if (rows.length > 1) summary.push(["합계", total.days, round2(total.hours), "", total.base, total.weekly, total.extra, total.gross, total.income, total.local, total.net]);
-
-    const detail = [
-      ["날짜", "요일", "이름", "출근", "퇴근", "근무시간", "시급", "금액"],
-      ...recs.map((r) => {
-        const emp = employeeById(r.employeeId);
-        const h = hoursBetween(r.clockIn, r.clockOut);
-        return [r.date, WEEKDAYS[weekdayOf(r.date)], emp.name, formatTime(r.clockIn), formatTime(r.clockOut), round2(h), emp.hourlyWage, Math.round(h * emp.hourlyWage)];
-      }),
-    ];
-
-    const weekly = [["이름", "주 시작(월)", "주 끝(일)", "소정근로시간", "실근무시간", "주휴시간", "주휴수당", "비고"]];
-    for (const r of rows) {
-      for (const w of r.weekly.weeks) weekly.push([r.emp.name, w.mon, w.sun, round2(w.planned), round2(w.hours), round2(w.allowHours), w.amount, w.reason || ""]);
-    }
-
-    const plain = (aoa, widths, moneyFrom) => {
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws["!cols"] = widths.map((wch) => ({ wch }));
-      const range = XLSX.utils.decode_range(ws["!ref"]);
-      for (let R = 0; R <= range.e.r; R++) {
-        for (let C = 0; C <= range.e.c; C++) {
-          const ref = XLSX.utils.encode_cell({ r: R, c: C });
-          if (!ws[ref]) continue;
-          ws[ref].s = { border, font: { name: "맑은 고딕", sz: 10, bold: R === 0 }, ...(R === 0 ? blue : {}) };
-          if (R > 0 && moneyFrom !== undefined && C >= moneyFrom && typeof ws[ref].v === "number") ws[ref].z = "#,##0";
-        }
-      }
-      return ws;
-    };
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, wsTs, "근무 상세");
-    XLSX.utils.book_append_sheet(wb, plain(summary, [10, 8, 10, 9, 12, 12, 10, 12, 10, 11, 12], 3), "급여 정산");
-    XLSX.utils.book_append_sheet(wb, plain(detail, [12, 6, 10, 8, 8, 10, 9, 11], 6), "출퇴근 목록");
-    XLSX.utils.book_append_sheet(wb, plain(weekly, [10, 12, 12, 12, 11, 10, 11, 20], 6), "주휴수당 내역");
-    const who = employeeId ? `_${employeeById(employeeId).name}` : "";
-    XLSX.writeFile(wb, `근무기록_${month}${who}.xlsx`);
-  });
-}
-
-// ---------- 엑셀: 기본양식으로 저장 ----------
+// ---------- 엑셀: 매장 양식 저장 · 엑셀로 옮기기 ----------
 // 매장마다 처음 한 번 고른 기본양식(빈 엑셀, "N월 근로현황" 시트가 있는 양식)에 이 달 근무시간·수당·근무표를 채워 새 파일로 저장한다 (Chrome/Edge PC 전용).
 
 // days[i]가 속한 주(일~토, 월 경계는 안 넘음)의 [시작 인덱스, 끝 인덱스] 목록
@@ -1837,24 +1746,33 @@ function idbHandle(mode, key, value) {
   });
 }
 
-// 한 번 고른 파일을 key 이름으로 브라우저가 기억한다 (지금은 "baseTemplate" = 기본양식).
-async function getTemplateHandle(key, mode) {
-  if (!window.showOpenFilePicker) throw new Error("이 기능은 PC의 Chrome 또는 Edge 브라우저에서만 쓸 수 있어요.");
-  const saved = await idbHandle("readonly", key).catch(() => null);
-  if (saved) {
+// 매장 엑셀 양식: [엑셀 양식 저장]으로 고른 파일 내용을 이 브라우저(IndexedDB)에 매장별로 보관한다
+const templateKey = () => `xlsxTemplate:${storeId}`;
+
+function pickXlsxFile() {
+  return new Promise((resolve) => {
+    const input = Object.assign(document.createElement("input"), { type: "file", accept: ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    input.addEventListener("change", () => resolve(input.files[0] ?? null));
+    input.click();
+  });
+}
+
+function saveXlsxTemplate(button) {
+  return withBusy(button, "저장 중…", async () => {
+    const file = await pickXlsxFile();
+    if (!file) return;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const fflate = await loadLib("fflate");
+    let wb;
     try {
-      const perm = (await saved.queryPermission({ mode })) === "granted" || (await saved.requestPermission({ mode })) === "granted";
-      if (perm) {
-        await saved.getFile(); // 옮겨지거나 지워졌으면 여기서 실패 -> 다시 고르기
-        return saved;
-      }
+      wb = fflate.strFromU8(fflate.unzipSync(bytes, { filter: (f) => f.name === "xl/workbook.xml" })["xl/workbook.xml"]);
     } catch {
-      // 다시 고르기
+      throw new Error("엑셀(.xlsx) 파일이 아니에요. 엑셀 양식 파일을 골라주세요.");
     }
-  }
-  const [handle] = await window.showOpenFilePicker({ types: [XLSX_TYPE] });
-  await idbHandle("readwrite", key, handle);
-  return handle;
+    if (!/<sheet name="(\d+|○)월 근로현황"/.test(wb)) throw new Error('이 파일에는 "N월 근로현황" 시트가 없어요. 매장 엑셀 양식 파일을 골라주세요.');
+    await idbHandle("readwrite", templateKey(), { name: file.name, bytes, savedAt: new Date().toISOString() });
+    showToast(`엑셀 양식을 저장했어요 (${file.name})`, "ok");
+  });
 }
 
 // 엑셀 파일(zip) 안에서 날짜 칸의 <v>만 바꿔치기한다 (SheetJS로 전체를 다시 조립하면 서식이 깨지거나
@@ -2477,25 +2395,29 @@ async function saveXlsxBytes(bytes, name) {
   return true;
 }
 
-// 기본양식으로 저장: 처음 한 번 고른 기본양식(빈 양식)은 그대로 두고, 이 달 내용을 채운 새 파일을 만든다
+// 엑셀로 옮기기: 저장해 둔 매장 양식은 그대로 두고, 이 달 값을 채운 새 파일을 만든다
 function fillTemplateXlsx(button) {
   return withBusy(button, "만드는 중…", async () => {
     const fflate = await loadLib("fflate");
     const { month } = state.payroll;
-    const handle = await getTemplateHandle(`baseTemplate:${storeId}`, "read");
-    const zip = fflate.unzipSync(new Uint8Array(await (await handle.getFile()).arrayBuffer()));
+    const template = await idbHandle("readonly", templateKey()).catch(() => null);
+    if (!template?.bytes) {
+      uiAlert("먼저 [엑셀 양식 저장]으로 매장 엑셀 양식 파일을 저장해주세요.");
+      return;
+    }
+    const zip = fflate.unzipSync(new Uint8Array(template.bytes));
     let notFound;
     try {
       ({ notFound } = fillWorkbook(fflate, zip, month, ""));
     } catch (err) {
-      if (/기본양식/.test(err.message)) await idbHandle("readwrite", `baseTemplate:${storeId}`, null); // 다음엔 다시 고르게
+      if (/기본양식/.test(err.message)) throw new Error("저장한 엑셀 양식을 읽지 못했어요. [엑셀 양식 저장]으로 양식을 다시 저장해주세요.");
       throw err;
     }
     assertWorkbookIntact(fflate, zip);
     const saved = await saveXlsxBytes(fflate.zipSync(zip, { level: 6 }), `${storeName()} ${Number(month.slice(5, 7))}월 근무.xlsx`);
     if (!saved) return;
-    if (notFound.length) uiAlert(`저장했어요. 다만 "${notFound.join(", ")}" 이름은 기본양식에 줄이 없어서 빠졌어요. 기본양식에 그 직원 줄을 추가해주세요.`);
-    showToast("기본양식에 채워서 저장했어요");
+    if (notFound.length) uiAlert(`저장했어요. 다만 "${notFound.join(", ")}" 이름은 엑셀 양식에 줄이 없어서 빠졌어요.\n양식에 그 직원 줄을 추가하고 [엑셀 양식 저장]을 다시 해주세요.`);
+    showToast("엑셀 양식에 이 달 값을 옮겨 저장했어요", "ok");
   });
 }
 
@@ -2513,16 +2435,17 @@ async function payslipPdf(button, empIds) {
     stage.className = "ps-stage";
     document.body.appendChild(stage);
     try {
-      const pdf = new jsPDF({ unit: "mm", format: "a4" });
-      for (const [i, id] of empIds.entries()) {
-        const r = payrollRow(employeeById(id), month, recs);
-        stage.innerHTML = renderPayslip(r, month);
+      // 직원마다 따로 한 파일씩 (각자에게 보내기 쉽게)
+      for (const id of empIds) {
+        const emp = employeeById(id);
+        stage.innerHTML = renderPayslip(payrollRow(emp, month, recs), month);
         const canvas = await html2canvas(stage.firstElementChild, { scale: 2, backgroundColor: "#ffffff" });
-        if (i > 0) pdf.addPage();
+        const pdf = new jsPDF({ unit: "mm", format: "a4" });
         pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297);
+        pdf.save(`급여명세서_${month}_${emp.name}.pdf`);
+        if (empIds.length > 1) await new Promise((resolve) => setTimeout(resolve, 400)); // 연속 다운로드가 막히지 않게
       }
-      const who = empIds.length === 1 ? `_${employeeById(empIds[0]).name}` : "_전체";
-      pdf.save(`급여명세서_${month}${who}.pdf`);
+      if (empIds.length > 1) showToast(`명세서 ${empIds.length}개를 각각 저장했어요`, "ok");
     } finally {
       stage.remove();
     }
@@ -3499,9 +3422,6 @@ app.addEventListener("click", (e) => {
       });
       return;
     }
-    case "export-xlsx":
-      exportXlsx(el);
-      return;
     case "payroll-prev":
     case "payroll-next":
       state.payroll.month = shiftMonth(state.payroll.month, action === "payroll-prev" ? -1 : 1);
@@ -3542,6 +3462,9 @@ app.addEventListener("click", (e) => {
       return;
     case "fill-template-xlsx":
       fillTemplateXlsx(el);
+      return;
+    case "save-xlsx-template":
+      saveXlsxTemplate(el);
       return;
     case "share-ts-image":
       shareTimesheetImage(el, el.dataset.id);
