@@ -3020,7 +3020,7 @@ td.name {
   height: 32px;
   border-radius: 10px;
   font-size: 17px;
-  background: #0ea5a0;
+  background: #3182f6;
 }
 .ps-month {
   font-size: 17px;
@@ -3042,7 +3042,7 @@ td.name {
   margin: 40px 0 44px;
   padding: 30px 34px;
   border-radius: 24px;
-  background: #e3f6f5;
+  background: #e8f3ff;
 }
 .ps-net span {
   font-size: 16px;
@@ -3055,7 +3055,7 @@ td.name {
   font-size: 48px;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: #0ea5a0;
+  color: #3182f6;
   font-variant-numeric: tabular-nums;
 }
 .ps-sec {

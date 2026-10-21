@@ -1174,7 +1174,7 @@ function renderRecordsMobile() {
     <div class="m-btns">
       <button type="button" class="btn-ghost" data-action="save-xlsx-template" title="매장 엑셀 양식(\"N월 근로현황\" 시트가 있는 파일)을 골라 이 브라우저에 저장해요">엑셀 양식 저장</button>
       <button type="button" class="btn-ghost" data-action="fill-template-xlsx"${recs.length ? "" : " disabled"} title="저장한 엑셀 양식에 이 달 근무·급여를 채운 새 파일을 받아요">엑셀로 옮기기</button>
-      <button type="button" class="btn-primary" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF${rows.length > 1 ? " (개인별)" : ""}</button>
+      <button type="button" class="btn-primary" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF 전체</button>
     </div>
     ${renderPayslipModal()}`,
   );
@@ -1495,7 +1495,7 @@ function renderPayslip(r, ym) {
       <footer class="ps-foot">
         <p class="ps-thanks">이번 한 달도 수고 많으셨어요. 감사합니다.</p>
         <p class="ps-store">${esc(storeName())}</p>
-        <p class="ps-issued">발행일 ${issued} · 품</p>
+        <p class="ps-issued">발행일 ${issued}</p>
       </footer>
     </div>`;
 }
@@ -1602,7 +1602,7 @@ function renderRecords() {
 
     <div class="section-head">
       <h3>급여 정산</h3>
-      <button type="button" class="pill" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF${rows.length > 1 ? " (개인별)" : ""}</button>
+      <button type="button" class="pill" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF${rows.length > 1 ? " (전체)" : ""}</button>
     </div>
     <div class="table-wrap pay-wrap">
       <table class="pay-table">
@@ -2435,17 +2435,17 @@ async function payslipPdf(button, empIds) {
     stage.className = "ps-stage";
     document.body.appendChild(stage);
     try {
-      // 직원마다 따로 한 파일씩 (각자에게 보내기 쉽게)
-      for (const id of empIds) {
+      // 한 명당 PDF 한 파일
+      for (const [i, id] of empIds.entries()) {
         const emp = employeeById(id);
         stage.innerHTML = renderPayslip(payrollRow(emp, month, recs), month);
         const canvas = await html2canvas(stage.firstElementChild, { scale: 2, backgroundColor: "#ffffff" });
         const pdf = new jsPDF({ unit: "mm", format: "a4" });
         pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297);
+        // 연달아 내려받으면 브라우저가 막을 수 있어 조금씩 띄운다
+        if (i > 0) await new Promise((resolve) => setTimeout(resolve, 400));
         pdf.save(`${emp.name} ${Number(month.slice(5, 7))}월 급여명세서.pdf`);
-        if (empIds.length > 1) await new Promise((resolve) => setTimeout(resolve, 400)); // 연속 다운로드가 막히지 않게
       }
-      if (empIds.length > 1) showToast(`명세서 ${empIds.length}개를 각각 저장했어요`, "ok");
     } finally {
       stage.remove();
     }
