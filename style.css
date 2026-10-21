@@ -6118,17 +6118,28 @@ a.m-store span {
 }
 .pay-slip {
   margin-top: 14px;
-  overflow: hidden;
-  border-radius: 18px;
+}
+.pay-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
   background: #fff;
-  color: #191f28;
   box-shadow: var(--shadow);
 }
-.pay-fab {
+.pay-save {
+  width: 100%;
+  margin-top: 14px;
+}
+.pay-fabs {
   position: fixed;
   right: max(20px, env(safe-area-inset-right, 0px));
   bottom: max(20px, env(safe-area-inset-bottom, 0px));
   z-index: 40;
+  display: flex;
+  gap: 8px;
+}
+.pay-fab {
   display: flex;
   align-items: center;
   height: 44px;
@@ -6169,4 +6180,104 @@ a.m-store span {
 }
 .pay-wait {
   padding: 20px;
+}
+
+/* 컴퓨터 직원 표: 이름 → 직원 정보 창 */
+.name-btn {
+  display: grid;
+  gap: 2px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.name-btn:hover {
+  background: var(--bg);
+}
+.name-chev {
+  margin-left: 4px;
+  color: var(--ink-sub);
+}
+.emp-back {
+  display: grid;
+  place-items: center;
+}
+.emp-modal {
+  width: min(440px, calc(100vw - 32px));
+  padding: 26px 26px 22px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.2);
+}
+.emp-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.emp-modal-head .swatch.big {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+}
+.emp-modal-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.emp-modal-head small {
+  color: var(--ink-sub);
+  font-size: 13px;
+}
+.emp-modal-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.emp-modal-dates label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-sub);
+}
+.emp-modal-dates .field {
+  width: 100%;
+}
+.emp-modal-note {
+  margin: 8px 0 18px;
+  font-size: 12.5px;
+  color: var(--ink-sub);
+}
+.emp-modal-contract {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg);
+}
+.emp-modal-contract div {
+  display: grid;
+  gap: 2px;
+}
+.emp-modal-contract small {
+  font-size: 13px;
+  color: var(--ink-sub);
+}
+.emp-modal-contract small.ok {
+  color: var(--accent);
+  font-weight: 700;
+}
+.emp-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.emp-modal-actions .btn-primary {
+  min-width: 120px;
 }

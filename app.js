@@ -805,7 +805,7 @@ function renderHome() {
     </div>
     ${policyLinks("policy-links home-policy")}
     <button type="button" class="tour-fab" data-action="start-tour" aria-label="사용법 보기"><span>?</span>사용법</button>
-    ${Object.keys(remote?.pub?.slips ?? {}).length ? `<a class="pay-fab" href="#/pay">내 명세서 · 근무</a>` : ""}
+    ${Object.keys(remote?.pub?.slips ?? {}).length ? `<div class="pay-fabs"><a class="pay-fab" href="#/work">내 근무</a><a class="pay-fab" href="#/pay">내 명세서</a></div>` : ""}
     ${toastHtml()}`;
 }
 
@@ -833,11 +833,12 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
   return `
     <nav class="admin-top" aria-label="관리자 메뉴">
       <span class="nav-pill" aria-hidden="true"></span>
-      <div class="store-tag"><a class="store-me${active === "me" ? " on" : ""}" href="#/me" title="마이페이지 · 사업주 정보, 직원 명세서, 전체 기록">${esc(storeName())}</a>${demoLoaded ? "" : staffCalLink()}</div>
+      <div class="store-tag"><b>${esc(storeName())}</b>${demoLoaded ? "" : staffCalLink()}</div>
       ${link("#/employees", "직원", "employees")}
       ${link("#/schedule", "근무표", "schedule")}
       ${link("#/calendar", "달력", "calendar")}
       ${link("#/records", "급여", "records")}
+      ${link("#/me", "정보", "me")}
       ${demoLoaded ? `<a class="logout login-btn" href="#/login">로그인</a>` : `<button type="button" class="logout" data-action="logout">로그아웃</button>`}
     </nav>
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. 내 매장으로 쓰려면 <a href="#/signup">매장 등록</a> 또는 <a href="#/login">로그인</a>해주세요.</p>` : ""}
@@ -880,7 +881,7 @@ function renderEmployees() {
     .map(
       (e, i) => `
       <tr style="--i:${i}">
-        <td class="name"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${nameLabel(e)}</span><div class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</div><button type="button" class="hire-btn${e.hireDate ? "" : " need"}" data-action="edit-hire" data-id="${e.id}" title="입사일 · 퇴사일 고치기">${e.hireDate ? `입사 ${dot(e.hireDate)}` : "입사일 넣기"}${e.leaveDate ? ` · 퇴사 ${dot(e.leaveDate)}` : ""}</button></td>
+        <td class="name"><button type="button" class="name-btn" data-action="open-sheet" data-sheet="emp" data-id="${e.id}" title="입사일 · 퇴사일 · 근로계약서"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${nameLabel(e)}<span class="name-chev" aria-hidden="true">›</span></span><span class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</span></button></td>
         ${order
           .map(
             (wd) =>
@@ -896,7 +897,7 @@ function renderEmployees() {
         <td>${
           `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요">${isManager(e) ? "매니저" : "알바"}</button>`
         }</td>
-        <td class="manage-cell">${contractButton(e)}<button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
+        <td class="manage-cell"><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
       </tr>`,
     )
     .join("");
@@ -929,16 +930,10 @@ function renderEmployees() {
       구분을 <b>매니저</b>로 바꾸면 자동으로 월급제(4대보험), <b>알바</b>로 바꾸면 시급제(3.3%)가 돼요. 알바인데 월급제면 급여 칸의 <b>월급으로</b>를 눌러요. 월급·식대·공제액은 급여 화면에서 이름 옆 <b>명세서</b>를 눌러 입력해요.`,
     )}
     ${policyLinks()}
+    ${state.sheet?.type === "emp" && employeeById(state.sheet.id) ? renderEmpModal(employeeById(state.sheet.id)) : ""}
     ${renderContractModal()}`,
     { center: true },
   );
-}
-
-// 직원 표의 계약서 버튼: 없음 / 작성 중 / 서명 완료
-function contractButton(e) {
-  const c = latestContract(e.id);
-  const label = !c ? "계약서" : c.status === "signed" ? "계약서 ✓" : "계약서 작성 중";
-  return `<button type="button" class="pin-btn${c?.status === "signed" ? " on" : c ? " draft" : ""}" data-action="open-contract" data-id="${e.id}" title="전자 근로계약서">${label}</button>`;
 }
 
 // ---------- 마이페이지 (매장 이름을 누르면): 사업주 정보 · 직원 명세서 링크 · 전체 기록 · 매장 삭제 ----------
@@ -952,7 +947,7 @@ function renderMyPage() {
     `<label class="me-field"${k === "address" ? ' style="grid-column:1/-1"' : ""}><span>${label}</span><input class="field" data-biz="${k}" value="${esc(biz[k] ?? "")}" placeholder="${esc(ph)}" ${extra}/></label>`;
   const emps = store.employees.filter((e) => e.active);
   const content = `
-    ${isDesktop() ? "" : mHead("마이페이지")}
+    ${isDesktop() ? "" : mHead("정보")}
     <div class="me">
       <section class="me-card">
         <h2>매장</h2>
@@ -1142,8 +1137,13 @@ function renderPayPage() {
     const months = tabMonths(v.empId, tab);
     const ym = months.includes(v.ym) ? v.ym : months[0];
     if (ym && ym !== v.ym) v.ym = ym;
-    const html = ym ? v.cache[slipKey(tab, ym)] : null;
-    if (ym && html === undefined) queueMicrotask(payLoadMonth);
+    const got = ym ? v.cache[slipKey(tab, ym)] : null;
+    if (ym && got === undefined) queueMicrotask(payLoadMonth);
+    const name = `${emp?.name ?? ""} ${ym ? Number(ym.slice(5)) : ""}월 ${tab === "work" ? "근무" : "급여명세서"}`;
+    const html = got?.img
+      ? `<img class="pay-img" src="${got.img}" alt="${esc(name)}" />
+        <button type="button" class="btn-primary pay-save" data-action="pay-save">${tab === "work" ? "사진 저장" : "PDF 저장"}</button>`
+      : got?.error;
     body = `
       <div class="pay-who"><b>${esc(emp?.name ?? "")}님</b><button type="button" class="link-btn" data-action="pay-close">다른 사람</button></div>
       ${
@@ -1159,7 +1159,6 @@ function renderPayPage() {
         <a class="pay-back" href="#/">‹ 달력</a>
         <p class="pay-store">${esc(storeName())}</p>
         <h1>${tab === "work" ? "내 근무 상세" : "내 급여명세서"}</h1>
-        <nav class="pay-tabs"><a href="#/pay" class="${tab === "pay" ? "on" : ""}">급여명세서</a><a href="#/work" class="${tab === "work" ? "on" : ""}">근무 상세</a></nav>
         ${body}
       </div>
     </div>
@@ -1193,22 +1192,48 @@ async function payLoadMonth() {
   const key = slipKey(payTab(), v.ym);
   if (v.cache[key] !== undefined) return;
   v.cache[key] = null; // 여는 중 (같은 달을 두 번 열지 않게)
-  let html;
+  const work = key.startsWith("w-");
   try {
-    html = await openText(v.raw, parse(slipsOf(v.empId)[key], null));
+    const html = await openText(v.raw, parse(slipsOf(v.empId)[key], null));
+    // 관리자 화면의 카톡 사진(근무 상세) · PDF(명세서)와 똑같이: 화면 밖에 그려서 2배로 찍는다
+    const html2canvas = await loadLib("html2canvas");
+    await document.fonts.ready;
+    const stage = document.createElement("div");
+    stage.className = "ps-stage";
+    stage.innerHTML = html;
+    document.body.appendChild(stage);
+    let canvas;
+    try {
+      canvas = await html2canvas(stage.firstElementChild, { scale: 2, backgroundColor: "#ffffff" });
+    } finally {
+      stage.remove();
+    }
+    v.cache[key] = { img: work ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.95) };
   } catch {
-    html = `<p class="sub">이 달 내용을 열지 못했어요.</p>`;
+    v.cache[key] = { error: `<p class="sub pay-wait">이 달 내용을 열지 못했어요. 새로고침해 보세요.</p>` };
   }
-  v.cache[key] = html;
   if (state.payView === v) render();
 }
-// A4 명세서(794px) · 근무 상세(720px)를 화면 폭에 맞춰 줄인다
-function fitPaySlip() {
-  const box = document.querySelector(".pay-slip");
-  const doc = box?.querySelector(".payslip, .tsc");
-  if (doc) doc.style.zoom = Math.min(1, box.clientWidth / (doc.classList.contains("tsc") ? 720 : 794));
+// 직원이 받는 파일: 명세서는 관리자 PDF 와 같은 A4 한 장, 근무 상세는 카톡 사진과 같은 PNG
+async function paySave() {
+  const v = state.payView;
+  const tab = payTab();
+  const got = v?.cache[slipKey(tab, v.ym)];
+  if (!got?.img) return;
+  const name = employeeById(v.empId)?.name ?? "";
+  const m = Number(v.ym.slice(5));
+  if (tab === "work") {
+    const a = document.createElement("a");
+    a.href = got.img;
+    a.download = `${name} ${m}월 근무.png`;
+    a.click();
+    return;
+  }
+  const jsPDF = await loadLib("jspdf");
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  pdf.addImage(got.img, "JPEG", 0, 0, 210, 297);
+  pdf.save(`${name} ${m}월 급여명세서.pdf`);
 }
-window.addEventListener("resize", () => route().name === "pay" && fitPaySlip());
 
 // 직원용 달력으로 가는 버튼 (새 탭)
 const staffCalLink = (cls = "") =>
@@ -1242,7 +1267,7 @@ function renderMobileShell(active, content) {
     `<a href="#/${key}" class="m-tab${active === key ? " active" : ""}"${active === key ? ' aria-current="page"' : ""}>${label}</a>`;
   return `
     <header class="m-top">
-      <a class="m-store${active === "me" ? " on" : ""}" href="#/me">${esc(storeName())} <span aria-hidden="true">›</span></a>
+      <b class="m-store">${esc(storeName())}</b>
       ${demoLoaded ? "" : staffCalLink("m-staff-link")}
       <button type="button" class="m-tour" data-action="start-tour" aria-label="이 화면 사용법 보기">?</button>
       ${demoLoaded ? `<a class="m-login" href="#/login">로그인</a>` : `<button type="button" class="m-logout" data-action="logout">로그아웃</button>`}
@@ -1251,7 +1276,7 @@ function renderMobileShell(active, content) {
     ${renderInstallHint()}
     <main class="m-main${state.pageEnter ? " page-enter" : ""}">${content}</main>
     <nav class="m-tabbar" aria-label="관리자 메뉴">
-      ${tab("employees", "직원")}${tab("schedule", "근무표")}${tab("calendar", "달력")}${tab("records", "급여")}
+      ${tab("employees", "직원")}${tab("schedule", "근무표")}${tab("calendar", "달력")}${tab("records", "급여")}${tab("me", "정보")}
     </nav>
     ${renderSheet()}
     ${toastHtml()}`;
@@ -1359,6 +1384,31 @@ function renderEmpSheet(e) {
     <div class="sheet-actions">
       <button type="button" class="btn-ghost danger-ghost" data-action="remove-employee" data-id="${e.id}">삭제</button>
       <button type="button" class="btn-primary" data-action="close-sheet">완료</button>
+    </div>`;
+}
+
+// 컴퓨터: 직원 이름을 누르면 뜨는 창 (요일·시급·상태는 표에서 바로 고치고, 여기서는 입사일·퇴사일·계약서)
+function renderEmpModal(e) {
+  const c = latestContract(e.id);
+  const cState = !c ? "아직 안 썼어요" : c.status === "signed" ? `서명 완료 · ${dot(dateStringFor(new Date(c.signedAt ?? c.createdAt)))}` : "작성 중이에요";
+  return `
+    <div class="ps-backdrop emp-back${state.sheetEnter ? " enter" : ""}" data-action="close-sheet">
+      <div class="emp-modal" data-stop role="dialog" aria-modal="true" aria-label="${esc(e.name)} 정보">
+        <div class="emp-modal-head">
+          <span class="swatch big" style="background:${cssColor(e.color)}"></span>
+          <div><h2>${esc(e.name)}</h2><small>사번 ${e.no ?? "-"}${e.phone ? ` · ${esc(formatPhone(e.phone))}` : ""} · ${isManager(e) ? "매니저" : "알바"} · ${e.active ? "재직중" : "비활성"}</small></div>
+        </div>
+        <div class="emp-modal-dates">
+          <label><span>입사일</span><input class="field" type="date" data-empdate="hireDate" data-id="${e.id}" value="${e.hireDate ?? ""}" /></label>
+          <label><span>퇴사일</span><input class="field" type="date" data-empdate="leaveDate" data-id="${e.id}" value="${e.leaveDate ?? ""}" /></label>
+        </div>
+        <p class="emp-modal-note">비활성으로 바꾸면 그날이 퇴사일로 들어가요.</p>
+        <div class="emp-modal-contract">
+          <div><b>근로계약서</b><small class="${c?.status === "signed" ? "ok" : ""}">${cState}</small></div>
+          <button type="button" class="pill${c?.status === "signed" ? " plain-dark" : ""}" data-action="open-contract" data-id="${e.id}">${!c ? "쓰기" : c.status === "signed" ? "보기" : "이어서 쓰기"}</button>
+        </div>
+        <div class="emp-modal-actions"><button type="button" class="btn-primary" data-action="close-sheet">완료</button></div>
+      </div>
     </div>`;
 }
 
@@ -3487,7 +3537,7 @@ const TOURS = {
           { sel: "table.schedule tbody tr:first-child .wage-cell", title: "시급 · 월급", text: "알바는 시급을 고쳐요. <b>월급으로</b>를 누르면 월급제(4대보험) 직원이 되고, 월급은 급여 화면 명세서에서 입력해요." },
           { sel: "table.schedule tbody tr:first-child [data-action=toggle-active]", title: "재직중 · 비활성", text: "그만둔 직원은 <b>비활성</b>으로 바꿔요. 기록은 남고, 달력과 근무표에서만 빠져요." },
           { sel: "table.schedule tbody tr:first-child [data-action=toggle-role]", title: "알바 · 매니저", text: "매니저로 바꾸면 목록 맨 위로 오고 월급제가 돼요. 다시 알바로 바꾸면 시급제로 돌아가요." },
-          { sel: "table.schedule tbody tr:first-child [data-action=open-contract]", title: "근로계약서", text: "직원마다 전자 근로계약서를 써요. 직원 정보로 미리 채워지고, 매장에서 화면에 서명받아요." },
+          { sel: "table.schedule tbody tr:first-child .name-btn", title: "직원 정보", text: "이름을 누르면 <b>입사일·퇴사일</b>과 <b>근로계약서</b>를 관리해요. 계약서는 직원 정보로 미리 채워지고, 매장에서 화면에 서명받아요." },
           { scene: "contract", sel: ".ct-side", title: "계약서 쓰기", text: "기간, 근무 요일·시간, 임금, 사회보험, 사업주 정보를 확인하고 <b>서명 받기</b>를 눌러요. 직원이 먼저, 사장님이 다음에 손가락으로 서명해요." },
           { scene: "contract", sel: ".ct-preview", title: "계약서 미리보기", text: "고용노동부 표준근로계약서 항목대로 만들어져요. 서명이 끝나면 <b>카카오톡 전송</b>이나 <b>PDF</b>로 직원에게 꼭 한 부 줘요." },
         ]
@@ -3854,7 +3904,6 @@ function render() {
       el.classList.add("next-flash");
     }
   }
-  if (r.name === "pay") fitPaySlip();
   state.pageEnter = false;
   state.monthDir = null;
   state.expandEnter = false;
@@ -4135,32 +4184,6 @@ app.addEventListener("click", (e) => {
       state.expandEnter = Boolean(state.expandedId);
       break;
     }
-    case "edit-hire": {
-      const emp = employeeById(id);
-      const ask = (msg, cur) => uiPrompt(msg, { kind: "text", placeholder: cur ? cur.replaceAll("-", "") : "예: 20261001", ok: "저장" });
-      const toDate = (v) => {
-        const d = v.replace(/\D/g, "");
-        if (d.length !== 8) return null;
-        const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
-        return safeDate(iso) && !Number.isNaN(Date.parse(iso)) ? iso : null;
-      };
-      (async () => {
-        const hire = await ask(`${emp.name}님 입사일 (숫자 8자리)`, emp.hireDate);
-        if (hire === null) return;
-        const h = toDate(hire);
-        if (!h) return uiAlert("날짜는 20261001 처럼 숫자 8자리로 써 주세요.");
-        emp.hireDate = h;
-        if (!emp.active) {
-          const leave = await ask(`${emp.name}님 퇴사일 (숫자 8자리)`, emp.leaveDate);
-          const l = leave && toDate(leave);
-          if (l) emp.leaveDate = l;
-        }
-        save();
-        showToast(`${emp.name}님 입사일을 ${dot(h)}로 저장했어요`, "ok");
-        render();
-      })();
-      return;
-    }
     case "edit-shift":
       state.error = "";
       state.editingId = id;
@@ -4355,6 +4378,9 @@ app.addEventListener("click", (e) => {
       return;
     case "pay-open":
       payOpen(id);
+      return;
+    case "pay-save":
+      paySave().catch((err) => uiAlert(err.message));
       return;
     case "pay-close":
       state.payView = null;
@@ -4744,7 +4770,7 @@ const DEMO_ALLOWED = new Set([
   "prev-month", "next-month", "close-panel", "go-home", "toggle-staff", "toggle-help",
   "payroll-prev", "payroll-next", "open-payslip", "close-payslip",
   "open-sheet", "close-sheet", "sched-day", "open-today", "install-app", "dismiss-install", "start-tour",
-  "open-contract", "close-contract", "copy-resume-link", "pay-open", "pay-close", "pay-month",
+  "open-contract", "close-contract", "copy-resume-link", "pay-open", "pay-close", "pay-month", "pay-save",
 ]);
 
 let toastTimer = null;
