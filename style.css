@@ -5507,3 +5507,7 @@ td.name {
 .ui-input ~ .ui-actions {
   margin-top: 16px;
 }
+.ui-input::placeholder {
+  letter-spacing: 0;
+  font-size: 15px;
+}
