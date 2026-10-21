@@ -2258,6 +2258,8 @@ const spanMin = (start, end) => {
   const m = toMin(end) - toMin(start);
   return m > 0 ? m : m + 1440;
 };
+// 주휴일: 근무가 없는 요일 중 일 → 토 → 월~금 순서로 첫 번째 (일요일에 일하는 알바면 쉬는 평일로)
+const pickRestDay = (days) => [0, 6, 1, 2, 3, 4, 5].find((wd) => !days?.[wd]) ?? 0;
 const contractsOf = (empId) => (store.contracts ?? []).filter((c) => c.empId === empId).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 const latestContract = (empId) => contractsOf(empId)[0] ?? null;
 
@@ -2287,7 +2289,7 @@ function newContract(emp) {
       place: storeName(),
       job: biz.job ?? "매장 업무 (음료·음식 준비, 계산, 청소 등)",
       days,
-      restDay: 0,
+      restDay: pickRestDay(days),
       payType: salaried ? "salary" : "hourly",
       wage: emp.hourlyWage ?? DEFAULT_WAGE,
       salary: sal?.salary ?? 0,
@@ -2455,6 +2457,8 @@ function updateContractDraft(t) {
     if (!t.value.trim()) delete f.days[wd];
     else if (r) f.days[wd] = { start: r.start, end: r.end, breakMin: f.days[wd]?.breakMin ?? lawBreak(spanMin(r.start, r.end)) };
     else state.error = `${WEEKDAYS[wd]}요일 시간은 09:00~15:00 처럼 써 주세요.`;
+    // 주휴일로 정해 둔 요일에 근무를 넣으면 쉬는 다른 요일로 옮긴다
+    if (f.days[f.restDay ?? 0]) f.restDay = pickRestDay(f.days);
   } else if (t.dataset.cfbreak) {
     const d = f.days?.[t.dataset.cfbreak];
     if (d) d.breakMin = Math.max(0, Math.min(240, Number(t.value.replace(/\D/g, "")) || 0));
