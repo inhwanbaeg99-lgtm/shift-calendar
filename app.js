@@ -967,6 +967,11 @@ function renderMyPage() {
       </section>
 
       <section class="me-card">
+        <h2>근로계약서 양식 <a class="me-edit" href="#/tpl/contract">양식 수정</a></h2>
+        <p class="me-tpl-sum">${esc([ctTpl().job || "매장 업무 (음료·음식 준비, 계산, 청소 등)", String(ctTpl().extra ?? "").trim() ? `특약 ${String(ctTpl().extra).trim().split("\n").filter((x) => x.trim()).length}개` : ""].filter(Boolean).join(" · "))}</p>
+      </section>
+
+      <section class="me-card">
         <h2>직원 링크 · 근무 상세와 급여명세서</h2>
         <div class="me-link"><span>${demoLoaded ? "로그인하면 주소가 생겨요" : esc(payUrl())}</span><button type="button" class="pill" data-action="copy-pay-link"${demoLoaded ? " disabled" : ""}>주소 복사</button></div>
         <ul class="me-pins">
@@ -983,7 +988,7 @@ function renderMyPage() {
       </section>
 
       <section class="me-card">
-        <h2>이력서 양식</h2>
+        <h2>이력서 양식 <a class="me-edit" href="#/tpl/resume">양식 수정</a></h2>
         <div class="me-link"><span>${esc(resumeUrl())}</span><a class="pill plain-dark" href="${esc(resumeUrl())}" target="_blank" rel="noopener">열기</a><button type="button" class="pill" data-action="copy-resume-link">주소 복사</button></div>
       </section>
 
@@ -1517,6 +1522,7 @@ function renderApplicants() {
             <small>${esc([days(a) && `가능 ${days(a)}`, a.hours, a.start, a.period, a.health && `보건증 ${a.health}`].filter(Boolean).join(" · "))}</small>
             ${(a.careers ?? []).filter((c) => c.w).length ? `<small>경력: ${esc(a.careers.filter((c) => c.w).map((c) => `${c.w}${c.p ? ` (${c.p})` : ""}`).join(", "))}</small>` : ""}
             ${a.intro ? `<small class="app-intro">${esc(a.intro)}</small>` : ""}
+            ${(a.questions ?? []).filter((x) => x.q).map((x) => `<small><b>${esc(x.q)}</b> ${esc(x.a || "-")}</small>`).join("")}
           </div>
           <div class="app-btns">
             <button type="button" class="pill" data-action="hire-applicant" data-rid="${a.rid}">직원으로 등록</button>
@@ -3134,8 +3140,10 @@ function newContract(emp) {
       empAddress: "",
       start: emp.hireDate ?? todayDateString(),
       end: "",
-      place: storeName(),
-      job: biz.job ?? "매장 업무 (음료·음식 준비, 계산, 청소 등)",
+      place: ctTpl().place || storeName(),
+      job: ctTpl().job || biz.job || "매장 업무 (음료·음식 준비, 계산, 청소 등)",
+      payMethod: ctTpl().payMethod || "근로자 명의 예금통장에 입금",
+      extra: ctTpl().extra || "",
       days,
       restDay: pickRestDay(days),
       payType: salaried ? "salary" : "hourly",
@@ -3190,11 +3198,21 @@ function renderContract(c) {
         <li><b>주휴일</b> 매주 ${WEEKDAYS[f.restDay ?? 0]}요일${weekMin < 15 * 60 ? " (1주 소정근로시간 15시간 미만이면 주휴일·주휴수당은 적용되지 않음)" : ""}</li>
         <li><b>임금</b> ${pay}
           <br />주휴수당: 근로기준법에 따라 지급 · 연장·야간·휴일근로: 법령에 따라 지급
-          <br />임금지급일: 매월 <b>${Number(f.payday) || 10}일</b> (휴일이면 전날 지급) · 지급방법: 근로자 명의 예금통장에 입금
+          <br />임금지급일: 매월 <b>${Number(f.payday) || 10}일</b> (휴일이면 전날 지급) · 지급방법: ${esc(f.payMethod || "근로자 명의 예금통장에 입금")}
         </li>
         <li><b>연차유급휴가</b> 근로기준법에서 정하는 바에 따라 부여함 (상시 근로자 5명 미만 사업장은 적용되지 않을 수 있음)</li>
         <li><b>사회보험 적용</b> ${box(ins.employ)} 고용보험 ${box(ins.accident)} 산재보험 ${box(ins.pension)} 국민연금 ${box(ins.health)} 건강보험</li>
         <li><b>근로계약서 교부</b> 사업주는 근로계약을 체결함과 동시에 본 계약서를 사본하여 근로자의 교부 요구와 관계없이 근로자에게 교부함</li>
+        ${
+          String(f.extra ?? "").trim()
+            ? `<li><b>특약 사항</b>${String(f.extra)
+                .split("\n")
+                .map((x) => x.trim())
+                .filter(Boolean)
+                .map((x) => `<br />· ${esc(x)}`)
+                .join("")}</li>`
+            : ""
+        }
         <li><b>기타</b> 이 계약에 정함이 없는 사항은 근로기준법령에 의함</li>
       </ol>
       <p class="ct-date">${krDate(c.signedAt ? dateStringFor(new Date(c.signedAt)) : todayDateString())}</p>
@@ -3239,7 +3257,7 @@ function contractForm(c) {
   const input = (key, label, value, extra = "") =>
     `<label class="ct-row"><span>${label}</span><input class="field" data-cf="${key}" value="${esc(value ?? "")}" ${extra} /></label>`;
   if (c.status === "emp-signed") {
-    return `<p class="staff-title">${page ? "근로계약서" : `${esc(f.empName)} · 근로계약서`} <span class="pay-tag">직원 서명 완료</span></p>
+    return `${page ? "" : `<p class="staff-title">${esc(f.empName)} · 근로계약서 <span class="pay-tag">직원 서명 완료</span></p>`}
       <p class="ct-remote ok">${esc(f.empName)}님이 ${c.empSignedAt ? dot(dateStringFor(new Date(c.empSignedAt))) : ""} 직원 링크에서 서명했어요. 사장님 서명만 남았어요.</p>
       <div class="ct-actions-col">
         <button type="button" class="btn-primary" data-action="sign-owner">사장님 서명하기</button>
@@ -3248,7 +3266,6 @@ function contractForm(c) {
   }
   const form = signed
     ? `
-      <p class="sub">서명이 끝난 계약서예요. 내용을 바꾸려면 새 계약서를 써서 다시 서명받아요.</p>
       <div class="ct-actions-col">
         <button type="button" class="btn-primary" data-action="contract-share">카카오톡 전송하기</button>
         <button type="button" class="btn-ghost" data-action="contract-pdf">PDF 받기</button>
@@ -3264,6 +3281,7 @@ function contractForm(c) {
         ${input("end", "끝나는 날 <small>비우면 기간 없음</small>", f.end, 'type="date"')}
         ${input("place", "근무 장소", f.place)}
         ${input("job", "업무 내용", f.job)}
+        <label class="ct-row ct-row-col"><span>특약 사항 <small>한 줄에 하나씩</small></span><textarea class="field" data-cf="extra" rows="3" placeholder="예: 수습기간 3개월">${esc(f.extra ?? "")}</textarea></label>
         <p class="sal-title">근무 요일 · 시간 <small>예: 09:00~15:00, 비우면 쉬는 날</small></p>
         ${CONTRACT_DAYS.map((wd) => {
           const d = f.days?.[wd];
@@ -3297,8 +3315,89 @@ function contractForm(c) {
         <button type="button" class="btn-ghost" data-action="sign-contract">매장에서 서명받기</button>
         <button type="button" class="btn-primary" data-action="send-contract-remote">${c.status === "sent" ? "다시 보내기" : "직원 휴대폰으로 서명받기"}</button>
       </div>`;
-  return `<p class="staff-title">${page ? "근로계약서" : `${esc(f.empName)} · 근로계약서`}${signed ? ` <span class="pay-tag">서명 완료</span>` : ""}</p>
+  return `${page ? "" : `<p class="staff-title">${esc(f.empName)} · 근로계약서${signed ? ` <span class="pay-tag">서명 완료</span>` : ""}</p>`}
           ${form}`;
+}
+
+// ---------- 양식 수정: 근로계약서 · 이력서 ----------
+const ctTpl = () => store.settings?.ctTpl ?? {};
+const resumeTpl = () => parse(remote?.pub?.resumeTpl, {}) ?? {};
+const RESUME_OPTIONAL = [
+  ["birth", "생년월일"],
+  ["area", "사는 곳"],
+  ["health", "보건증"],
+  ["career", "경력"],
+  ["school", "학교 · 학력"],
+  ["intro", "하고 싶은 말"],
+];
+function renderTplContract() {
+  const t = ctTpl();
+  const sampleEmp = store.employees.find((e) => e.active) ?? { id: "sample", name: "홍길동", weekly: { 1: { start: "09:00", end: "15:00" }, 3: { start: "09:00", end: "15:00" } }, hourlyWage: DEFAULT_WAGE };
+  const sample = newContract(sampleEmp);
+  const field = (k, label, ph) => `<label class="info-row"><span>${label}</span><input class="field" data-ctpl="${k}" value="${esc(t[k] ?? "")}" placeholder="${esc(ph)}" /></label>`;
+  return renderAdminShell(
+    "me",
+    `
+    <div class="emp-page">
+      <div class="emp-page-head">
+        <a class="pay-back-btn" href="#/me" aria-label="정보로">${ICON_PREV}</a>
+        <div class="emp-title"><h1>근로계약서 양식</h1></div>
+      </div>
+      <div class="emp-page-body">
+        <div class="emp-ct-side">
+          <section class="info-card">
+            <h2>기본으로 들어갈 내용</h2>
+            ${field("job", "업무 내용", "매장 업무 (음료·음식 준비, 계산, 청소 등)")}
+            ${field("place", "근무 장소", storeName())}
+            ${field("payMethod", "지급 방법", "근로자 명의 예금통장에 입금")}
+          </section>
+          <section class="info-card">
+            <h2>특약 사항 <small>한 줄에 하나씩</small></h2>
+            <textarea class="field tpl-area" data-ctpl="extra" rows="6" placeholder="예: 수습기간은 3개월로 한다.&#10;예: 유니폼은 매장에서 지급한다.">${esc(t.extra ?? "")}</textarea>
+          </section>
+          <p class="sal-note">새로 쓰는 계약서부터 들어가요. 이미 쓴 계약서는 그대로예요.</p>
+        </div>
+        <div class="emp-ct-preview">${renderContract(sample)}</div>
+      </div>
+    </div>`,
+    { center: true },
+  );
+}
+function renderTplResume() {
+  const t = resumeTpl();
+  const off = t.off ?? {};
+  const qs = [...(t.qs ?? []), "", "", ""].slice(0, 3);
+  return renderAdminShell(
+    "me",
+    `
+    <div class="emp-page">
+      <div class="emp-page-head">
+        <a class="pay-back-btn" href="#/me" aria-label="정보로">${ICON_PREV}</a>
+        <div class="emp-title"><h1>이력서 양식</h1></div>
+      </div>
+      <div class="info-cards">
+        <section class="info-card">
+          <h2>첫 화면 인사말</h2>
+          <textarea class="field tpl-area" data-rtpl="hello" rows="3" placeholder="예: 온의동 콕카페에서 주말에 함께 일할 분을 찾아요!">${esc(t.hello ?? "")}</textarea>
+          <h2>묻는 항목</h2>
+          <div class="info-row"><span>이름 · 연락처</span><b class="muted">항상 물어요</b></div>
+          <div class="info-row"><span>가능한 요일 · 시작일</span><b class="muted">항상 물어요</b></div>
+          ${RESUME_OPTIONAL.map(([k, l]) => `<div class="info-row"><span>${l}</span><button type="button" class="switch${off[k] ? "" : " on"}" data-action="rtpl-toggle" data-key="${k}" aria-pressed="${!off[k]}"><i></i></button></div>`).join("")}
+        </section>
+        <section class="info-card">
+          <h2>우리 매장 추가 질문 <small>3개까지</small></h2>
+          ${qs.map((q, i) => `<label class="info-row"><span>질문 ${i + 1}</span><input class="field" data-rtpl-q="${i}" value="${esc(q)}" placeholder="${["예: 주말 마감까지 가능한가요?", "예: 커피 만들어 본 적 있나요?", "예: 집에서 매장까지 얼마나 걸려요?"][i]}" /></label>`).join("")}
+          <div class="info-actions"><a class="pill plain-dark" href="${esc(resumeUrl())}" target="_blank" rel="noopener">이력서 미리보기</a></div>
+        </section>
+      </div>
+    </div>`,
+    { center: true },
+  );
+}
+async function saveResumeTpl(t) {
+  if (demoLoaded) return;
+  remote.pub = { ...(remote.pub ?? {}), resumeTpl: JSON.stringify(t) };
+  await cloud.db.ref(storePath("public/resumeTpl")).set(JSON.stringify(t));
 }
 
 // ---------- 노무 점검: 지금 위험한 것을 빨간불로 ----------
@@ -3333,16 +3432,22 @@ function renderLaborCard() {
   if (!store.employees.some((e) => e.active)) return "";
   const list = laborChecks();
   const bad = list.filter((x) => x.level === "bad").length;
-  const open = state.laborOpen ?? bad > 0;
+  const warn = list.length - bad;
+  const open = Boolean(state.laborOpen);
+  const icon = svg(18, '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/>' + (list.length ? '<path d="M12 8v5M12 16.5v.01"/>' : '<path d="m8.5 12 2.5 2.5 4.5-5"/>'), 2.25);
   return `
-    <section class="labor${bad ? " has-bad" : list.length ? " has-warn" : " ok"}">
-      <button type="button" class="labor-head" data-action="toggle-labor" aria-expanded="${open}">
-        <b>노무 점검</b>
-        <span>${list.length ? `${bad ? `<em class="bad">위험 ${bad}</em>` : ""}${list.length - bad ? `<em class="warn">확인 ${list.length - bad}</em>` : ""}` : `<em class="good">문제 없어요</em>`}</span>
+    <section class="labor${open ? " open" : ""}">
+      <button type="button" class="labor-chip ${bad ? "bad" : warn ? "warn" : "ok"}" data-action="toggle-labor" aria-expanded="${open}">
+        ${icon}<b>노무 점검</b>${list.length ? `${bad ? `<em class="bad">${bad}</em>` : ""}${warn ? `<em class="warn">${warn}</em>` : ""}` : `<em class="ok">문제 없어요</em>`}
       </button>
       ${
         open && list.length
-          ? `<ul>${list.map((x) => `<li class="${x.level}">${x.emp ? `<a href="#/emp/${x.emp}">` : "<div>"}<b>${esc(x.title)}</b><small>${esc(x.text)}</small>${x.emp ? "</a>" : "</div>"}</li>`).join("")}</ul>`
+          ? `<div class="labor-grid">${list
+              .map((x, i) => {
+                const inner = `<span class="labor-tag">${{ bad: "위험", warn: "확인", info: "참고" }[x.level]}</span><b>${esc(x.title)}</b><small>${esc(x.text)}</small>`;
+                return x.emp ? `<a class="labor-box ${x.level}" style="--i:${i}" href="#/emp/${x.emp}">${inner}</a>` : `<div class="labor-box ${x.level}" style="--i:${i}">${inner}</div>`;
+              })
+              .join("")}</div>`
           : ""
       }
     </section>`;
@@ -3505,7 +3610,7 @@ function fitContractPreview() {
   const doc = box?.querySelector(".contract-doc");
   if (doc) doc.style.zoom = Math.min(0.9, box.clientWidth / 794);
 }
-window.addEventListener("resize", () => route().name === "emp" && fitContractPreview());
+window.addEventListener("resize", () => ["emp", "tpl-contract"].includes(route().name) && fitContractPreview());
 
 // 편집 칸 → 초안
 function updateContractDraft(t) {
@@ -4030,6 +4135,7 @@ function renderScheduleSheet({ wide = false, share = false } = {}) {
       <div class="tl${compact ? " compact" : ""}">
         <div class="tl-axis"><div></div><div class="tl-hours">${axis}</div></div>
         ${rows}
+        ${share ? "" : `<div class="tl-cost" data-html2canvas-ignore>${renderSchedCost()}</div>`}
       </div>
       ${compact ? actions : ""}
       <p class="sc-brand">${esc(storeName())} · ${todayDateString().replaceAll("-", ".")} 출력 · 콕</p>
@@ -4091,8 +4197,8 @@ function renderSchedCost() {
 }
 
 function renderSchedStatus() {
-  if (!hasDraft()) return renderSchedCost();
-  return renderSchedCost() + (schedDirty()
+  if (!hasDraft()) return "";
+  return (schedDirty()
     ? `<p class="sched-status warn">저장하지 않은 변경이 있어요. <b>저장</b>을 눌러야 직원 관리·달력·근무 기록에 반영돼요.</p>`
     : `<p class="sched-status">임시저장된 변경이 있어요. <b>저장</b>을 누르면 반영돼요.</p>`);
 }
@@ -4602,6 +4708,8 @@ function route() {
   const day = hash.match(/^\/day\/(\d{4}-\d{2}-\d{2})$/);
   if (day) return { name: "day", date: day[1] };
   if (!ADMIN_SITE) return { name: hash === "/tax" ? "tax" : ["/my", "/pay", "/work"].includes(hash) ? "pay" : "home" };
+  if (hash === "/tpl/contract") return { name: "tpl-contract" };
+  if (hash === "/tpl/resume") return { name: "tpl-resume" };
   const emp = hash.match(/^\/emp\/([\w-]+)$/);
   if (emp) return { name: "emp", id: emp[1] };
   const page = { "/records": "records", "/schedule": "schedule", "/calendar": "calendar", "/me": "me" }[hash];
@@ -4627,6 +4735,8 @@ function render() {
   else if (r.name === "schedule") app.innerHTML = renderSchedule();
   else if (r.name === "me") app.innerHTML = renderMyPage();
   else if (r.name === "emp") app.innerHTML = renderEmpPage(r.id);
+  else if (r.name === "tpl-contract") app.innerHTML = renderTplContract();
+  else if (r.name === "tpl-resume") app.innerHTML = renderTplResume();
   else if (r.name === "pay") app.innerHTML = renderPayPage();
   else if (r.name === "tax") app.innerHTML = renderTaxPage();
   else app.innerHTML = renderHome();
@@ -4641,7 +4751,7 @@ function render() {
   if (period) fitPeriod(period);
   lockDemoFields();
   placeNavPill();
-  if (r.name === "emp") fitContractPreview();
+  if (r.name === "emp" || r.name === "tpl-contract") fitContractPreview();
   if (r.name === "pay") {
     const box = document.querySelector(".pay-ct");
     const doc = box?.querySelector(".contract-doc");
@@ -5236,10 +5346,15 @@ app.addEventListener("click", (e) => {
     case "add-store":
       addStore().catch((err) => uiAlert(`매장을 만들지 못했어요. ${err.message}`));
       return;
-    case "toggle-labor": {
-      const bad = laborChecks().some((x) => x.level === "bad");
-      state.laborOpen = !(state.laborOpen ?? bad);
+    case "toggle-labor":
+      state.laborOpen = !state.laborOpen;
       break;
+    case "rtpl-toggle": {
+      const tpl = resumeTpl();
+      tpl.off = { ...(tpl.off ?? {}), [el.dataset.key]: !tpl.off?.[el.dataset.key] };
+      saveResumeTpl(tpl).catch((err) => uiAlert(err.message));
+      render();
+      return;
     }
     case "emp-tab":
       state.empTab = el.dataset.tab;
@@ -5821,6 +5936,24 @@ app.addEventListener("change", (e) => {
     render();
     return;
   }
+  if (t.dataset.ctpl) {
+    store.settings = { ...store.settings, ctTpl: { ...ctTpl(), [t.dataset.ctpl]: t.value.trim().slice(0, t.dataset.ctpl === "extra" ? 1000 : 120) } };
+    save();
+    render();
+    return;
+  }
+  if (t.dataset.rtpl || t.dataset.rtplQ !== undefined) {
+    const tpl = resumeTpl();
+    if (t.dataset.rtpl) tpl[t.dataset.rtpl] = t.value.trim().slice(0, 200);
+    else {
+      const qs = [...(tpl.qs ?? []), "", "", ""].slice(0, 3);
+      qs[Number(t.dataset.rtplQ)] = t.value.trim().slice(0, 80);
+      tpl.qs = qs;
+    }
+    saveResumeTpl(tpl).catch((err) => uiAlert(err.message));
+    showToast("이력서 양식을 저장했어요", "ok");
+    return;
+  }
   if (t.dataset.empf) {
     const emp = employeeById(t.dataset.id);
     const v = t.value.trim().slice(0, 40);
@@ -6163,7 +6296,7 @@ function cleanContracts(list) {
       signedAt: safeIso(c.signedAt) ? c.signedAt : null,
       sentAt: safeIso(c.sentAt) ? c.sentAt : null,
       empSignedAt: safeIso(c.empSignedAt) ? c.empSignedAt : null,
-      f: JSON.parse(JSON.stringify(c.f, (k, v) => (typeof v === "string" ? v.slice(0, 300) : v))),
+      f: JSON.parse(JSON.stringify(c.f, (k, v) => (typeof v === "string" ? v.slice(0, k === "extra" ? 1000 : 300) : v))),
       empSign: sign(c.empSign),
       ownerSign: sign(c.ownerSign),
     }));
