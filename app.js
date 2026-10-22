@@ -1142,17 +1142,19 @@ function renderPinPad() {
   const p = state.payPin;
   const emp = employeeById(p.empId);
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
+  // 컴퓨터(마우스·키보드)는 화면 키패드 없이 키보드로 누른다
+  const desk = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   return `
     <div class="pay-who"><button type="button" class="pay-back-btn" data-action="pay-close" aria-label="이전">${ICON_BACK}</button><b>${esc(emp?.name ?? "")}님</b></div>
-    <p class="pin-guide">${p.busy ? "확인하는 중이에요…" : "PIN 6자리를 눌러주세요"}</p>
+    <p class="pin-guide">${p.busy ? "확인하는 중이에요…" : desk ? "키보드로 PIN 6자리를 입력해주세요" : "PIN 6자리를 눌러주세요"}</p>
     <div class="pin-dots${p.shake ? " shake" : ""}" aria-label="${p.digits.length}자리 입력됨">${Array.from({ length: 6 }, (_, i) => `<i class="${i < p.digits.length ? "on" : ""}"></i>`).join("")}</div>
-    <div class="pin-pad">${keys
+    ${desk ? "" : `<div class="pin-pad">${keys
       .map((k) =>
         k === ""
           ? `<span></span>`
           : `<button type="button" data-action="pin-key" data-key="${k}"${p.busy ? " disabled" : ""}${k === "del" ? ' aria-label="지우기"' : ""}>${k === "del" ? "⌫" : k}</button>`,
       )
-      .join("")}</div>`;
+      .join("")}</div>`}`;
 }
 
 function renderPayPage() {
