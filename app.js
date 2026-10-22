@@ -3359,56 +3359,82 @@ function renderEmpPage(id) {
     state.contractDirty = false;
   }
   const c = state.contractDraft;
+  const retired = Boolean(e.leaveDate) || !e.active;
+  const tab = state.empTab === "info" || (state.empTab === "leave" && retired) ? state.empTab : "contract";
   const history = contractsOf(id).filter((x) => x.status === "signed" && x.id !== c.id);
-  const content = `
-    <div class="emp-page">
-      <div class="emp-page-head">
-        <a class="pay-back-btn" href="#/employees" aria-label="직원 목록으로">${ICON_PREV}</a>
-        <span class="swatch big" style="background:${cssColor(e.color)}"></span>
-        <div><h1>${esc(e.name)}</h1><small>사번 ${e.no ?? "-"} · ${isManager(e) ? "매니저" : "알바"} · ${e.active ? "재직중" : "비활성"}${e.phone ? ` · ${esc(formatPhone(e.phone))}` : ""}</small></div>
-      </div>
-      ${renderEmpInfo(e)}
+  const ctState = { signed: ["ok", "서명 완료"], sent: ["wait", "서명 대기"], "emp-signed": ["wait", "사장님 서명 남음"], draft: ["", "작성 중"] }[c.status] ?? ["", "작성 중"];
+  const badge = (text, cls = "") => `<span class="emp-badge${cls ? ` ${cls}` : ""}">${esc(text)}</span>`;
+  const tabBtn = (key, label, extra = "") => `<button type="button" role="tab" class="${tab === key ? "on" : ""}" aria-selected="${tab === key}" data-action="emp-tab" data-tab="${key}">${label}${extra}</button>`;
+  let body;
+  if (tab === "info") body = renderEmpInfo(e);
+  else if (tab === "leave") body = renderEmpLeave(e);
+  else
+    body = `
       <div class="emp-page-body">
         <div class="ct-side emp-ct-side">
           ${contractForm(c)}
           ${history.length ? `<p class="sal-note">이전 계약서: ${history.map((h) => `<button type="button" class="link-btn" data-action="view-contract" data-cid="${h.id}">${dot(dateStringFor(new Date(h.signedAt ?? h.createdAt)))}</button>`).join(" · ")}</p>` : ""}
         </div>
         <div class="emp-ct-preview">${renderContract(c)}</div>
+      </div>`;
+  const content = `
+    <div class="emp-page">
+      <div class="emp-page-head">
+        <a class="pay-back-btn" href="#/employees" aria-label="직원 목록으로">${ICON_PREV}</a>
+        <div class="emp-title">
+          <h1><span class="swatch big" style="background:${cssColor(e.color)}"></span>${esc(e.name)}</h1>
+          <div class="emp-badges">
+            ${badge(`사번 ${e.no ?? "-"}`)}${badge(isManager(e) ? "매니저" : "알바")}${badge(e.active ? "재직중" : "비활성", e.active ? "ok" : "")}${isSalaried(e) ? badge("월급제") : ""}${e.phone ? badge(formatPhone(e.phone), "plain") : ""}
+          </div>
+        </div>
       </div>
+      <div class="emp-tabs" role="tablist">
+        ${tabBtn("contract", "근로계약서", `<em class="${ctState[0]}">${ctState[1]}</em>`)}
+        ${tabBtn("info", "기본 정보")}
+        ${retired ? tabBtn("leave", "퇴사 처리") : ""}
+      </div>
+      ${body}
     </div>`;
   return renderAdminShell("employees", content, { center: true });
 }
-// 직원 페이지 위: 보건증 만료일 · 급여 계좌, 퇴사한 직원은 퇴직금 · 경력증명서
+// 기본 정보: 왼쪽 이름표, 오른쪽 값 (설정 화면처럼)
 function renderEmpInfo(e) {
-  const f = (k, label, ph, extra = "") => `<label class="me-field"><span>${label}</span><input class="field" data-empf="${k}" data-id="${e.id}" value="${esc(e[k] ?? "")}" placeholder="${esc(ph)}" ${extra}/></label>`;
-  const sev = e.leaveDate || !e.active ? severance(e) : null;
+  const row = (k, label, ph, extra = "") =>
+    `<label class="info-row"><span>${label}</span><input class="field" data-empf="${k}" data-id="${e.id}" value="${esc(e[k] ?? "")}" placeholder="${esc(ph)}" ${extra}/></label>`;
+  const view = (label, value) => `<div class="info-row"><span>${label}</span><b>${esc(value || "-")}</b></div>`;
   return `
-    <div class="emp-info">
-      <section class="me-card">
-        <h2>직원 정보</h2>
-        <div class="me-grid emp-info-grid">
-          ${f("healthExp", "보건증 만료일", "", 'type="date"')}
-          ${f("bank", "은행", "국민은행")}
-          ${f("account", "계좌번호", "000000-00-000000", 'inputmode="numeric"')}
-          ${f("holder", "예금주", e.name)}
+    <div class="info-cards">
+      <section class="info-card">
+        <h2>근무</h2>
+        ${view("입사일", e.hireDate ? dot(e.hireDate) : "")}
+        ${e.leaveDate ? view("퇴사일", dot(e.leaveDate)) : ""}
+        ${view("급여", isSalaried(e) ? "월급제" : `시급 ${won(Number(e.hourlyWage) || DEFAULT_WAGE)}`)}
+        ${view("연락처", e.phone ? formatPhone(e.phone) : "")}
+        ${row("healthExp", "보건증 만료일", "", 'type="date"')}
+      </section>
+      <section class="info-card">
+        <h2>급여 계좌 <small>이체 파일에 들어가요</small></h2>
+        ${row("bank", "은행", "국민은행")}
+        ${row("account", "계좌번호", "000000-00-000000", 'inputmode="numeric"')}
+        ${row("holder", "예금주", e.name)}
+      </section>
+    </div>`;
+}
+// 퇴사 처리: 근무 기간 · 퇴직금(참고용) · 경력증명서
+function renderEmpLeave(e) {
+  const sev = severance(e);
+  return `
+    <div class="info-cards">
+      <section class="info-card">
+        <h2>퇴사 처리</h2>
+        <div class="info-row"><span>근무 기간</span><b>${dot(sev.from)} ~ ${dot(sev.to)} <small>(${sev.days.toLocaleString()}일)</small></b></div>
+        <div class="info-row"><span>퇴직금</span><b>${sev.eligible ? `${won(sev.amount)} <small>(참고용)</small>` : `대상 아님 <small>${esc(sev.reason)}</small>`}</b></div>
+        ${sev.eligible ? `<p class="info-note">최근 3개월 임금 ${won(sev.wages3)} ÷ ${sev.days3}일 = 1일 평균임금 ${won(Math.round(sev.avgDay))} × 30일 × ${(sev.days / 365).toFixed(2)}년</p>` : ""}
+        <div class="info-actions">
+          <button type="button" class="pill" data-action="career-cert" data-id="${e.id}">경력증명서 PDF</button>
+          <a class="pill plain-dark" href="#/records">마지막 달 명세서</a>
         </div>
       </section>
-      ${
-        sev
-          ? `<section class="me-card">
-          <h2>퇴사 처리</h2>
-          <ul class="sev">
-            <li><span>근무 기간</span><b>${dot(sev.from)} ~ ${dot(sev.to)} (${sev.days.toLocaleString()}일)</b></li>
-            <li><span>퇴직금</span><b>${sev.eligible ? `${won(sev.amount)} <small>(참고용)</small>` : `대상 아님 <small>${esc(sev.reason)}</small>`}</b></li>
-            ${sev.eligible ? `<li><span>계산</span><small>최근 3개월 임금 ${won(sev.wages3)} ÷ ${sev.days3}일 = 1일 평균임금 ${won(Math.round(sev.avgDay))} × 30일 × ${(sev.days / 365).toFixed(2)}년</small></li>` : ""}
-          </ul>
-          <div class="store-manage-actions">
-            <button type="button" class="pill" data-action="career-cert" data-id="${e.id}">경력증명서 PDF</button>
-            <a class="pill plain-dark" href="#/records">마지막 달 명세서</a>
-          </div>
-        </section>`
-          : ""
-      }
     </div>`;
 }
 // 퇴직금 (참고용): 1년 이상 · 주 15시간 이상이면 1일 평균임금 × 30일 × 근속연수
@@ -4671,6 +4697,7 @@ window.addEventListener("hashchange", () => {
   resetDayUi();
   state.payslipId = null;
   state.payTab = null;
+  state.empTab = null;
   // 직원 페이지를 떠나면: 고친 초안은 저장하고 닫는다
   if (!location.hash.startsWith("#/emp/")) {
     if (state.contractDirty && state.contractDraft?.status === "draft") saveContractDraft(state.contractDraft);
@@ -5214,6 +5241,9 @@ app.addEventListener("click", (e) => {
       state.laborOpen = !(state.laborOpen ?? bad);
       break;
     }
+    case "emp-tab":
+      state.empTab = el.dataset.tab;
+      break;
     case "career-cert":
       careerCertPdf(el, id).catch((err) => uiAlert(err.message));
       return;
