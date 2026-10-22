@@ -905,6 +905,7 @@ function renderEmployees() {
   return renderAdminShell(
     "employees",
     `
+    ${renderLaborCard()}
     <form class="toolbar" id="add-employee" style="margin-bottom:32px">
       <div><span class="f-label" id="f-role-label">구분</span><div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>매니저</span></label></div></div>
       <div><label for="f-name">이름</label><input id="f-name" class="field" style="width:112px" placeholder="홍길동" required /></div>
@@ -1419,6 +1420,7 @@ function renderEmployeesMobile() {
             <button type="button" class="pill" data-action="copy-staff-link">주소 복사</button>
           </div>`
     }
+    ${renderLaborCard()}
     <div class="m-list">${list || `<p class="m-empty">아직 직원이 없어요.<br />오른쪽 위 <b>+ 추가</b>로 등록해주세요.</p>`}</div>
     ${policyLinks()}
     ${renderContractModal()}`,
@@ -1595,6 +1597,7 @@ function renderRecordsMobile() {
     </details>
     <div class="m-btns">
       <button type="button" class="btn-ghost" data-action="export-ledger"${rows.length ? "" : " disabled"}>급여대장 받기</button>
+      <button type="button" class="btn-ghost" data-action="export-transfer"${rows.length ? "" : " disabled"}>이체 파일</button>
       <button type="button" class="btn-primary" data-action="payslip-pdf-all"${rows.length ? "" : " disabled"}>명세서 PDF 전체</button>
     </div>
     ${renderPayslipModal()}`,
@@ -2182,6 +2185,7 @@ function renderRecords() {
       <div class="head-actions">
         ${employeeId ? `<button type="button" class="pill" data-action="share-ts-image" data-id="${employeeId}">카카오톡 전송하기</button>` : ""}
         <button type="button" class="pill plain-dark" data-action="export-ledger"${rows.length ? "" : " disabled"} title="세무사에게 보내는 급여대장 (알바·직원·날짜별 근무시간·주휴수당 내역)">급여대장 받기</button>
+        <button type="button" class="pill plain-dark" data-action="export-transfer"${rows.length ? "" : " disabled"} title="은행 대량이체에 올리는 엑셀 (직원 페이지의 계좌 정보로 만들어요)">이체 파일</button>
       </div>
     </div>
     ${renderTimesheet(month, employeeId)}
@@ -2358,6 +2362,32 @@ async function withBusy(button, text, task) {
     button.disabled = false;
     button.textContent = label;
   }
+}
+
+// ---------- 급여 대량이체 파일 (은행 홈페이지에 올리는 엑셀) ----------
+function exportTransfer(button) {
+  return withBusy(button, "만드는 중…", async () => {
+    const XLSX = await loadLib("xlsx");
+    const { month } = state.payroll;
+    const m = Number(month.slice(5));
+    const { rows } = payrollFor(month, "");
+    const out = [["은행", "계좌번호", "예금주", "이체금액", "받는 분 통장 표시", "내 통장 표시", "메모"]];
+    const missing = [];
+    for (const r of rows) {
+      if (r.net === null || !r.net) continue;
+      if (!r.emp.bank || !r.emp.account) missing.push(r.emp.name);
+      out.push([r.emp.bank ?? "", (r.emp.account ?? "").replace(/[^\d-]/g, ""), r.emp.holder || r.emp.name, r.net, `${storeName()} ${m}월급여`.slice(0, 20), `${r.emp.name} ${m}월급여`.slice(0, 20), r.emp.bank && r.emp.account ? "" : "계좌 정보 없음"]);
+    }
+    const ws = XLSX.utils.aoa_to_sheet(out);
+    ws["!cols"] = [10, 20, 10, 12, 20, 20, 16].map((wch) => ({ wch }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "대량이체");
+    const bytes = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    const saved = await saveXlsxBytes(new Uint8Array(bytes), `${storeName()} ${m}월 급여 이체.xlsx`);
+    if (!saved) return;
+    if (missing.length) uiAlert(`저장했어요. ${missing.join(", ")}님은 계좌 정보가 없어요.\n직원 페이지에서 은행·계좌번호를 넣어 주세요.`);
+    else showToast("이체 파일을 저장했어요. 은행 대량이체에 올려 주세요", "ok");
+  });
 }
 
 // ---------- 엑셀 파일 저장 ----------
@@ -2797,6 +2827,53 @@ function contractForm(c) {
           ${form}`;
 }
 
+// ---------- 노무 점검: 지금 위험한 것을 빨간불로 ----------
+function laborChecks() {
+  const ym = todayDateString().slice(0, 7);
+  const today = todayDateString();
+  const soon = addDays(today, 30);
+  const act = store.employees.filter((e) => e.active);
+  const names = (list) => list.map((e) => e.name).join(", ");
+  const out = [];
+  const noContract = act.filter((e) => latestContract(e.id)?.status !== "signed");
+  if (noContract.length) out.push({ level: "bad", title: `근로계약서를 안 쓴 직원 ${noContract.length}명`, text: `${names(noContract)} · 서면 근로계약서가 없으면 벌금(최대 500만 원) 대상이에요.`, emp: noContract[0].id });
+  const lowWage = act.filter((e) => !isSalaried(e) && Number(e.hourlyWage) < DEFAULT_WAGE);
+  if (lowWage.length) out.push({ level: "bad", title: `최저시급보다 낮은 직원 ${lowWage.length}명`, text: `${names(lowWage)} · 2026년 최저시급은 ${DEFAULT_WAGE.toLocaleString()}원이에요.`, emp: lowWage[0].id });
+  const noBreak = act.filter((e) => {
+    const c = latestContract(e.id);
+    return c && Object.values(c.f.days ?? {}).some((d) => (Number(d.breakMin) || 0) < lawBreak(spanMin(d.start, d.end)));
+  });
+  if (noBreak.length) out.push({ level: "bad", title: `휴게시간이 부족한 계약 ${noBreak.length}명`, text: `${names(noBreak)} · 4시간 일하면 30분, 8시간이면 1시간 휴게를 줘야 해요.`, emp: noBreak[0].id });
+  const noDed = act.filter((e) => isSalaried(e) && !salaryFor(e.id, ym)?.ded);
+  if (noDed.length) out.push({ level: "warn", title: `공제액을 안 넣은 월급제 직원 ${noDed.length}명`, text: `${names(noDed)} · 세무사에게 받은 4대보험·소득세를 급여 화면 명세서에 넣어 주세요.` });
+  const expired = act.filter((e) => e.healthExp && e.healthExp < today);
+  if (expired.length) out.push({ level: "bad", title: `보건증이 만료된 직원 ${expired.length}명`, text: `${names(expired)} · 위생 점검에서 걸려요. 다시 발급받게 해 주세요.`, emp: expired[0].id });
+  const expiring = act.filter((e) => e.healthExp && e.healthExp >= today && e.healthExp <= soon);
+  if (expiring.length) out.push({ level: "warn", title: `30일 안에 보건증 만료 ${expiring.length}명`, text: expiring.map((e) => `${e.name} ${dot(e.healthExp)}`).join(", "), emp: expiring[0].id });
+  const noHealth = act.filter((e) => !e.healthExp);
+  if (noHealth.length) out.push({ level: "info", title: `보건증 만료일을 안 넣은 직원 ${noHealth.length}명`, text: `${names(noHealth)} · 직원 페이지에서 넣으면 만료 전에 알려 드려요.`, emp: noHealth[0].id });
+  if (act.length >= 5) out.push({ level: "warn", title: "상시 근로자 5명 이상", text: "5인 이상 매장은 연장·야간·휴일 가산수당(1.5배)과 연차휴가가 필요해요. 콕은 아직 가산수당을 계산하지 않아요." });
+  return out;
+}
+function renderLaborCard() {
+  if (!store.employees.some((e) => e.active)) return "";
+  const list = laborChecks();
+  const bad = list.filter((x) => x.level === "bad").length;
+  const open = state.laborOpen ?? bad > 0;
+  return `
+    <section class="labor${bad ? " has-bad" : list.length ? " has-warn" : " ok"}">
+      <button type="button" class="labor-head" data-action="toggle-labor" aria-expanded="${open}">
+        <b>노무 점검</b>
+        <span>${list.length ? `${bad ? `<em class="bad">위험 ${bad}</em>` : ""}${list.length - bad ? `<em class="warn">확인 ${list.length - bad}</em>` : ""}` : `<em class="good">문제 없어요</em>`}</span>
+      </button>
+      ${
+        open && list.length
+          ? `<ul>${list.map((x) => `<li class="${x.level}">${x.emp ? `<a href="#/emp/${x.emp}">` : "<div>"}<b>${esc(x.title)}</b><small>${esc(x.text)}</small>${x.emp ? "</a>" : "</div>"}</li>`).join("")}</ul>`
+          : ""
+      }
+    </section>`;
+}
+
 // ---------- 직원 페이지 (#/emp/{id}): 들어가면 바로 근로계약서 ----------
 function renderEmpPage(id) {
   const e = employeeById(id);
@@ -2816,6 +2893,7 @@ function renderEmpPage(id) {
         <span class="swatch big" style="background:${cssColor(e.color)}"></span>
         <div><h1>${esc(e.name)}</h1><small>사번 ${e.no ?? "-"} · ${isManager(e) ? "매니저" : "알바"} · ${e.active ? "재직중" : "비활성"}${e.phone ? ` · ${esc(formatPhone(e.phone))}` : ""}</small></div>
       </div>
+      ${renderEmpInfo(e)}
       <div class="emp-page-body">
         <div class="ct-side emp-ct-side">
           ${contractForm(c)}
@@ -2826,6 +2904,101 @@ function renderEmpPage(id) {
     </div>`;
   return renderAdminShell("employees", content, { center: true });
 }
+// 직원 페이지 위: 보건증 만료일 · 급여 계좌, 퇴사한 직원은 퇴직금 · 경력증명서
+function renderEmpInfo(e) {
+  const f = (k, label, ph, extra = "") => `<label class="me-field"><span>${label}</span><input class="field" data-empf="${k}" data-id="${e.id}" value="${esc(e[k] ?? "")}" placeholder="${esc(ph)}" ${extra}/></label>`;
+  const sev = e.leaveDate || !e.active ? severance(e) : null;
+  return `
+    <div class="emp-info">
+      <section class="me-card">
+        <h2>직원 정보</h2>
+        <div class="me-grid emp-info-grid">
+          ${f("healthExp", "보건증 만료일", "", 'type="date"')}
+          ${f("bank", "은행", "국민은행")}
+          ${f("account", "계좌번호", "000000-00-000000", 'inputmode="numeric"')}
+          ${f("holder", "예금주", e.name)}
+        </div>
+      </section>
+      ${
+        sev
+          ? `<section class="me-card">
+          <h2>퇴사 처리</h2>
+          <ul class="sev">
+            <li><span>근무 기간</span><b>${dot(sev.from)} ~ ${dot(sev.to)} (${sev.days.toLocaleString()}일)</b></li>
+            <li><span>퇴직금</span><b>${sev.eligible ? `${won(sev.amount)} <small>(참고용)</small>` : `대상 아님 <small>${esc(sev.reason)}</small>`}</b></li>
+            ${sev.eligible ? `<li><span>계산</span><small>최근 3개월 임금 ${won(sev.wages3)} ÷ ${sev.days3}일 = 1일 평균임금 ${won(Math.round(sev.avgDay))} × 30일 × ${(sev.days / 365).toFixed(2)}년</small></li>` : ""}
+          </ul>
+          <div class="store-manage-actions">
+            <button type="button" class="pill" data-action="career-cert" data-id="${e.id}">경력증명서 PDF</button>
+            <a class="pill plain-dark" href="#/records">마지막 달 명세서</a>
+          </div>
+        </section>`
+          : ""
+      }
+    </div>`;
+}
+// 퇴직금 (참고용): 1년 이상 · 주 15시간 이상이면 1일 평균임금 × 30일 × 근속연수
+function severance(e) {
+  const recs = store.records.filter((r) => r.employeeId === e.id).map((r) => r.date).sort();
+  const from = e.hireDate ?? recs[0] ?? todayDateString();
+  const to = e.leaveDate ?? todayDateString();
+  const days = Math.max(0, Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1);
+  const start3 = addDays(to, -90);
+  const months = [...new Set([start3.slice(0, 7), addDays(to, -45).slice(0, 7), to.slice(0, 7)])];
+  const wages3 = months.reduce((sum, ym) => sum + (payrollFor(ym, e.id).rows[0]?.gross ?? 0), 0);
+  const days3 = Math.round((Date.parse(to) - Date.parse(start3)) / 86400000) + 1;
+  const avgDay = days3 ? wages3 / days3 : 0;
+  const weekH = Object.values(e.weekly ?? {}).reduce((sum, r) => sum + spanMin(r.start, r.end) / 60, 0);
+  let reason = "";
+  if (days < 365) reason = "1년 미만 근무";
+  else if (!isSalaried(e) && weekH < 15) reason = "주 15시간 미만";
+  const eligible = !reason;
+  return { from, to, days, wages3, days3, avgDay, eligible, reason, amount: eligible ? Math.round(avgDay * 30 * (days / 365)) : 0 };
+}
+// 경력증명서 (A4 한 장)
+function renderCareerCert(e) {
+  const biz = store.settings?.biz ?? {};
+  const job = latestContract(e.id)?.f.job ?? biz.job ?? "매장 업무";
+  const today = todayDateString();
+  const sign = store.settings?.ownerSign;
+  return `
+    <div class="cert-doc">
+      <h1>경 력 증 명 서</h1>
+      <table>
+        <tr><th>성명</th><td>${esc(e.name)}</td></tr>
+        <tr><th>근무 기간</th><td>${dot(e.hireDate ?? "")} ~ ${dot(e.leaveDate ?? today)}${e.active && !e.leaveDate ? " (재직 중)" : ""}</td></tr>
+        <tr><th>직위</th><td>${isManager(e) ? "매니저" : "아르바이트"}</td></tr>
+        <tr><th>담당 업무</th><td>${esc(job)}</td></tr>
+      </table>
+      <p class="cert-say">위 사람은 위와 같이 근무하였음을 증명합니다.</p>
+      <p class="cert-date">${today.slice(0, 4)}년 ${Number(today.slice(5, 7))}월 ${Number(today.slice(8))}일</p>
+      <table class="cert-biz">
+        <tr><th>상호</th><td>${esc(biz.bizName || storeName())}</td></tr>
+        <tr><th>사업장 주소</th><td>${esc(biz.address ?? "")}</td></tr>
+        <tr><th>대표자</th><td>${esc(biz.owner ?? "")} <span class="cert-sign">(인)${sign ? `<img src="${sign}" alt="" />` : ""}</span></td></tr>
+      </table>
+    </div>`;
+}
+function careerCertPdf(button, id) {
+  const e = employeeById(id);
+  return withBusy(button, "PDF 만드는 중…", async () => {
+    const [html2canvas, jsPDF] = await Promise.all([loadLib("html2canvas"), loadLib("jspdf")]);
+    await document.fonts.ready;
+    const stage = document.createElement("div");
+    stage.className = "ps-stage";
+    stage.innerHTML = renderCareerCert(e);
+    document.body.appendChild(stage);
+    try {
+      const canvas = await html2canvas(stage.firstElementChild, { scale: 2, backgroundColor: "#ffffff" });
+      const pdf = new jsPDF({ unit: "mm", format: "a4" });
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297);
+      pdf.save(`${e.name} 경력증명서.pdf`);
+    } finally {
+      stage.remove();
+    }
+  });
+}
+
 // 계약서 미리보기를 칸 폭에 맞춰 줄인다 (A4 폭 794px)
 function fitContractPreview() {
   const box = document.querySelector(".emp-ct-preview");
@@ -3386,11 +3559,42 @@ function revealSlotPanel() {
   document.getElementById(state.slotEdit?.empId || state.slotEdit?.fixedEmp ? "slot-start" : "slot-emp")?.focus({ preventScroll: true });
 }
 
+// 근무표대로 일하면 이번 달 인건비 (주휴 포함, 참고용). 고치는 중인 근무표와 저장된 근무표를 비교한다
+function laborCost(weeklyOf) {
+  const ym = todayDateString().slice(0, 7);
+  const weeks = monthDays(ym).length / 7;
+  let total = 0;
+  const juhu = [];
+  for (const e of store.employees.filter((x) => x.active)) {
+    if (isSalaried(e)) {
+      const s = salaryFor(e.id, ym);
+      total += (s?.salary ?? 0) + (s?.meal ?? 0);
+      continue;
+    }
+    const weekH = Object.values(weeklyOf(e)).reduce((sum, r) => sum + spanMin(r.start, r.end) / 60, 0);
+    const wage = Number(e.hourlyWage) || DEFAULT_WAGE;
+    total += weekH * weeks * wage;
+    if (weekH >= 15) {
+      total += (Math.min(weekH, 40) / 5) * wage * weeks;
+      juhu.push(e.id);
+    }
+  }
+  return { total: Math.round(total / 1000) * 1000, juhu };
+}
+function renderSchedCost() {
+  if (!store.employees.some((e) => e.active)) return "";
+  const now = laborCost(effWeekly);
+  const saved = laborCost((e) => e.weekly ?? {});
+  const diff = now.total - saved.total;
+  const newJuhu = now.juhu.filter((id) => !saved.juhu.includes(id)).map((id) => employeeById(id)?.name);
+  return `<p class="sched-cost"><span>이번 달 예상 인건비 <small>주휴 포함 · 참고용</small></span><b>${won(now.total)}</b>${diff ? `<em class="${diff > 0 ? "up" : "down"}">${diff > 0 ? "+" : "−"}${won(Math.abs(diff))}</em>` : ""}</p>${newJuhu.length ? `<p class="sched-status warn">${esc(newJuhu.join(", "))}님은 주 15시간이 넘어서 주휴수당이 새로 생겨요.</p>` : ""}`;
+}
+
 function renderSchedStatus() {
-  if (!hasDraft()) return "";
-  return schedDirty()
+  if (!hasDraft()) return renderSchedCost();
+  return renderSchedCost() + (schedDirty()
     ? `<p class="sched-status warn">저장하지 않은 변경이 있어요. <b>저장</b>을 눌러야 직원 관리·달력·근무 기록에 반영돼요.</p>`
-    : `<p class="sched-status">임시저장된 변경이 있어요. <b>저장</b>을 누르면 반영돼요.</p>`;
+    : `<p class="sched-status">임시저장된 변경이 있어요. <b>저장</b>을 누르면 반영돼요.</p>`);
 }
 
 function renderSchedule() {
@@ -4467,6 +4671,17 @@ app.addEventListener("click", (e) => {
       state.error = "";
       state.contractDraft = newContract(employeeById(id));
       break;
+    case "toggle-labor": {
+      const bad = laborChecks().some((x) => x.level === "bad");
+      state.laborOpen = !(state.laborOpen ?? bad);
+      break;
+    }
+    case "career-cert":
+      careerCertPdf(el, id).catch((err) => uiAlert(err.message));
+      return;
+    case "export-transfer":
+      exportTransfer(el).catch((err) => uiAlert(err.message));
+      return;
     case "close-contract":
       state.contractDraft = null;
       state.error = "";
@@ -5023,6 +5238,14 @@ app.addEventListener("change", (e) => {
     render();
     return;
   }
+  if (t.dataset.empf) {
+    const emp = employeeById(t.dataset.id);
+    const v = t.value.trim().slice(0, 40);
+    if (v) emp[t.dataset.empf] = v;
+    else delete emp[t.dataset.empf];
+    save();
+    return;
+  }
   if (t.dataset.biz) {
     store.settings = { ...store.settings, biz: { ...(store.settings?.biz ?? {}), [t.dataset.biz]: t.value.trim() } };
     save();
@@ -5240,7 +5463,7 @@ function flattenStore(withPrivate) {
   const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k] !== undefined).map((k) => [k, obj[k]]));
   for (const e of store.employees) {
     out[`public/employees/${e.id}`] = JSON.stringify(pick(e, PUBLIC_EMP_KEYS));
-    if (withPrivate) out[`private/employees/${e.id}`] = JSON.stringify({ phone: e.phone ?? null, hourlyWage: e.hourlyWage ?? DEFAULT_WAGE, hireDate: e.hireDate ?? null, leaveDate: e.leaveDate ?? null });
+    if (withPrivate) out[`private/employees/${e.id}`] = JSON.stringify({ phone: e.phone ?? null, hourlyWage: e.hourlyWage ?? DEFAULT_WAGE, hireDate: e.hireDate ?? null, leaveDate: e.leaveDate ?? null, healthExp: e.healthExp ?? null, bank: e.bank ?? null, account: e.account ?? null, holder: e.holder ?? null });
   }
   out["public/order"] = JSON.stringify(store.employees.map((e) => e.id));
   if (ADMIN_SITE) out["public/absent"] = JSON.stringify(store.absent ?? {});
@@ -5312,6 +5535,8 @@ function cleanStore(data) {
       name: e.name.slice(0, 40),
       ...(e.hireDate ? { hireDate: safeDate(e.hireDate) ? e.hireDate : null } : {}),
       ...(e.leaveDate ? { leaveDate: safeDate(e.leaveDate) ? e.leaveDate : null } : {}),
+      ...(e.healthExp ? { healthExp: safeDate(e.healthExp) ? e.healthExp : null } : {}),
+      ...["bank", "account", "holder"].reduce((o, k) => (typeof e[k] === "string" && e[k] ? { ...o, [k]: e[k].slice(0, 40) } : o), {}),
       color: e.color ? cssColor(e.color) : e.color,
       weekly: cleanWeekly(e.weekly),
       ...(e.weeklyBase ? { weeklyBase: cleanWeekly(e.weeklyBase) } : {}),
@@ -5398,7 +5623,7 @@ function storeFromRemote() {
     .sort((a, b) => rank(a.id) - rank(b.id))
     .map((e) => {
       const p = priv ? parse(priv.employees?.[e.id], {}) : employeeById(e.id) ?? {};
-      return { weekly: {}, ...e, phone: p.phone ?? null, hourlyWage: p.hourlyWage ?? DEFAULT_WAGE, hireDate: p.hireDate ?? null, leaveDate: p.leaveDate ?? null };
+      return { weekly: {}, ...e, phone: p.phone ?? null, hourlyWage: p.hourlyWage ?? DEFAULT_WAGE, hireDate: p.hireDate ?? null, leaveDate: p.leaveDate ?? null, healthExp: p.healthExp ?? null, bank: p.bank ?? null, account: p.account ?? null, holder: p.holder ?? null };
     });
   const main = priv ? parse(priv.main, {}) : store;
   return cleanStore({
