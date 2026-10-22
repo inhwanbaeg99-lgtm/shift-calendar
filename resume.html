@@ -9,17 +9,23 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" />
     <style>
       :root {
-        --bg: #f2f4f6;
+        --bg: #fff;
         --paper: #fff;
         --ink: #191f28;
         --sub: #6b7684;
+        --faint: #b0b8c1;
         --line: #e5e8eb;
         --field: #f2f4f6;
         --accent: #0ea5a0;
-        --red: #e5484d;
+        --red: #f04452;
       }
       * {
         box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow-x: hidden;
       }
       body {
         margin: 0;
@@ -28,170 +34,221 @@
         font-family: "Pretendard Variable", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
         font-size: 16px;
         -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
       }
-      .wrap {
+      .app {
+        display: flex;
+        flex-direction: column;
+        overflow-x: clip; /* 넘어가는 애니메이션이 화면을 넓히지 않게 */
         max-width: 560px;
+        min-height: 100%;
         margin: 0 auto;
-        padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 140px;
       }
-      .head h1 {
+      /* 위: 뒤로 · 진행 막대 · ••• */
+      .top {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 56px;
+        padding: env(safe-area-inset-top, 0px) 8px 0;
+        background: var(--bg);
+      }
+      .icon-btn {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 12px;
+        background: none;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .icon-btn:hover {
+        background: var(--field);
+      }
+      .icon-btn[hidden] {
+        visibility: hidden;
+        display: grid;
+      }
+      .bar-track {
+        flex: 1;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--field);
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--accent);
+        transition: width 0.3s ease;
+      }
+      /* 질문 */
+      .step {
+        flex: 1;
+        padding: 20px 24px 140px;
+        animation: step-in 0.28s ease both;
+      }
+      .step.back {
+        animation-name: step-back;
+      }
+      .step.still {
+        animation: none;
+      }
+      @keyframes step-in {
+        from {
+          opacity: 0;
+          transform: translateX(24px);
+        }
+      }
+      @keyframes step-back {
+        from {
+          opacity: 0;
+          transform: translateX(-24px);
+        }
+      }
+      .store {
+        margin: 0 0 6px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--accent);
+      }
+      .q {
         margin: 0;
         font-size: 26px;
+        font-weight: 700;
+        line-height: 1.4;
         letter-spacing: -0.02em;
+        word-break: keep-all;
       }
-      .head p {
-        margin: 4px 0 20px;
+      .hint {
+        margin: 8px 0 0;
+        font-size: 15px;
         color: var(--sub);
-        font-size: 14px;
+        word-break: keep-all;
       }
-      .card {
-        margin-bottom: 12px;
-        padding: 20px 18px;
-        border-radius: 18px;
-        background: var(--paper);
-      }
-      .card h2 {
-        margin: 0 0 14px;
-        font-size: 17px;
-      }
-      .card h2 small {
-        font-weight: 400;
-        color: var(--sub);
-        font-size: 13px;
-      }
-      .f {
-        display: block;
-        margin-bottom: 14px;
-      }
-      .f:last-child {
-        margin-bottom: 0;
+      .fields {
+        display: grid;
+        gap: 28px;
+        margin-top: 36px;
       }
       .f > span {
         display: block;
-        margin-bottom: 6px;
-        font-size: 13.5px;
+        margin-bottom: 4px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--sub);
       }
-      .f > span em,
-      .agree em {
-        font-style: normal;
-        color: var(--red);
-      }
-      .f > span small {
-        font-weight: 400;
-      }
-      input[type="text"],
-      input[type="tel"],
-      textarea {
+      .line-input {
         width: 100%;
-        height: 52px;
-        padding: 0 16px;
-        border: 2px solid transparent;
-        border-radius: 14px;
-        background: var(--field);
+        padding: 10px 0;
+        border: 0;
+        border-bottom: 2px solid var(--line);
+        border-radius: 0;
+        background: none;
         font: inherit;
-        font-size: 17px;
-        color: inherit;
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--ink);
         outline: none;
         -webkit-appearance: none;
         appearance: none;
+        transition: border-color 0.15s;
       }
-      input:focus,
-      textarea:focus {
-        border-color: var(--accent);
-        background: #fff;
+      .line-input::placeholder {
+        color: var(--faint);
+        font-weight: 500;
       }
-      input.bad {
-        border-color: var(--red);
+      .line-input:focus {
+        border-bottom-color: var(--accent);
       }
-      textarea {
-        height: auto;
-        min-height: 140px;
+      .line-input.bad {
+        border-bottom-color: var(--red);
+      }
+      textarea.line-input {
+        min-height: 180px;
         padding: 14px 16px;
+        border: 2px solid var(--line);
+        border-radius: 16px;
+        font-size: 17px;
+        font-weight: 500;
         line-height: 1.6;
         resize: vertical;
       }
+      textarea.line-input:focus {
+        border-color: var(--accent);
+      }
+      .err {
+        margin: 8px 0 0;
+        font-size: 14px;
+        color: var(--red);
+      }
+      /* 고르는 버튼 */
       .chips {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 10px;
       }
-      .chips label {
-        position: relative;
-      }
-      .chips input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-      }
-      .chips span {
-        display: grid;
-        place-items: center;
-        min-width: 48px;
-        height: 44px;
-        padding: 0 14px;
-        border-radius: 12px;
-        background: var(--field);
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--sub);
-        cursor: pointer;
-        user-select: none;
-        -webkit-tap-highlight-color: transparent;
-      }
-      .chips input:checked + span {
-        background: var(--accent);
-        color: #fff;
-      }
-      .chips input:focus-visible + span {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
-      }
-      .days {
+      .chips.days {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
         gap: 6px;
       }
-      .days span {
-        min-width: 0;
-        padding: 0;
-      }
-      .career {
-        padding: 14px;
-        margin-bottom: 10px;
+      .chip {
+        min-height: 52px;
+        padding: 0 18px;
+        border: 0;
         border-radius: 14px;
         background: var(--field);
+        font: inherit;
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+        transition: background 0.12s, color 0.12s, transform 0.08s;
       }
-      .career .f > span {
-        font-size: 12.5px;
+      .chips.days .chip {
+        padding: 0;
       }
-      .career input[type="text"] {
-        height: 46px;
-        background: #fff;
-        font-size: 16px;
+      .chip:active {
+        transform: scale(0.97);
+      }
+      .chip.on {
+        background: var(--accent);
+        color: #fff;
+      }
+      .chips.col {
+        flex-direction: column;
+      }
+      .chips.col .chip {
+        width: 100%;
+        text-align: left;
+      }
+      /* 경력 */
+      .career {
+        padding: 18px;
+        border-radius: 18px;
+        background: var(--field);
+      }
+      .career .line-input {
+        font-size: 18px;
+        border-bottom-color: #dfe3e8;
       }
       .career-head {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 4px;
         font-size: 14px;
         font-weight: 700;
-      }
-      .career-head button {
-        border: 0;
-        background: none;
-        font: inherit;
-        font-size: 14px;
         color: var(--sub);
-        cursor: pointer;
       }
-      .add-career {
-        width: 100%;
-        height: 48px;
-        border: 2px dashed var(--line);
-        border-radius: 14px;
+      .text-btn {
+        border: 0;
         background: none;
         font: inherit;
         font-size: 14px;
@@ -199,72 +256,129 @@
         color: var(--sub);
         cursor: pointer;
       }
-      .add-career[hidden] {
-        display: none;
+      .add-career {
+        width: 100%;
+        height: 56px;
+        border: 0;
+        border-radius: 16px;
+        background: var(--field);
+        font: inherit;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--accent);
+        cursor: pointer;
+      }
+      /* 마지막 확인 */
+      .review {
+        margin: 28px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .review li {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line);
+        cursor: pointer;
+      }
+      .review .k {
+        flex: 0 0 88px;
+        font-size: 15px;
+        color: var(--sub);
+      }
+      .review .v {
+        flex: 1;
+        min-width: 0;
+        font-size: 16px;
+        font-weight: 600;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .review .v.empty {
+        font-weight: 500;
+        color: var(--faint);
+      }
+      .review .go {
+        color: var(--faint);
       }
       .agree {
         display: flex;
         gap: 12px;
         align-items: flex-start;
+        margin-top: 24px;
+        padding: 18px;
+        border-radius: 18px;
+        background: var(--field);
         cursor: pointer;
       }
-      .agree input {
-        flex-shrink: 0;
-        width: 24px;
+      .agree .box {
+        flex: 0 0 24px;
         height: 24px;
-        margin: 0;
-        accent-color: var(--accent);
+        border-radius: 8px;
+        background: #d1d6db;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        transition: background 0.12s;
+      }
+      .agree.on .box {
+        background: var(--accent);
       }
       .agree b {
         display: block;
-        margin-bottom: 4px;
+        font-size: 16px;
       }
       .agree small {
         display: block;
+        margin-top: 4px;
         font-size: 13px;
         line-height: 1.6;
         color: var(--sub);
       }
-      .bar {
+      /* 아래 버튼 */
+      .cta {
         position: fixed;
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 10;
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
-        background: linear-gradient(rgba(242, 244, 246, 0), var(--bg) 35%);
+        z-index: 6;
+        padding: 12px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+        background: linear-gradient(rgba(255, 255, 255, 0), #fff 30%);
       }
-      .bar button {
+      .cta-inner {
+        display: flex;
+        gap: 8px;
+        max-width: 520px;
+        margin: 0 auto;
+      }
+      .cta button {
+        flex: 1;
         height: 56px;
         border: 0;
         border-radius: 16px;
         font: inherit;
+        font-size: 17px;
         font-weight: 700;
         cursor: pointer;
       }
-      .send {
-        flex: 1;
-        max-width: 420px;
+      .cta .skip {
+        flex: 0 0 auto;
+        padding: 0 22px;
+        background: var(--field);
+        color: var(--sub);
+      }
+      .cta .next {
         background: var(--accent);
         color: #fff;
-        font-size: 17px;
       }
-      .send:disabled {
-        opacity: 0.6;
-      }
-      .more {
-        width: 56px;
-        background: var(--paper);
-        color: var(--sub);
-        font-size: 14px;
+      .cta .next:disabled {
+        opacity: 0.35;
       }
       .menu {
         position: fixed;
-        left: 16px;
-        bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+        top: calc(56px + env(safe-area-inset-top, 0px));
+        right: max(12px, calc(50% - 268px));
         z-index: 11;
         display: grid;
         min-width: 180px;
@@ -272,27 +386,6 @@
         border-radius: 14px;
         background: var(--paper);
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-      }
-      @media (min-width: 600px) {
-        .menu {
-          left: calc(50% - 254px);
-        }
-      }
-      /* 컴퓨터: 넓게 */
-      @media (min-width: 900px) {
-        .wrap {
-          max-width: 680px;
-          padding-top: 40px;
-        }
-        .card {
-          padding: 26px 28px;
-        }
-        .send {
-          max-width: 540px;
-        }
-        .menu {
-          left: calc(50% - 314px);
-        }
       }
       .menu[hidden] {
         display: none;
@@ -330,6 +423,14 @@
         font-weight: 600;
         transform: translateX(-50%);
       }
+      @media (prefers-reduced-motion: reduce) {
+        .step,
+        .bar-fill {
+          animation: none;
+          transition: none;
+        }
+      }
+
       /* 미리보기 */
       .pv {
         position: fixed;
@@ -503,8 +604,7 @@
         body {
           background: #fff;
         }
-        .wrap,
-        .bar,
+        .app,
         .menu,
         .toast,
         .pv {
@@ -517,89 +617,19 @@
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <header class="head">
-        <h1>이력서</h1>
-        <p id="for">아르바이트 지원서 · 다 쓰고 아래 문자 전송하기를 눌러 보내 주세요</p>
-      </header>
-
-      <form id="form" autocomplete="on" onsubmit="return false">
-        <section class="card">
-          <h2>기본 정보</h2>
-          <label class="f"><span>이름 <em>*</em></span><input type="text" name="name" autocomplete="name" placeholder="홍길동" /></label>
-          <label class="f"><span>생년월일</span><input type="text" name="birth" inputmode="numeric" placeholder="20050314 또는 050314" maxlength="10" /></label>
-          <label class="f"><span>연락처 <em>*</em></span><input type="tel" name="phone" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000" maxlength="17" /></label>
-          <label class="f"><span>사는 곳 <small>(동까지만)</small></span><input type="text" name="area" placeholder="춘천시 온의동" /></label>
-          <label class="f"><span>학교 · 학력 <small>(선택)</small></span><input type="text" name="school" placeholder="○○대학교 2학년 휴학" /></label>
-        </section>
-
-        <section class="card">
-          <h2>근무 희망</h2>
-          <div class="f">
-            <span>가능한 요일</span>
-            <div class="chips days">
-              <label><input type="checkbox" name="d1" /><span>월</span></label><label><input type="checkbox" name="d2" /><span>화</span></label><label><input type="checkbox" name="d3" /><span>수</span></label><label><input type="checkbox" name="d4" /><span>목</span></label><label><input type="checkbox" name="d5" /><span>금</span></label><label><input type="checkbox" name="d6" /><span>토</span></label><label><input type="checkbox" name="d0" /><span>일</span></label>
-            </div>
-          </div>
-          <label class="f"><span>가능한 시간</span><input type="text" name="hours" placeholder="평일 18시~22시, 주말 종일" /></label>
-          <label class="f"><span>언제부터 가능해요?</span><input type="text" name="start" placeholder="11월 1일부터" /></label>
-          <div class="f">
-            <span>얼마나 일할 수 있어요?</span>
-            <div class="chips">
-              <label><input type="radio" name="period" value="3개월 미만" /><span>3개월 미만</span></label><label><input type="radio" name="period" value="3~6개월" /><span>3~6개월</span></label><label><input type="radio" name="period" value="6개월 이상" /><span>6개월 이상</span></label><label><input type="radio" name="period" value="1년 이상" /><span>1년 이상</span></label>
-            </div>
-          </div>
-          <div class="f">
-            <span>보건증</span>
-            <div class="chips">
-              <label><input type="radio" name="health" value="있음" /><span>있음</span></label><label><input type="radio" name="health" value="없음" /><span>없음</span></label><label><input type="radio" name="health" value="발급 예정" /><span>발급 예정</span></label>
-            </div>
-          </div>
-        </section>
-
-        <section class="card">
-          <h2>경력 <small>(없으면 비워 두세요)</small></h2>
-          <div id="careers"></div>
-          <button type="button" class="add-career" id="add-career">+ 경력 추가</button>
-        </section>
-
-        <section class="card">
-          <h2>자기소개</h2>
-          <label class="f"><textarea name="intro" placeholder="성격, 지원 이유, 하고 싶은 말을 편하게 써 주세요."></textarea></label>
-        </section>
-
-        <section class="card">
-          <label class="agree">
-            <input type="checkbox" name="agree" />
-            <div>
-              <b>개인정보 수집 · 이용에 동의해요 <em>*</em></b>
-              <small>매장은 채용 검토를 위해 이름, 생년월일, 연락처, 사는 곳, 학력, 경력, 근무 희망을 받아요. 채용하지 않으면 결정 후 바로 지우고, 채용하면 근로계약 관리 목적으로만 보관해요. 쓴 내용은 이 휴대폰에만 남고, 보내기 전까지 어디에도 올라가지 않아요.</small>
-            </div>
-          </label>
-        </section>
-      </form>
-    </div>
-
+    <div class="app" id="app"></div>
     <div class="menu" id="menu" hidden>
       <button type="button" id="print">빈 양식 인쇄</button>
       <button type="button" id="save-img">사진으로 저장</button>
       <button type="button" class="danger" id="clear">모두 지우기</button>
-    </div>
-    <div class="bar">
-      <button type="button" class="more" id="more" aria-label="더 보기">•••</button>
-      <button type="button" class="send" id="send">문자 전송하기</button>
     </div>
     <div class="stage" id="stage" aria-hidden="true"></div>
 
     <script>
       const KEY = "kok-resume";
       const $ = (s) => document.querySelector(s);
-      const form = $("#form");
       const store = (new URLSearchParams(location.search).get("store") || "").slice(0, 40);
-      if (store) {
-        $("#for").textContent = `${store} 아르바이트 지원서 · 다 쓰고 아래 문자 전송하기를 눌러 보내 주세요`;
-        document.title = `이력서 · ${store}`;
-      }
+      if (store) document.title = `이력서 · ${store}`;
       const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
       let toastTimer;
       const toast = (msg) => {
@@ -611,75 +641,224 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => t.remove(), 2600);
       };
+      const ICON_BACK = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>';
+      const ICON_GO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+      const ICON_CHECK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
 
-      // ---------- 경력 (최대 3개) ----------
-      let careers = [];
-      function drawCareers() {
-        $("#careers").innerHTML = careers
-          .map(
-            (c, i) => `<div class="career">
-              <div class="career-head">경력 ${i + 1}<button type="button" data-del="${i}">삭제</button></div>
-              <label class="f"><span>근무한 곳</span><input type="text" data-c="${i}" data-k="w" value="${esc(c.w)}" placeholder="○○카페" /></label>
-              <label class="f"><span>기간</span><input type="text" data-c="${i}" data-k="p" value="${esc(c.p)}" placeholder="2025.03 ~ 2025.12" /></label>
-              <label class="f"><span>한 일</span><input type="text" data-c="${i}" data-k="j" value="${esc(c.j)}" placeholder="음료 제조, 계산" /></label>
-            </div>`,
-          )
-          .join("");
-        $("#add-career").hidden = careers.length >= 3;
-      }
-      $("#add-career").addEventListener("click", () => {
-        careers.push({ w: "", p: "", j: "" });
-        drawCareers();
-        keep();
-        $(`[data-c="${careers.length - 1}"]`)?.focus();
-      });
-      $("#careers").addEventListener("click", (e) => {
-        const i = e.target.dataset?.del;
-        if (i === undefined) return;
-        careers.splice(Number(i), 1);
-        drawCareers();
-        keep();
-      });
-      $("#careers").addEventListener("input", (e) => {
-        const { c, k } = e.target.dataset;
-        if (c === undefined) return;
-        careers[Number(c)][k] = e.target.value;
-        keep();
-      });
-
-      // ---------- 이 기기에만 저장 ----------
-      const fields = () => [...form.querySelectorAll("input[name], textarea[name]")];
-      function values() {
-        const v = { careers };
-        for (const f of fields()) {
-          if (f.type === "checkbox") v[f.name] = f.checked;
-          else if (f.type === "radio") {
-            if (f.checked) v[f.name] = f.value;
-          } else v[f.name] = f.value.trim();
-        }
-        if (typeof fmtBirth === "function") {
-          v.birth = fmtBirth(v.birth);
-          v.phone = fmtPhone(v.phone);
-        }
-        return v;
-      }
-      function keep() {
-        try {
-          localStorage.setItem(KEY, JSON.stringify(values()));
-        } catch {}
-      }
+      // ---------- 쓴 내용 (이 기기에만 저장) ----------
+      let v = {};
       try {
-        const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
-        careers = Array.isArray(saved.careers) ? saved.careers.slice(0, 3) : [];
-        for (const f of fields()) {
-          if (!(f.name in saved)) continue;
-          if (f.type === "checkbox") f.checked = Boolean(saved[f.name]);
-          else if (f.type === "radio") f.checked = saved[f.name] === f.value;
-          else f.value = saved[f.name];
-        }
+        v = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
       } catch {}
-      if (!careers.length) careers = [{ w: "", p: "", j: "" }];
-      drawCareers();
+      if (!Array.isArray(v.careers)) v.careers = [];
+      v.careers = v.careers.filter((c) => c && (c.w || c.p || c.j)).slice(0, 3);
+      const keep = () => {
+        try {
+          localStorage.setItem(KEY, JSON.stringify(v));
+        } catch {}
+      };
+
+      // ---------- 한 화면에 질문 하나 ----------
+      const DAY_KEYS = [["d1", "월"], ["d2", "화"], ["d3", "수"], ["d4", "목"], ["d5", "금"], ["d6", "토"], ["d0", "일"]];
+      const STEPS = [
+        { id: "name", q: "이름을 알려주세요", field: { k: "name", ph: "홍길동", ac: "name" }, need: () => Boolean(v.name?.trim()) },
+        { id: "phone", q: "연락받을 번호를\n알려주세요", hint: "합격하면 이 번호로 연락드려요", field: { k: "phone", ph: "010-0000-0000", type: "tel", im: "numeric", ac: "tel" }, need: () => (v.phone ?? "").replace(/\D/g, "").length >= 10 },
+        { id: "birth", q: "생년월일을 알려주세요", hint: "숫자만 써도 돼요 (예: 050314)", field: { k: "birth", ph: "2005.03.14", im: "numeric" } },
+        { id: "area", q: "어디에 살아요?", hint: "동까지만 알려주세요", field: { k: "area", ph: "춘천시 온의동" } },
+        { id: "days", q: "언제 일할 수 있어요?", hint: "가능한 요일을 모두 골라주세요" },
+        { id: "start", q: "언제부터,\n얼마나 일할 수 있어요?" },
+        { id: "health", q: "보건증이 있나요?", hint: "음식을 다루는 일이라 필요해요" },
+        { id: "career", q: "일해 본 곳이 있나요?", hint: "없으면 다음을 눌러 넘어가도 괜찮아요" },
+        { id: "school", q: "학교나 학력을\n알려주세요", hint: "적지 않아도 괜찮아요", field: { k: "school", ph: "○○대학교 2학년 휴학" } },
+        { id: "intro", q: "하고 싶은 말을\n적어주세요", hint: "성격, 지원 이유 등 편하게 써 주세요" },
+        { id: "review", q: "이대로 보낼까요?", hint: "고칠 곳을 누르면 바로 고칠 수 있어요" },
+      ];
+      const LAST = STEPS.length - 1;
+      let at = Math.min(Math.max(0, Number(v.step) || 0), LAST);
+      let fromReview = false;
+
+      const lineInput = (f) =>
+        `<input class="line-input" data-k="${f.k}" value="${esc(v[f.k] ?? "")}" placeholder="${esc(f.ph)}" type="${f.type ?? "text"}"${f.im ? ` inputmode="${f.im}"` : ""}${f.ac ? ` autocomplete="${f.ac}"` : ' autocomplete="off"'} />`;
+      const chip = (k, val, label, multi = false) => {
+        const on = multi ? Boolean(v[k]) : v[k] === val;
+        return `<button type="button" class="chip${on ? " on" : ""}" data-chip="${k}" data-val="${esc(val)}"${multi ? " data-multi" : ""} aria-pressed="${on}">${esc(label)}</button>`;
+      };
+
+      function body(step) {
+        if (step.field) return `<div class="fields"><label class="f">${lineInput(step.field)}</label></div>`;
+        if (step.id === "days")
+          return `<div class="fields">
+            <div class="chips days">${DAY_KEYS.map(([k, l]) => chip(k, "1", l, true)).join("")}</div>
+            <label class="f"><span>가능한 시간</span>${lineInput({ k: "hours", ph: "평일 18시~22시, 주말 종일" })}</label>
+          </div>`;
+        if (step.id === "start")
+          return `<div class="fields">
+            <label class="f"><span>시작할 수 있는 날</span>${lineInput({ k: "start", ph: "11월 1일부터" })}</label>
+            <div class="f"><span>일할 수 있는 기간</span><div class="chips">${["3개월 미만", "3~6개월", "6개월 이상", "1년 이상"].map((x) => chip("period", x, x)).join("")}</div></div>
+          </div>`;
+        if (step.id === "health") return `<div class="fields"><div class="chips col">${["있음", "없음", "발급 예정"].map((x) => chip("health", x, x === "있음" ? "네, 있어요" : x === "없음" ? "아니요, 없어요" : "곧 발급받을 거예요")).join("")}</div></div>`;
+        if (step.id === "career")
+          return `<div class="fields">
+            ${v.careers
+              .map(
+                (c, i) => `<div class="career">
+                  <div class="career-head">경력 ${i + 1}<button type="button" class="text-btn" data-del="${i}">삭제</button></div>
+                  <div class="fields" style="margin-top:8px;gap:18px">
+                    <label class="f"><span>근무한 곳</span><input class="line-input" data-c="${i}" data-ck="w" value="${esc(c.w)}" placeholder="○○카페" autocomplete="off" /></label>
+                    <label class="f"><span>기간</span><input class="line-input" data-c="${i}" data-ck="p" value="${esc(c.p)}" placeholder="2025.03 ~ 2025.12" autocomplete="off" /></label>
+                    <label class="f"><span>한 일</span><input class="line-input" data-c="${i}" data-ck="j" value="${esc(c.j)}" placeholder="음료 제조, 계산" autocomplete="off" /></label>
+                  </div>
+                </div>`,
+              )
+              .join("")}
+            ${v.careers.length < 3 ? `<button type="button" class="add-career" data-add-career>+ ${v.careers.length ? "경력 더 추가" : "경력 추가"}</button>` : ""}
+          </div>`;
+        if (step.id === "intro") return `<div class="fields"><textarea class="line-input" data-k="intro" placeholder="예: 카페에서 6개월 일해 봤고, 주말에도 일할 수 있어요.">${esc(v.intro ?? "")}</textarea></div>`;
+        // 마지막: 쓴 내용 확인 + 동의
+        const days = DAY_KEYS.filter(([k]) => v[k]).map(([, l]) => l).join(" · ");
+        const careers = v.careers.filter((c) => c.w || c.p || c.j).map((c) => [c.w, c.p, c.j].filter(Boolean).join(" · ")).join("\n");
+        const rows = [
+          ["이름", v.name, "name"],
+          ["연락처", fmtPhone(v.phone ?? ""), "phone"],
+          ["생년월일", fmtBirth(v.birth ?? ""), "birth"],
+          ["사는 곳", v.area, "area"],
+          ["가능한 요일", [days, v.hours].filter(Boolean).join("\n"), "days"],
+          ["시작 · 기간", [v.start, v.period].filter(Boolean).join(" · "), "start"],
+          ["보건증", v.health, "health"],
+          ["경력", careers, "career"],
+          ["학력", v.school, "school"],
+          ["하고 싶은 말", v.intro, "intro"],
+        ];
+        return `
+          <ul class="review">${rows.map(([k, val, id]) => `<li data-goto="${id}"><span class="k">${k}</span><span class="v${val ? "" : " empty"}">${esc(val || "없음")}</span><span class="go">${ICON_GO}</span></li>`).join("")}</ul>
+          <div class="agree${v.agree ? " on" : ""}" data-agree role="checkbox" aria-checked="${Boolean(v.agree)}" tabindex="0">
+            <span class="box">${v.agree ? ICON_CHECK : ""}</span>
+            <div><b>개인정보 수집 · 이용에 동의해요</b><small>채용 검토를 위해 위 내용을 매장에 보내요. 채용하지 않으면 결정 후 바로 지우고, 채용하면 근로계약 관리에만 써요.</small></div>
+          </div>`;
+      }
+
+      function render(dir = 1) {
+        const step = STEPS[at];
+        const review = step.id === "review";
+        const ok = step.need ? step.need() : true;
+        $("#app").innerHTML = `
+          <header class="top">
+            <button type="button" class="icon-btn" data-back aria-label="이전"${at === 0 && !fromReview ? " hidden" : ""}>${ICON_BACK}</button>
+            <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="width:${((at + 1) / STEPS.length) * 100}%"></div></div>
+            <button type="button" class="icon-btn" data-more aria-label="더 보기">•••</button>
+          </header>
+          <main class="step${dir < 0 ? " back" : dir === 0 ? " still" : ""}">
+            ${at === 0 ? `<p class="store">${esc(store ? `${store} 아르바이트 지원` : "아르바이트 지원")}</p>` : ""}
+            <h1 class="q">${esc(step.q).replace(/\n/g, "<br />")}</h1>
+            ${step.hint ? `<p class="hint">${esc(step.hint)}</p>` : ""}
+            ${body(step)}
+          </main>
+          <div class="cta"><div class="cta-inner">
+            ${review ? `<button type="button" class="next" data-send>문자 전송하기</button>` : `<button type="button" class="next" data-next${ok ? "" : " disabled"}>${fromReview ? "확인" : "다음"}</button>`}
+          </div></div>`;
+        v.step = at;
+        keep();
+        // 입력칸이 있으면 바로 쓸 수 있게
+        const first = $("#app .step input, #app .step textarea");
+        if (first && !matchMedia("(pointer: coarse)").matches) first.focus({ preventScroll: true });
+        else if (first && dir !== 0) setTimeout(() => first.focus({ preventScroll: true }), 300);
+      }
+      const go = (i, dir) => {
+        at = Math.min(Math.max(0, i), LAST);
+        render(dir);
+        window.scrollTo(0, 0);
+      };
+      function next() {
+        const step = STEPS[at];
+        if (step.id === "birth" && v.birth) v.birth = fmtBirth(v.birth);
+        if (step.id === "phone") v.phone = fmtPhone(v.phone ?? "");
+        if (step.need && !step.need()) return;
+        if (step.id === "career") v.careers = v.careers.filter((c) => c.w || c.p || c.j);
+        if (fromReview) {
+          fromReview = false;
+          return go(LAST, 1);
+        }
+        go(at + 1, 1);
+      }
+
+      // ---------- 누르기 · 쓰기 ----------
+      $("#app").addEventListener("click", (e) => {
+        const t = e.target.closest("button, [data-goto], [data-agree]");
+        if (!t) return;
+        if (t.hasAttribute("data-back")) {
+          if (fromReview) {
+            fromReview = false;
+            return go(LAST, -1);
+          }
+          return go(at - 1, -1);
+        }
+        if (t.hasAttribute("data-more")) {
+          e.stopPropagation();
+          $("#menu").hidden = !$("#menu").hidden;
+          return;
+        }
+        if (t.hasAttribute("data-next")) return next();
+        if (t.hasAttribute("data-send")) return send(t);
+        if (t.dataset.chip) {
+          const k = t.dataset.chip;
+          if (t.hasAttribute("data-multi")) v[k] = !v[k];
+          else v[k] = v[k] === t.dataset.val ? "" : t.dataset.val;
+          keep();
+          return render(0);
+        }
+        if (t.hasAttribute("data-add-career")) {
+          v.careers.push({ w: "", p: "", j: "" });
+          keep();
+          render(0);
+          $(`[data-c="${v.careers.length - 1}"]`)?.focus();
+          return;
+        }
+        if (t.dataset.del !== undefined) {
+          v.careers.splice(Number(t.dataset.del), 1);
+          keep();
+          return render(0);
+        }
+        if (t.dataset.goto) {
+          fromReview = true;
+          return go(STEPS.findIndex((s) => s.id === t.dataset.goto), -1);
+        }
+        if (t.hasAttribute("data-agree")) {
+          v.agree = !v.agree;
+          keep();
+          return render(0);
+        }
+      });
+      $("#app").addEventListener("input", (e) => {
+        const t = e.target;
+        if (t.dataset.k) {
+          if (t.dataset.k === "phone" && !t.value.trim().startsWith("+")) t.value = fmtPhone(t.value);
+          if (t.dataset.k === "birth") t.value = t.value.replace(/[^\d.\-/ ]/g, "").slice(0, 10);
+          v[t.dataset.k] = t.value;
+          t.classList.remove("bad");
+        }
+        if (t.dataset.c !== undefined) v.careers[Number(t.dataset.c)][t.dataset.ck] = t.value;
+        keep();
+        // 꼭 써야 하는 칸: 다 쓰면 다음 버튼이 켜진다
+        const step = STEPS[at];
+        const btn = $("#app [data-next]");
+        if (btn && step.need) btn.disabled = !step.need();
+      });
+      $("#app").addEventListener("change", (e) => {
+        const t = e.target;
+        if (t.dataset.k === "birth") v[t.dataset.k] = t.value = fmtBirth(t.value);
+        if (t.dataset.k === "phone") v.phone = t.value = fmtPhone(t.value);
+        keep();
+      });
+      $("#app").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.isComposing && e.target.matches("input.line-input")) {
+          e.preventDefault();
+          next();
+        }
+        if ((e.key === "Enter" || e.key === " ") && e.target.matches("[data-agree]")) {
+          e.preventDefault();
+          e.target.click();
+        }
+      });
 
       // 생년월일: 20021002 · 021002 · 2002-10-02 · 2002.10.2 → 2002.10.02
       function fmtBirth(v) {
@@ -707,21 +886,6 @@
         if (n.startsWith("02")) return `02-${n.slice(2, n.length - 4)}-${n.slice(-4)}`;
         return `${n.slice(0, 3)}-${n.slice(3, n.length - 4)}-${n.slice(-4)}`;
       }
-      form.addEventListener("input", (e) => {
-        const t = e.target;
-        // 생년월일은 다 쓴 뒤(칸을 나갈 때) 바꾼다. 쓰는 중에는 숫자와 점만
-        if (t.name === "birth") t.value = t.value.replace(/[^\d.\-/ ]/g, "").slice(0, 10);
-        if (t.name === "phone" && !t.value.trim().startsWith("+")) t.value = fmtPhone(t.value);
-        t.classList.remove("bad");
-        keep();
-      });
-      form.addEventListener("change", (e) => {
-        const t = e.target;
-        if (t.name === "birth") t.value = fmtBirth(t.value);
-        if (t.name === "phone") t.value = fmtPhone(t.value);
-        keep();
-      });
-
       // ---------- A4 이력서 (입력한 내용을 양식 칸에 채운다) ----------
       const DAYS = [["d1", "월"], ["d2", "화"], ["d3", "수"], ["d4", "목"], ["d5", "금"], ["d6", "토"], ["d0", "일"]];
       function a4(v) {
@@ -792,24 +956,6 @@
         }
       }
 
-      function check(v) {
-        const need = [];
-        if (!v.name) need.push("name");
-        if (v.phone.replace(/\D/g, "").length < 10) need.push("phone");
-        for (const n of need) form.querySelector(`[name=${n}]`).classList.add("bad");
-        if (need.length) {
-          form.querySelector(`[name=${need[0]}]`).scrollIntoView({ block: "center", behavior: "smooth" });
-          toast(need[0] === "name" ? "이름을 써 주세요." : "연락처를 써 주세요.");
-          return false;
-        }
-        if (!v.agree) {
-          form.querySelector("[name=agree]").scrollIntoView({ block: "center", behavior: "smooth" });
-          toast("개인정보 수집 · 이용 동의에 체크해주세요.");
-          return false;
-        }
-        return true;
-      }
-
       function download(file) {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(file);
@@ -863,28 +1009,40 @@
         document.body.appendChild(pv);
       }
 
-      const send = $("#send");
-      send.addEventListener("click", async () => {
-        const v = values();
-        if (!check(v)) return;
-        send.disabled = true;
-        send.textContent = "이력서 사진 만드는 중…";
+
+      // ---------- 보내기 ----------
+      const values = () => ({ ...v, birth: fmtBirth(v.birth ?? ""), phone: fmtPhone(v.phone ?? ""), careers: v.careers.filter((c) => c.w || c.p || c.j) });
+      async function send(btn) {
+        const val = values();
+        if (!val.name?.trim()) {
+          toast("이름을 써 주세요.");
+          fromReview = true;
+          return go(0, -1);
+        }
+        if (val.phone.replace(/\D/g, "").length < 10) {
+          toast("연락처를 써 주세요.");
+          fromReview = true;
+          return go(1, -1);
+        }
+        if (!v.agree) {
+          toast("개인정보 수집 · 이용 동의를 눌러주세요.");
+          $("[data-agree]")?.scrollIntoView({ block: "center", behavior: "smooth" });
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = "이력서 사진 만드는 중…";
         try {
-          preview(await makeImage(v));
+          preview(await makeImage(val));
         } catch (err) {
           toast(err.message);
         } finally {
-          send.disabled = false;
-          send.textContent = "문자 전송하기";
+          btn.disabled = false;
+          btn.textContent = "문자 전송하기";
         }
-      });
+      }
 
       // ••• : 빈 양식 인쇄 · 사진으로 저장 · 모두 지우기
       const menu = $("#menu");
-      $("#more").addEventListener("click", (e) => {
-        e.stopPropagation();
-        menu.hidden = !menu.hidden;
-      });
       document.addEventListener("click", (e) => {
         if (!menu.hidden && !menu.contains(e.target)) menu.hidden = true;
       });
@@ -899,10 +1057,10 @@
       });
       $("#save-img").addEventListener("click", async () => {
         menu.hidden = true;
-        const v = values();
-        if (!check(v)) return;
+        const val = values();
+        if (!val.name?.trim()) return toast("이름을 먼저 써 주세요.");
         try {
-          download(await makeImage(v));
+          download(await makeImage(val));
         } catch (err) {
           toast(err.message);
         }
@@ -910,11 +1068,13 @@
       $("#clear").addEventListener("click", () => {
         menu.hidden = true;
         if (!confirm("쓴 내용을 모두 지울까요?")) return;
-        try {
-          localStorage.removeItem(KEY);
-        } catch {}
-        location.reload();
+        v = { careers: [] };
+        keep();
+        fromReview = false;
+        go(0, -1);
       });
+
+      render(0);
     </script>
   </body>
 </html>
