@@ -6650,3 +6650,57 @@ a.m-toggle {
 .cert-biz th { width: 120px; color: #555; font-weight: 600; }
 .cert-sign { position: relative; margin-left: 24px; }
 .cert-sign img { position: absolute; left: -20px; top: -28px; width: 110px; height: auto; opacity: 0.9; }
+
+/* 정보: 내 매장 */
+.my-stores { margin-top: 14px; }
+.my-stores ul { margin: 0 0 10px; padding: 0; list-style: none; }
+.my-stores li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.my-stores li.on span { font-weight: 800; }
+.my-stores em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--accent); }
+
+/* 근무표: 직원이 낸 가능 시간 */
+.avail-box { margin: 0 0 12px; padding: 4px 16px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow); }
+.avail-box summary { padding: 10px 0; font-size: 14px; cursor: pointer; }
+.avail-box summary b { color: var(--accent); }
+.avail-box ul { margin: 0; padding: 0; list-style: none; }
+.avail-box li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.avail-box li div { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.avail-box li small { color: var(--ink-sub); font-size: 13px; }
+
+/* 직원: 새 지원자 */
+.applicants { margin-bottom: 16px; padding: 16px 20px; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow); }
+.applicants-title { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+.applicants-title b { color: var(--accent); }
+.applicants ul { margin: 0; padding: 0; list-style: none; }
+.applicants li { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); }
+.app-main { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.app-main small { color: var(--ink-sub); font-size: 13px; line-height: 1.5; }
+.app-intro { white-space: pre-wrap; }
+.app-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 600px) {
+  .applicants li { flex-direction: column; }
+  .app-btns { justify-content: flex-start; }
+}
+
+/* 계약서 원격 서명 */
+.ct-remote { margin: 0; padding: 12px 14px; border-radius: 12px; background: #fff3d6; color: #8a5a00; font-size: 13.5px; line-height: 1.6; }
+.ct-remote.ok { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* 직원 화면: 탭 넷 · 계약서 · 가능 시간 · 세무사 */
+.pay-tabs button { font-size: 13.5px; }
+.pay-tabs .dot-new { display: inline-block; width: 6px; height: 6px; margin-left: 4px; border-radius: 50%; background: #f04452; vertical-align: 2px; }
+.ct-banner { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 12px; padding: 14px 16px; border: 0; border-radius: 14px; background: #fff3d6; font: inherit; color: #8a5a00; cursor: pointer; }
+.ct-banner span { font-weight: 700; }
+.pay-ct { margin-top: 14px; overflow: hidden; border-radius: 8px; background: #fff; box-shadow: var(--shadow); }
+.ct-state { text-align: center; }
+.avail-form { display: grid; gap: 8px; margin-top: 12px; }
+.avail-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 14px; background: var(--paper); }
+.avail-row .chip { min-width: 48px; height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--bg); font: inherit; font-weight: 700; color: var(--ink-sub); cursor: pointer; }
+.avail-row .chip.on { background: var(--accent); color: #fff; }
+.avail-row .field { flex: 1; min-width: 0; height: 40px; }
+.avail-row .muted { color: var(--ink-sub); font-size: 14px; }
+.avail-note { min-height: 80px; padding: 10px 12px; resize: vertical; }
+.tax-form { display: flex; gap: 8px; margin-top: 12px; }
+.tax-form .field { flex: 1; min-width: 0; font-size: 18px; letter-spacing: 0.1em; }
+.tax-list { margin: 14px 0 0; padding: 0; list-style: none; }
+.tax-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; margin-bottom: 8px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow); }

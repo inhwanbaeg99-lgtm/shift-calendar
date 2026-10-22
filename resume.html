@@ -1024,6 +1024,36 @@
       }
 
 
+      // ---------- 매장에도 바로 보내기 (콕 매장 공개키로 잠가서, 사장님만 열 수 있게) ----------
+      const DB = "https://shift-calendar-e973e-default-rtdb.asia-southeast1.firebasedatabase.app";
+      const b64 = (buf) => {
+        let out = "";
+        for (const x of new Uint8Array(buf)) out += String.fromCharCode(x);
+        return btoa(out);
+      };
+      async function submitToStore(val) {
+        if (!code) return false;
+        const { step, sentSig, agree, ...data } = val;
+        const sig = JSON.stringify(data);
+        if (v.sentSig === sig) return true;
+        const r = await fetch(`${DB}/stores/${code}/public/resumeKey.json`);
+        const jwk = r.ok ? await r.json() : null;
+        if (typeof jwk !== "string") return false;
+        const RSA = { name: "RSA-OAEP", hash: "SHA-256" };
+        const pub = await crypto.subtle.importKey("jwk", JSON.parse(jwk), RSA, false, ["encrypt"]);
+        const aesRaw = crypto.getRandomValues(new Uint8Array(32));
+        const aes = await crypto.subtle.importKey("raw", aesRaw, "AES-GCM", false, ["encrypt"]);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aes, new TextEncoder().encode(JSON.stringify({ ...data, at: new Date().toISOString() })));
+        const k = await crypto.subtle.encrypt(RSA, pub, aesRaw);
+        const rid = [...crypto.getRandomValues(new Uint8Array(16))].map((x) => "abcdefghijklmnopqrstuvwxyz0123456789"[x % 36]).join("");
+        const res = await fetch(`${DB}/stores/${code}/public/resumes/${rid}.json`, { method: "PUT", body: JSON.stringify(JSON.stringify({ k: b64(k), iv: b64(iv), ct: b64(ct) })) });
+        if (!res.ok) return false;
+        v.sentSig = sig;
+        keep();
+        return true;
+      }
+
       // ---------- 보내기 ----------
       const values = () => ({ ...v, birth: fmtBirth(v.birth ?? ""), phone: fmtPhone(v.phone ?? ""), careers: v.careers.filter((c) => c.w || c.p || c.j) });
       async function send(btn) {
@@ -1045,8 +1075,10 @@
         }
         btn.disabled = true;
         btn.textContent = "이력서 사진 만드는 중…";
+        const sent = submitToStore(val).catch(() => false);
         try {
           preview(await makeImage(val));
+          if (await sent) toast("매장 앱에도 이력서가 도착했어요");
         } catch (err) {
           toast(err.message);
         } finally {

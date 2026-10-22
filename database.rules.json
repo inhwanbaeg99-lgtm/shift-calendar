@@ -38,11 +38,40 @@
           },
           "order": {
             ".validate": "newData.isString()"
+          },
+          "signs": {
+            "$emp": {
+              "$cid": {
+                ".write": "root.child('stores/' + $sid + '/meta').exists() && !data.exists() && newData.exists()",
+                ".validate": "newData.isString() && newData.val().length < 300000"
+              }
+            }
+          },
+          "avail": {
+            "$emp": {
+              ".write": "root.child('stores/' + $sid + '/meta').exists() && newData.exists()",
+              ".validate": "newData.isString() && newData.val().length < 4000"
+            }
+          },
+          "resumes": {
+            "$rid": {
+              ".write": "root.child('stores/' + $sid + '/meta').exists() && !data.exists() && newData.exists()",
+              ".validate": "$rid.matches(/^[a-z0-9]{8,24}$/) && newData.isString() && newData.val().length < 60000"
+            }
           }
         },
         "private": {
           ".read": "auth != null && root.child('stores/' + $sid + '/meta/owner').val() === auth.uid",
           ".write": "auth != null && root.child('stores/' + $sid + '/meta/owner').val() === auth.uid"
+        }
+      }
+    },
+    "ownerStores": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$sid": {
+          ".write": "auth != null && auth.uid === $uid && root.child('stores/' + $sid + '/meta/owner').val() === auth.uid",
+          ".validate": "newData.isBoolean()"
         }
       }
     }
