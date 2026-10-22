@@ -628,8 +628,22 @@
     <script>
       const KEY = "kok-resume";
       const $ = (s) => document.querySelector(s);
-      const store = (new URLSearchParams(location.search).get("store") || "").slice(0, 40);
+      const params = new URLSearchParams(location.search);
+      let store = (params.get("store") || "").slice(0, 40);
       if (store) document.title = `이력서 · ${store}`;
+      // 짧은 주소(?s=매장코드): 매장 이름은 공개된 매장 정보에서 불러온다
+      const code = (params.get("s") || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+      if (code && !store) {
+        fetch(`https://shift-calendar-e973e-default-rtdb.asia-southeast1.firebasedatabase.app/stores/${code}/meta/name.json`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((name) => {
+            if (typeof name !== "string" || !name) return;
+            store = name.slice(0, 40);
+            document.title = `이력서 · ${store}`;
+            render(0);
+          })
+          .catch(() => {});
+      }
       const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
       let toastTimer;
       const toast = (msg) => {

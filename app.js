@@ -935,12 +935,12 @@ function renderEmployees() {
 }
 
 // ---------- 정보 탭: 매장 · 사업주 정보 · 직원 링크 · 이력서 양식 · 매장 삭제 ----------
-const resumeUrl = () => new URL(`../resume.html?store=${encodeURIComponent(storeName())}`, location.href).href;
+const resumeUrl = () => new URL(demoLoaded ? "../resume.html" : `../resume.html?s=${storeId}`, location.href).href;
 const payUrl = () => new URL(`../?s=${storeId}#/my`, location.href).href;
 
 function renderMyPage() {
   const biz = store.settings?.biz ?? {};
-  const keys = remote?.priv?.slipKeys ?? {};
+  const pins = remote?.priv?.slipPins ?? {};
   const field = (k, label, ph, extra = "") =>
     `<label class="me-field"${k === "address" ? ' style="grid-column:1/-1"' : ""}><span>${label}</span><input class="field" data-biz="${k}" value="${esc(biz[k] ?? "")}" placeholder="${esc(ph)}" ${extra}/></label>`;
   const emps = store.employees.filter((e) => e.active);
@@ -948,14 +948,12 @@ function renderMyPage() {
     ${isDesktop() ? "" : mHead("정보")}
     <div class="me">
       <section class="me-card">
-        <h2>매장</h2>
         <p class="me-store">${esc(storeName())}</p>
         <p class="sub">매장 코드 <b>${demoLoaded ? "-" : codeLabel()}</b>${cloud?.auth.currentUser?.email ? ` · ${esc(cloud.auth.currentUser.email)}` : ""}</p>
       </section>
 
       <section class="me-card">
         <h2>사업주 정보</h2>
-        <p class="sub">근로계약서에 들어가요. 바꾸면 바로 저장돼요.</p>
         <div class="me-grid">
           ${field("bizName", "상호", storeName())}
           ${field("owner", "대표자", "홍길동")}
@@ -967,31 +965,27 @@ function renderMyPage() {
 
       <section class="me-card">
         <h2>직원 링크 · 근무 상세와 급여명세서</h2>
-        <p class="sub">이 주소를 단톡방에 올려 두면, 직원이 눌러서 <b>자기 PIN</b>으로 자기 것만 봐요. 근무 상세는 출퇴근이 찍힐 때마다, 명세서는 매달 <b>지급일(${payDayLabel()})</b>이 지나면 자동으로 올라가요.</p>
         <div class="me-link"><span>${demoLoaded ? "로그인하면 주소가 생겨요" : esc(payUrl())}</span><button type="button" class="pill" data-action="copy-pay-link"${demoLoaded ? " disabled" : ""}>주소 복사</button></div>
         <ul class="me-pins">
           ${
             emps
               .map(
-                (e) => `<li><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}"></span>${esc(e.name)}</span>
-              <span class="me-pin-state${keys[e.id] ? " on" : ""}">${keys[e.id] ? "공개 중" : "PIN 없음"}</span>
-              <span class="me-pin-btns"><button type="button" class="pill plain-dark" data-action="slip-pin" data-id="${e.id}">${keys[e.id] ? "PIN 바꾸기" : "PIN 정하기"}</button>${keys[e.id] ? `<button type="button" class="pill plain" data-action="slip-off" data-id="${e.id}">끄기</button>` : ""}</span></li>`,
+                (e) => `<li><span class="name-cell">${esc(e.name)}</span>
+              <b class="me-pin${pins[e.id] ? "" : " wait"}">${pins[e.id] ? esc(pins[e.id]) : demoLoaded ? "로그인하면 생겨요" : "PIN 만드는 중…"}</b>
+              <button type="button" class="pill plain" data-action="slip-new" data-id="${e.id}"${demoLoaded ? " disabled" : ""}>새 PIN</button></li>`,
               )
               .join("") || `<li class="muted">재직중인 직원이 없어요</li>`
           }
         </ul>
-        <p class="sub small">PIN은 숫자 6자리예요. 직원에게 따로(개인 톡으로) 알려 주세요. PIN을 바꾸면 이전 PIN으로는 볼 수 없어요.</p>
       </section>
 
       <section class="me-card">
         <h2>이력서 양식</h2>
-        <p class="sub">지원자에게 이 주소를 문자로 보내면, 휴대폰에서 바로 쓰고 <b>문자 전송하기</b>를 눌러 A4 이력서 사진으로 보내 줘요. 종이 양식은 열어서 ••• → 빈 양식 인쇄.</p>
         <div class="me-link"><span>${esc(resumeUrl())}</span><a class="pill plain-dark" href="${esc(resumeUrl())}" target="_blank" rel="noopener">열기</a><button type="button" class="pill" data-action="copy-resume-link">주소 복사</button></div>
       </section>
 
       <section class="me-card">
         <h2>매장 삭제</h2>
-        <p class="sub">매장을 삭제하면 직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어요. 지우기 전에 급여 화면에서 달마다 급여대장을 받아 두세요.</p>
         <div class="store-manage-actions">
           <button type="button" class="pill danger-pill" data-action="delete-store"${demoLoaded ? " disabled" : ""}>매장 · 계정 삭제</button>
         </div>
@@ -1039,7 +1033,6 @@ const slipMonths = (empId) => Object.keys(slipsOf(empId)).filter((k) => /^\d{4}-
 var slipBusy = false;
 async function publishSlips(onlyId = null) {
   if (!ADMIN_SITE || demoLoaded || !cloud || !storeId || !remote.privLoaded || slipBusy) return;
-  const keys = remote.priv?.slipKeys ?? {};
   const today = todayDateString();
   const months = [];
   let ym = today.slice(0, 7);
@@ -1047,13 +1040,18 @@ async function publishSlips(onlyId = null) {
     if (payDateFor(ym) <= today) months.push(ym);
     ym = shiftMonth(ym, -1);
   }
-  const recent = Array.from({ length: 13 }, (_, i) => shiftMonth(today.slice(0, 7), -i));
+  // 근무 상세는 그달이 끝난 다음 달 1일부터 (이번 달은 아직 안 올린다)
+  const thisMonth = today.slice(0, 7);
+  const recent = Array.from({ length: 12 }, (_, i) => shiftMonth(thisMonth, -(i + 1)));
   slipBusy = true;
   try {
-    for (const [empId, raw] of Object.entries(keys)) {
+    if (!onlyId) await ensureSlipPins();
+    for (const [empId, raw] of Object.entries(remote.priv?.slipKeys ?? {})) {
       const emp = employeeById(empId);
       if (!emp || (onlyId && empId !== onlyId)) continue;
-      // 근무 상세: 이번 달 포함 최근 13개월, 근무 기록이 있는 달만 (지급일과 상관없이 바로)
+      // 이번 달 근무 상세가 먼저 올라가 있었으면 내린다
+      if (slipsOf(empId)[`w-${thisMonth}`]) await cloud.db.ref(storePath(`public/slips/${empId}/w-${thisMonth}`)).remove();
+      // 근무 상세: 지난 12개월, 근무 기록이 있는 달만
       for (const m of recent) {
         if (!timesheet(m, empId, { includeAll: true }).rows[0]?.total) continue;
         const html = renderTsCard(emp, m);
@@ -1084,28 +1082,43 @@ function queueSlipPublish() {
   slipTimer = setTimeout(() => publishSlips(), 4000);
 }
 
-async function setSlipPin(empId) {
-  const emp = employeeById(empId);
-  const pin = await uiPrompt(`${emp.name}님 명세서 PIN (숫자 6자리)\n직원이 명세서 링크에서 이 PIN을 넣어요.`, { kind: "pin", placeholder: "숫자 6자리", ok: "저장" });
-  if (pin === null) return;
-  showToast("명세서를 잠그는 중이에요…");
+// 재직중 직원마다 PIN(숫자 6자리)을 자동으로 만든다. PIN 은 사장님만 읽는 private/slipPins 에 두고 정보 화면에 보여 준다.
+function randomPin() {
+  const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
+  return String(n).padStart(6, "0");
+}
+async function makeSlipPin(empId) {
+  const pin = randomPin();
   const raw = await slipKeyFromPin(empId, pin);
   // 이전 PIN 으로 잠근 달은 지우고 새로 잠근다
   await cloud.db.ref(storePath(`public/slips/${empId}`)).set({ check: JSON.stringify(await sealText(raw, "ok")) });
   await cloud.db.ref(storePath(`private/slipKeys/${empId}`)).set(raw);
-  remote.priv = { ...(remote.priv ?? {}), slipKeys: { ...(remote.priv?.slipKeys ?? {}), [empId]: raw } };
+  await cloud.db.ref(storePath(`private/slipPins/${empId}`)).set(pin);
+  remote.priv = { ...(remote.priv ?? {}), slipKeys: { ...(remote.priv?.slipKeys ?? {}), [empId]: raw }, slipPins: { ...(remote.priv?.slipPins ?? {}), [empId]: pin } };
   remote.pub = { ...(remote.pub ?? {}), slips: { ...(remote.pub?.slips ?? {}), [empId]: {} } };
-  slipBusy = false;
-  await publishSlips(empId);
-  showToast(`${emp.name}님 PIN을 정했어요. 직원에게 따로 알려 주세요`, "ok");
-  render();
+  return pin;
 }
-async function slipOff(empId) {
+async function ensureSlipPins() {
+  const pins = remote.priv?.slipPins ?? {};
+  let made = false;
+  for (const e of store.employees) {
+    if (!e.active || pins[e.id]) continue;
+    await makeSlipPin(e.id);
+    made = true;
+  }
+  if (made && route().name === "me") render();
+}
+async function newSlipPin(empId) {
   const emp = employeeById(empId);
-  if (!(await uiConfirm(`${emp.name}님 명세서 공개를 끌까요?\n올라간 명세서도 지워져요.`, { ok: "끄기", danger: true }))) return;
-  await cloud.db.ref(storePath(`public/slips/${empId}`)).remove();
-  await cloud.db.ref(storePath(`private/slipKeys/${empId}`)).remove();
-  showToast(`${emp.name}님 명세서 공개를 껐어요`, "ok");
+  if (!(await uiConfirm(`${emp.name}님 PIN을 새로 만들까요?\n이전 PIN으로는 더 이상 볼 수 없어요.`, { ok: "새로 만들기" }))) return;
+  slipBusy = true;
+  try {
+    await makeSlipPin(empId);
+  } finally {
+    slipBusy = false;
+  }
+  await publishSlips(empId);
+  showToast(`${emp.name}님 새 PIN을 만들었어요. 개인 톡으로 알려 주세요`, "ok");
   render();
 }
 
@@ -1154,7 +1167,7 @@ function renderPayPage() {
       <p class="pay-sub">내 근무 및 급여명세서</p>
       ${
         names.length
-          ? `<ul class="pay-names">${names.map((e) => `<li><button type="button" data-action="pay-open" data-id="${e.id}"><span class="swatch" style="background:${cssColor(e.color)}"></span>${esc(e.name)}<span class="chev" aria-hidden="true">›</span></button></li>`).join("")}</ul>
+          ? `<ul class="pay-names">${names.map((e) => `<li><button type="button" data-action="pay-open" data-id="${e.id}">${esc(e.name)}<span class="chev" aria-hidden="true">${ICON_CHEVRON}</span></button></li>`).join("")}</ul>
             <p class="pay-hint">본인 이름을 누르고 PIN을 입력해주세요.</p>`
           : `<p class="pay-hint">아직 공개된 내용이 없어요. 사장님께 PIN을 받았는지 확인해주세요.</p>`
       }`;
@@ -3543,11 +3556,11 @@ async function scheduleShare(button) {
 // sel 은 여러 개를 줄 수 있고, 화면에 보이는 첫 번째를 가리킨다. 지금 화면에 없는 단계는 건너뛴다.
 const TOURS = {
   me: () => [
-    { sel: ".me-card:nth-of-type(2)", title: "사업주 정보", text: "상호, 대표자, 주소, 연락처를 한 번 넣어 두면 <b>근로계약서</b>에 자동으로 들어가요." },
+    { sel: ".me-card:nth-of-type(2)", title: "사업주 정보", text: "상호, 대표자, 주소, 연락처를 한 번 넣어 두면 <b>근로계약서</b>에 자동으로 들어가요. 바꾸면 바로 저장돼요." },
     { sel: ".me-card:nth-of-type(3) .me-link", title: "직원 링크", text: "이 주소를 <b>단톡방</b>에 한 번 올려 두세요. 직원이 눌러서 자기 PIN으로 자기 근무 상세와 명세서만 봐요." },
-    { sel: ".me-pins", title: "직원별 PIN", text: "직원마다 <b>숫자 6자리 PIN</b>을 정하고 개인 톡으로 알려 주세요. 매달 지급일이 지나면 명세서가 자동으로 올라가서, 일일이 보낼 필요가 없어요." },
+    { sel: ".me-pins", title: "직원별 PIN", text: "직원마다 <b>PIN 6자리가 자동으로</b> 만들어져요. 개인 톡으로 알려 주세요. 근무 상세는 <b>다음 달 1일</b>, 명세서는 <b>급여 지급일</b>(급여 화면에서 정해요)이 지나면 자동으로 올라가요. 잃어버렸으면 <b>새 PIN</b>으로 바꿔요." },
     { sel: ".me-card:nth-of-type(4) .me-link", title: "이력서 양식", text: "지원자에게 이 주소를 보내면 휴대폰으로 써서 A4 이력서 사진을 문자로 보내 줘요. 종이 양식은 열어서 ••• → 빈 양식 인쇄." },
-    { sel: ".me-card:nth-of-type(5) .store-manage-actions", title: "매장 삭제", text: "매장과 계정을 지워요. 지우기 전에 급여 화면에서 급여대장을 받아 두세요." },
+    { sel: ".me-card:nth-of-type(5) .store-manage-actions", title: "매장 삭제", text: "매장과 계정을 지워요. 직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어서, 지우기 전에 급여 화면에서 급여대장을 받아 두세요." },
   ],
   employees: (pc) =>
     pc
@@ -4397,11 +4410,8 @@ app.addEventListener("click", (e) => {
         () => showToast("복사하지 못했어요. 주소를 길게 눌러 복사해주세요."),
       );
       return;
-    case "slip-pin":
-      setSlipPin(id).catch((err) => uiAlert(`PIN을 저장하지 못했어요. ${err.message}`));
-      return;
-    case "slip-off":
-      slipOff(id).catch((err) => uiAlert(err.message));
+    case "slip-new":
+      newSlipPin(id).catch((err) => uiAlert(`PIN을 만들지 못했어요. ${err.message}`));
       return;
     case "pay-open":
       payOpen(id);

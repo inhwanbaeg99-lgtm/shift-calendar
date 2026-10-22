@@ -6477,3 +6477,37 @@ a.m-toggle {
     position: static;
   }
 }
+
+/* 정보: 자동으로 만든 PIN · 제목과 주소 칸 간격 */
+.me-pin {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+.me-pin.wait {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink-sub);
+}
+.me-card h2 + .me-link,
+.me-card h2 + .me-grid,
+.me-card h2 + .store-manage-actions {
+  margin-top: 12px;
+}
+.me-card > .me-store:first-child {
+  margin-top: 0;
+}
+/* 직원 링크: 이름을 한 줄에 두 명씩 */
+.pay-names {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.pay-names button {
+  min-width: 0;
+}
+.pay-names .chev {
+  display: grid;
+  place-items: center;
+}
