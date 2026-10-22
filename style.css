@@ -6511,3 +6511,23 @@ a.m-toggle {
   display: grid;
   place-items: center;
 }
+
+/* 컴퓨터 PIN 입력: 화면 가운데 */
+.pin-desk {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(100vh - 220px);
+}
+.pin-desk .pin-guide {
+  margin-top: 0;
+  font-size: 17px;
+}
+.pin-desk .pin-dots {
+  gap: 18px;
+  margin-bottom: 0;
+}
+.pin-desk .pin-dots i {
+  width: 16px;
+  height: 16px;
+}

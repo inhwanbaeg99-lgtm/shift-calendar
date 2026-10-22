@@ -1146,9 +1146,10 @@ function renderPinPad() {
   const desk = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   return `
     <div class="pay-who"><button type="button" class="pay-back-btn" data-action="pay-close" aria-label="이전">${ICON_BACK}</button><b>${esc(emp?.name ?? "")}님</b></div>
+    ${desk ? `<div class="pin-desk">` : ""}
     <p class="pin-guide">${p.busy ? "확인하는 중이에요…" : desk ? "키보드로 PIN 6자리를 입력해주세요" : "PIN 6자리를 눌러주세요"}</p>
     <div class="pin-dots${p.shake ? " shake" : ""}" aria-label="${p.digits.length}자리 입력됨">${Array.from({ length: 6 }, (_, i) => `<i class="${i < p.digits.length ? "on" : ""}"></i>`).join("")}</div>
-    ${desk ? "" : `<div class="pin-pad">${keys
+    ${desk ? "</div>" : `<div class="pin-pad">${keys
       .map((k) =>
         k === ""
           ? `<span></span>`
