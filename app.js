@@ -3206,69 +3206,102 @@ function contractForm(c) {
   const signed = c.status === "signed";
   const lowWage = f.payType === "hourly" && Number(f.wage) < DEFAULT_WAGE;
   const weekMin = contractWeekMin(f);
-  const input = (key, label, value, extra = "") =>
-    `<label class="ct-row"><span>${label}</span><input class="field" data-cf="${key}" value="${esc(value ?? "")}" ${extra} /></label>`;
+  const row = (key, label, value, extra = "") =>
+    `<label class="ctf-row"><span>${label}</span><input class="field" data-cf="${key}" value="${esc(value ?? "")}" ${extra} /></label>`;
+  const head = page ? "" : `<p class="staff-title">${esc(f.empName)} · 근로계약서${signed ? ` <span class="pay-tag">서명 완료</span>` : ""}</p>`;
+  const close = page ? "" : `<div class="action-row"><button type="button" class="btn-ghost" data-action="close-contract">닫기</button></div>`;
+  const check = svg(26, '<path d="M20 6 9 17l-5-5"/>', 2.75);
   if (c.status === "emp-signed") {
-    return `${page ? "" : `<p class="staff-title">${esc(f.empName)} · 근로계약서 <span class="pay-tag">직원 서명 완료</span></p>`}
-      <p class="ct-remote ok">${esc(f.empName)}님이 ${c.empSignedAt ? dot(dateStringFor(new Date(c.empSignedAt))) : ""} 직원 링크에서 서명했어요. 사장님 서명만 남았어요.</p>
-      <div class="ct-actions-col">
-        <button type="button" class="btn-primary" data-action="sign-owner">사장님 서명하기</button>
-        <button type="button" class="btn-ghost" data-action="new-contract" data-id="${c.empId}">처음부터 다시 쓰기</button>
-      </div>`;
+    return `${head}
+      <div class="ctf">
+        <section class="ctf-done wait">
+          <span class="ctf-done-icon">✍️</span>
+          <b>직원 서명이 끝났어요</b>
+          <small>${esc(f.empName)}님이 ${c.empSignedAt ? dot(dateStringFor(new Date(c.empSignedAt))) : ""} 직원 링크에서 서명했어요. 사장님 서명만 남았어요.</small>
+        </section>
+        <div class="ctf-actions">
+          <button type="button" class="btn-primary ctf-main" data-action="sign-owner">사장님 서명하기</button>
+          <div class="ctf-sub"><button type="button" class="btn-ghost" data-action="new-contract" data-id="${c.empId}">처음부터 다시 쓰기</button></div>
+        </div>
+      </div>${close}`;
   }
-  const form = signed
-    ? `
-      <div class="ct-actions-col">
-        <button type="button" class="btn-primary" data-action="contract-share">카카오톡 전송하기</button>
-        <button type="button" class="btn-ghost" data-action="contract-pdf">PDF 받기</button>
-        <button type="button" class="btn-ghost" data-action="new-contract" data-id="${c.empId}">새 계약서 쓰기 (재계약)</button>
-      </div>
-      <p class="sal-note">근로계약서는 근로자에게 꼭 한 부 줘야 해요. 카톡이나 PDF로 보내 주세요. 사업주는 계약이 끝난 뒤에도 3년간 보관해야 해요.</p>
-      ${page ? "" : `<div class="action-row"><button type="button" class="btn-ghost" data-action="close-contract">닫기</button></div>`}`
-    : `
-      ${c.status === "sent" ? `<p class="ct-remote">${dot(dateStringFor(new Date(c.sentAt)))}에 직원 링크로 보냈어요. ${esc(f.empName)}님이 서명하면 여기에 표시돼요. 내용을 고쳤으면 <b>다시 보내기</b>를 눌러 주세요.</p>` : `<p class="sub">직원 정보로 미리 채워 뒀어요. 고치면 계약서 미리보기가 바로 바뀌어요.</p>`}
-      <div class="ct-form">
-        <p class="sal-title">계약 기간 · 업무</p>
-        ${input("start", "시작일", f.start, 'type="date"')}
-        ${input("end", "끝나는 날 <small>비우면 기간 없음</small>", f.end, 'type="date"')}
-        ${input("place", "근무 장소", f.place)}
-        ${input("job", "업무 내용", f.job)}
-        <label class="ct-row ct-row-col"><span>특약 사항 <small>한 줄에 하나씩</small></span><textarea class="field" data-cf="extra" rows="3" placeholder="예: 수습기간 3개월">${esc(f.extra ?? "")}</textarea></label>
-        <p class="sal-title">근무 요일 · 시간 <small>예: 09:00~15:00, 비우면 쉬는 날</small></p>
+  if (signed) {
+    return `${head}
+      <div class="ctf">
+        <section class="ctf-done">
+          <span class="ctf-done-icon ok">${check}</span>
+          <b>근로계약서가 완성됐어요</b>
+          <small>${dot(dateStringFor(new Date(c.signedAt)))} 서명 · 근로자에게 꼭 한 부 줘야 해요. 사업주는 3년간 보관해요.</small>
+        </section>
+        <div class="ctf-actions">
+          <button type="button" class="btn-primary ctf-main" data-action="contract-share">카카오톡 전송하기</button>
+          <div class="ctf-sub">
+            <button type="button" class="btn-ghost" data-action="contract-pdf">PDF 받기</button>
+            <button type="button" class="btn-ghost" data-action="new-contract" data-id="${c.empId}">새 계약서 (재계약)</button>
+          </div>
+        </div>
+      </div>${close}`;
+  }
+  const ins = [["employ", "고용보험"], ["accident", "산재보험"], ["pension", "국민연금"], ["health", "건강보험"]];
+  return `${head}
+    <div class="ctf">
+      ${c.status === "sent" ? `<p class="ct-remote">${dot(dateStringFor(new Date(c.sentAt)))}에 직원 링크로 보냈어요. ${esc(f.empName)}님이 서명하면 여기에 표시돼요. 내용을 고쳤으면 <b>다시 보내기</b>를 눌러 주세요.</p>` : ""}
+      <section class="ctf-card">
+        <h3>계약 기간 · 업무</h3>
+        ${row("start", "시작일", f.start, 'type="date"')}
+        ${row("end", "끝나는 날", f.end, 'type="date" title="비우면 기간 없음"')}
+        ${row("place", "근무 장소", f.place)}
+        ${row("job", "업무 내용", f.job)}
+        <label class="ctf-block"><span>특약 사항 <small>한 줄에 하나씩</small></span><textarea class="field" data-cf="extra" rows="2" placeholder="예: 수습기간 3개월">${esc(f.extra ?? "")}</textarea></label>
+      </section>
+      <section class="ctf-card">
+        <h3>근무 요일 · 시간 <small>주 ${hm(weekMin)}</small></h3>
         ${CONTRACT_DAYS.map((wd) => {
           const d = f.days?.[wd];
-          return `<div class="ct-day"><span>${WEEKDAYS[wd]}</span><input class="field" data-cfday="${wd}" value="${d ? `${d.start}~${d.end}` : ""}" placeholder="쉬는 날" aria-label="${WEEKDAYS[wd]}요일 근로시간" /><input class="field ct-break" data-cfbreak="${wd}" value="${d ? d.breakMin : ""}" placeholder="휴게" inputmode="numeric" aria-label="${WEEKDAYS[wd]}요일 휴게(분)"${d ? "" : " disabled"} /><small>분</small></div>`;
+          return `<div class="ctf-day${d ? " on" : ""}${wd === 0 ? " sun" : ""}">
+            <b>${WEEKDAYS[wd]}</b>
+            <input class="field" data-cfday="${wd}" value="${d ? `${d.start}~${d.end}` : ""}" placeholder="쉬는 날" aria-label="${WEEKDAYS[wd]}요일 근로시간" />
+            ${d ? `<label class="ctf-break"><span>휴게</span><input class="field" data-cfbreak="${wd}" value="${d.breakMin}" inputmode="numeric" aria-label="${WEEKDAYS[wd]}요일 휴게(분)" /><span>분</span></label>` : ""}
+          </div>`;
         }).join("")}
-        <p class="sal-note">주 실근로 ${hm(weekMin)} · 휴게는 법(4시간 이상 30분, 8시간 이상 1시간)에 맞춰 넣었어요. 콕 급여 계산은 아직 휴게시간을 빼지 않아요.</p>
-        <label class="ct-row"><span>주휴일</span><select class="field" data-cf="restDay">${CONTRACT_DAYS.map((wd) => `<option value="${wd}"${Number(f.restDay) === wd ? " selected" : ""}>${WEEKDAYS[wd]}요일</option>`).join("")}</select></label>
-        <p class="sal-title">임금</p>
-        <label class="ct-row"><span>급여 방식</span><select class="field" data-cf="payType"><option value="hourly"${f.payType === "hourly" ? " selected" : ""}>시급</option><option value="salary"${f.payType === "salary" ? " selected" : ""}>월급</option></select></label>
+        <label class="ctf-row"><span>주휴일</span><select class="field" data-cf="restDay">${CONTRACT_DAYS.map((wd) => `<option value="${wd}"${Number(f.restDay) === wd ? " selected" : ""}>${WEEKDAYS[wd]}요일</option>`).join("")}</select></label>
+      </section>
+      <section class="ctf-card">
+        <h3>임금</h3>
+        <label class="ctf-row"><span>급여 방식</span><select class="field" data-cf="payType"><option value="hourly"${f.payType === "hourly" ? " selected" : ""}>시급</option><option value="salary"${f.payType === "salary" ? " selected" : ""}>월급</option></select></label>
         ${
           f.payType === "salary"
-            ? input("salary", "기본급 (월)", Number(f.salary || 0).toLocaleString(), 'inputmode="numeric" data-money') + input("meal", "식대 (선택)", Number(f.meal || 0).toLocaleString(), 'inputmode="numeric" data-money')
-            : input("wage", "시급", Number(f.wage || 0).toLocaleString(), 'inputmode="numeric" data-money')
+            ? row("salary", "기본급 (월)", Number(f.salary || 0).toLocaleString(), 'inputmode="numeric" data-money') + row("meal", "식대 (선택)", Number(f.meal || 0).toLocaleString(), 'inputmode="numeric" data-money')
+            : row("wage", "시급", Number(f.wage || 0).toLocaleString(), 'inputmode="numeric" data-money')
         }
         ${lowWage ? `<p class="sal-alert">2026년 최저시급(${DEFAULT_WAGE.toLocaleString()}원)보다 낮아요. 최저임금보다 적게 정하면 그 부분은 무효예요.</p>` : ""}
-        ${input("payday", "지급일 (매월)", f.payday, 'inputmode="numeric"')}
-        <p class="sal-title">사회보험</p>
-        <div class="ct-ins">${[["employ", "고용보험"], ["accident", "산재보험"], ["pension", "국민연금"], ["health", "건강보험"]].map(([k, l]) => `<label><input type="checkbox" data-cfins="${k}"${f.insurance?.[k] ? " checked" : ""} /> ${l}</label>`).join("")}</div>
-        <p class="sal-title">사업주 <small>한 번 넣으면 다음 계약서에도 채워져요</small></p>
-        ${input("owner", "대표자 성명", f.owner)}
-        ${input("bizAddress", "사업장 주소", f.bizAddress)}
-        ${input("bizPhone", "전화", f.bizPhone, 'inputmode="tel"')}
-        <p class="sal-title">근로자</p>
-        ${input("empPhone", "연락처", f.empPhone, 'inputmode="tel"')}
-        ${input("empAddress", "주소 (선택)", f.empAddress)}
-      </div>
+        ${row("payday", "지급일 (매월)", f.payday, 'inputmode="numeric"')}
+      </section>
+      <section class="ctf-card">
+        <h3>사회보험</h3>
+        <div class="ctf-chips">${ins.map(([k, l]) => `<label class="ctf-chip${f.insurance?.[k] ? " on" : ""}"><input type="checkbox" data-cfins="${k}"${f.insurance?.[k] ? " checked" : ""} />${l}</label>`).join("")}</div>
+      </section>
+      <section class="ctf-card">
+        <h3>사업주 <small>다음 계약서에도 채워져요</small></h3>
+        ${row("owner", "대표자", f.owner, 'placeholder="이름"')}
+        ${row("bizAddress", "사업장 주소", f.bizAddress, 'placeholder="주소"')}
+        ${row("bizPhone", "전화", f.bizPhone, 'inputmode="tel" placeholder="선택"')}
+      </section>
+      <section class="ctf-card">
+        <h3>근로자</h3>
+        ${row("empPhone", "연락처", f.empPhone, 'inputmode="tel" placeholder="선택"')}
+        ${row("empAddress", "주소", f.empAddress, 'placeholder="선택"')}
+      </section>
       ${state.error ? `<p class="error">${esc(state.error)}</p>` : ""}
-      <div class="action-row">
-        ${page ? "" : `<button type="button" class="btn-ghost" data-action="close-contract">닫기</button>`}
-        <button type="button" class="btn-ghost" data-action="save-contract">저장</button>
-        <button type="button" class="btn-ghost" data-action="sign-contract">매장에서 서명받기</button>
-        <button type="button" class="btn-primary" data-action="send-contract-remote">${c.status === "sent" ? "다시 보내기" : "직원 휴대폰으로 서명받기"}</button>
-      </div>`;
-  return `${page ? "" : `<p class="staff-title">${esc(f.empName)} · 근로계약서${signed ? ` <span class="pay-tag">서명 완료</span>` : ""}</p>`}
-          ${form}`;
+      <div class="ctf-actions">
+        <button type="button" class="btn-primary ctf-main" data-action="send-contract-remote">${c.status === "sent" ? "다시 보내기" : "직원 휴대폰으로 서명받기"}</button>
+        <div class="ctf-sub">
+          <button type="button" class="btn-ghost" data-action="sign-contract">매장에서 서명받기</button>
+          <button type="button" class="btn-ghost" data-action="save-contract">저장</button>
+          ${page ? "" : `<button type="button" class="btn-ghost" data-action="close-contract">닫기</button>`}
+        </div>
+      </div>
+    </div>`;
 }
 
 // ---------- 양식 수정: 근로계약서 · 이력서 ----------
