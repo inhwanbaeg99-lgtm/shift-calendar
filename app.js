@@ -3282,12 +3282,6 @@ function contractForm(c) {
         <div class="ctf-chips">${ins.map(([k, l]) => `<label class="ctf-chip${f.insurance?.[k] ? " on" : ""}"><input type="checkbox" data-cfins="${k}"${f.insurance?.[k] ? " checked" : ""} />${l}</label>`).join("")}</div>
       </section>
       <section class="ctf-card">
-        <h3>사업주 <small>다음 계약서에도 채워져요</small></h3>
-        ${row("owner", "대표자", f.owner, 'placeholder="이름"')}
-        ${row("bizAddress", "사업장 주소", f.bizAddress, 'placeholder="주소"')}
-        ${row("bizPhone", "전화", f.bizPhone, 'inputmode="tel" placeholder="선택"')}
-      </section>
-      <section class="ctf-card">
         <h3>근로자</h3>
         ${row("empPhone", "연락처", f.empPhone, 'inputmode="tel" placeholder="선택"')}
         ${row("empAddress", "주소", f.empAddress, 'placeholder="선택"')}
@@ -3449,6 +3443,16 @@ function renderEmpPage(id) {
     state.contractDirty = false;
   }
   const c = state.contractDraft;
+  if (c.status === "draft") {
+    // 사업주 칸은 계약서에서 고치지 않고, 정보 탭의 사업주 정보를 그대로 쓴다
+    const biz = store.settings?.biz ?? {};
+    Object.assign(c.f, {
+      bizName: biz.bizName || c.f.bizName || storeName(),
+      owner: biz.owner ?? c.f.owner ?? "",
+      bizAddress: biz.address ?? c.f.bizAddress ?? "",
+      bizPhone: biz.phone ?? c.f.bizPhone ?? "",
+    });
+  }
   const retired = Boolean(e.leaveDate) || !e.active;
   const tab = state.empTab === "info" || (state.empTab === "leave" && retired) ? state.empTab : "contract";
   const history = contractsOf(id).filter((x) => x.status === "signed" && x.id !== c.id);
@@ -3650,7 +3654,7 @@ function saveContractDraft(c) {
 
 function contractProblem(f) {
   if (!f.start) return "계약 시작일을 넣어주세요.";
-  if (!f.owner) return "대표자 성명을 넣어주세요.";
+  if (!f.owner) return "정보 탭의 사업주 정보에서 대표자 이름을 넣어주세요.";
   if (f.payType === "hourly" && !Number(f.wage)) return "시급을 넣어주세요.";
   if (f.payType === "salary" && !Number(f.salary)) return "기본급을 넣어주세요.";
   if (f.payType === "hourly" && !Object.keys(f.days ?? {}).length) return "근무 요일과 시간을 넣어주세요.";
