@@ -111,15 +111,6 @@
           transform: translateX(-24px);
         }
       }
-      .hello {
-        margin: -2px 0 14px;
-        padding: 12px 14px;
-        border-radius: 14px;
-        background: var(--field);
-        font-size: 15px;
-        line-height: 1.6;
-        white-space: pre-wrap;
-      }
       .store {
         margin: 0 0 6px;
         font-size: 14px;
@@ -683,7 +674,7 @@
 
       // ---------- 한 화면에 질문 하나 ----------
       const DAY_KEYS = [["d1", "월"], ["d2", "화"], ["d3", "수"], ["d4", "목"], ["d5", "금"], ["d6", "토"], ["d0", "일"]];
-      const BASE_STEPS = [
+      const STEPS = [
         { id: "name", q: "이름을 알려주세요", field: { k: "name", ph: "홍길동", ac: "name" }, need: () => Boolean(v.name?.trim()) },
         { id: "phone", q: "연락받을 번호를\n알려주세요", hint: "합격하면 이 번호로 연락드려요", field: { k: "phone", ph: "010-0000-0000", type: "tel", im: "numeric", ac: "tel" }, need: () => (v.phone ?? "").replace(/\D/g, "").length >= 10 },
         { id: "birth", q: "생년월일을 알려주세요", hint: "숫자만 써도 돼요 (예: 050314)", field: { k: "birth", ph: "2005.03.14", im: "numeric" } },
@@ -696,35 +687,8 @@
         { id: "intro", q: "하고 싶은 말을\n적어주세요", hint: "성격, 지원 이유 등 편하게 써 주세요" },
         { id: "review", q: "이대로 보낼까요?", hint: "고칠 곳을 누르면 바로 고칠 수 있어요" },
       ];
-      // 매장이 정한 양식: 끈 질문은 빼고, 매장 추가 질문은 확인 화면 바로 앞에
-      let tpl = { off: {}, qs: [], hello: "" };
-      let STEPS = BASE_STEPS;
-      let LAST = STEPS.length - 1;
-      function applyTpl() {
-        const qs = (tpl.qs ?? []).map((q) => String(q ?? "").trim()).filter(Boolean).slice(0, 3);
-        const custom = qs.map((q, i) => ({ id: `q${i}`, q, field: { k: `q${i}`, ph: "답을 적어주세요" } }));
-        const keep = BASE_STEPS.filter((st) => !tpl.off?.[st.id]);
-        STEPS = [...keep.slice(0, -1), ...custom, keep[keep.length - 1]];
-        LAST = STEPS.length - 1;
-      }
+      const LAST = STEPS.length - 1;
       let at = Math.min(Math.max(0, Number(v.step) || 0), LAST);
-      if (code) {
-        fetch(`https://shift-calendar-e973e-default-rtdb.asia-southeast1.firebasedatabase.app/stores/${code}/public/resumeTpl.json`)
-          .then((r) => (r.ok ? r.json() : null))
-          .then((raw) => {
-            if (typeof raw !== "string") return;
-            try {
-              tpl = { off: {}, qs: [], hello: "", ...JSON.parse(raw) };
-            } catch {
-              return;
-            }
-            const id = STEPS[at]?.id;
-            applyTpl();
-            at = Math.max(0, STEPS.findIndex((st) => st.id === id));
-            render(0);
-          })
-          .catch(() => {});
-      }
       let fromReview = false;
 
       const lineInput = (f) =>
@@ -778,8 +742,7 @@
           ["경력", careers, "career"],
           ["학력", v.school, "school"],
           ["하고 싶은 말", v.intro, "intro"],
-          ...STEPS.filter((st) => /^q\d$/.test(st.id)).map((st) => [st.q, v[st.id], st.id]),
-        ].filter(([, , id]) => STEPS.some((st) => st.id === id) || ["phone", "days", "start"].includes(id));
+        ];
         return `
           <ul class="review">${rows.map(([k, val, id]) => `<li data-goto="${id}"><span class="k">${k}</span><span class="v${val ? "" : " empty"}">${esc(val || "없음")}</span><span class="go">${ICON_GO}</span></li>`).join("")}</ul>
           <div class="agree${v.agree ? " on" : ""}" data-agree role="checkbox" aria-checked="${Boolean(v.agree)}" tabindex="0">
@@ -799,7 +762,7 @@
             <button type="button" class="icon-btn" data-more aria-label="더 보기">•••</button>
           </header>
           <main class="step${dir < 0 ? " back" : dir === 0 ? " still" : ""}">
-            ${at === 0 ? `<p class="store">${esc(store ? `${store} 아르바이트 지원` : "아르바이트 지원")}</p>${tpl.hello ? `<p class="hello">${esc(tpl.hello)}</p>` : ""}` : ""}
+            ${at === 0 ? `<p class="store">${esc(store ? `${store} 아르바이트 지원` : "아르바이트 지원")}</p>` : ""}
             <h1 class="q">${esc(step.q).replace(/\n/g, "<br />")}</h1>
             ${step.hint ? `<p class="hint">${esc(step.hint)}</p>` : ""}
             ${body(step)}
@@ -966,10 +929,6 @@
               <thead><tr><th style="width: 32%">근무 기간</th><th style="width: 30%">근 무 처</th><th>담 당 업 무</th></tr></thead>
               <tbody>${rows.map((c) => `<tr><td class="c">${esc(c.p)}</td><td class="c">${esc(c.w)}</td><td>${esc(c.j)}</td></tr>`).join("")}</tbody>
             </table>
-            ${(() => {
-              const extra = STEPS.filter((st) => /^q\d$/.test(st.id));
-              return extra.length ? `<h2>■ 추가 질문</h2><table>${extra.map((st) => `<tr><th style="width:40%">${esc(st.q)}</th><td>${esc(v[st.id] ?? "")}</td></tr>`).join("")}</table>` : "";
-            })()}
             <h2>■ 자기소개</h2>
             <table><tr><td class="intro">${esc(v.intro)}</td></tr></table>
             <p class="agree-doc"><span class="ck${v.agree ? " on" : ""}"></span>본인은 채용 검토를 위한 개인정보 수집 · 이용에 동의합니다.</p>
@@ -1065,37 +1024,6 @@
       }
 
 
-      // ---------- 매장에도 바로 보내기 (콕 매장 공개키로 잠가서, 사장님만 열 수 있게) ----------
-      const DB = "https://shift-calendar-e973e-default-rtdb.asia-southeast1.firebasedatabase.app";
-      const b64 = (buf) => {
-        let out = "";
-        for (const x of new Uint8Array(buf)) out += String.fromCharCode(x);
-        return btoa(out);
-      };
-      async function submitToStore(val) {
-        if (!code) return false;
-        const { step, sentSig, agree, ...data } = val;
-        data.questions = STEPS.filter((st) => /^q\d$/.test(st.id)).map((st) => ({ q: st.q, a: val[st.id] ?? "" }));
-        const sig = JSON.stringify(data);
-        if (v.sentSig === sig) return true;
-        const r = await fetch(`${DB}/stores/${code}/public/resumeKey.json`);
-        const jwk = r.ok ? await r.json() : null;
-        if (typeof jwk !== "string") return false;
-        const RSA = { name: "RSA-OAEP", hash: "SHA-256" };
-        const pub = await crypto.subtle.importKey("jwk", JSON.parse(jwk), RSA, false, ["encrypt"]);
-        const aesRaw = crypto.getRandomValues(new Uint8Array(32));
-        const aes = await crypto.subtle.importKey("raw", aesRaw, "AES-GCM", false, ["encrypt"]);
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aes, new TextEncoder().encode(JSON.stringify({ ...data, at: new Date().toISOString() })));
-        const k = await crypto.subtle.encrypt(RSA, pub, aesRaw);
-        const rid = [...crypto.getRandomValues(new Uint8Array(16))].map((x) => "abcdefghijklmnopqrstuvwxyz0123456789"[x % 36]).join("");
-        const res = await fetch(`${DB}/stores/${code}/public/resumes/${rid}.json`, { method: "PUT", body: JSON.stringify(JSON.stringify({ k: b64(k), iv: b64(iv), ct: b64(ct) })) });
-        if (!res.ok) return false;
-        v.sentSig = sig;
-        keep();
-        return true;
-      }
-
       // ---------- 보내기 ----------
       const values = () => ({ ...v, birth: fmtBirth(v.birth ?? ""), phone: fmtPhone(v.phone ?? ""), careers: v.careers.filter((c) => c.w || c.p || c.j) });
       async function send(btn) {
@@ -1117,10 +1045,8 @@
         }
         btn.disabled = true;
         btn.textContent = "이력서 사진 만드는 중…";
-        const sent = submitToStore(val).catch(() => false);
         try {
           preview(await makeImage(val));
-          if (await sent) toast("매장 앱에도 이력서가 도착했어요");
         } catch (err) {
           toast(err.message);
         } finally {
