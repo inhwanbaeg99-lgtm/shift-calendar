@@ -47,12 +47,6 @@
               }
             }
           },
-          "avail": {
-            "$emp": {
-              ".write": "root.child('stores/' + $sid + '/meta').exists() && newData.exists()",
-              ".validate": "newData.isString() && newData.val().length < 4000"
-            }
-          },
           "resumes": {
             "$rid": {
               ".write": "root.child('stores/' + $sid + '/meta').exists() && !data.exists() && newData.exists()",

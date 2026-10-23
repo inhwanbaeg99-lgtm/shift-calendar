@@ -1195,7 +1195,7 @@ function renderPayPage() {
   } else {
     const tab = payTab();
     const emp = employeeById(v.empId);
-    const extra = tab === "avail" || tab === "ct";
+    const extra = tab === "ct";
     const months = extra ? [] : tabMonths(v.empId, tab);
     if (!v.ym[tab] || !months.includes(v.ym[tab])) v.ym[tab] = payDefaultYm(v.empId, tab);
     const ym = v.ym[tab];
@@ -1203,9 +1203,7 @@ function renderPayPage() {
     if (ym && got === undefined && !extra) queueMicrotask(payLoadMonth);
     const at = months.indexOf(ym);
     const label = ym ? `${Number(ym.slice(0, 4))}년 ${Number(ym.slice(5))}월` : "";
-    const content = tab === "avail"
-      ? v.avail ? renderPayAvail(v) : `<p class="sub pay-wait">여는 중이에요…</p>`
-      : tab === "ct"
+    const content = tab === "ct"
         ? renderPayCt(v)
         : !ym
       ? `<p class="pay-hint">${tab === "work" ? "아직 올라온 근무 상세가 없어요." : "아직 올라온 명세서가 없어요. 급여 지급일이 지나면 올라와요."}</p>`
@@ -1218,7 +1216,6 @@ function renderPayPage() {
       <div class="pay-tabs" role="tablist">
         <button type="button" role="tab" class="${tab === "work" ? "on" : ""}" aria-selected="${tab === "work"}" data-action="pay-tab" data-tab="work">근무 상세</button>
         <button type="button" role="tab" class="${tab === "pay" ? "on" : ""}" aria-selected="${tab === "pay"}" data-action="pay-tab" data-tab="pay">급여명세서</button>
-        <button type="button" role="tab" class="${tab === "avail" ? "on" : ""}" aria-selected="${tab === "avail"}" data-action="pay-tab" data-tab="avail">가능 시간</button>
         ${v.ct ? `<button type="button" role="tab" class="${tab === "ct" ? "on" : ""}" aria-selected="${tab === "ct"}" data-action="pay-tab" data-tab="ct">계약서${ctNeedsSign(v) ? `<i class="dot-new"></i>` : ""}</button>` : ""}
       </div>
       ${ctNeedsSign(v) && tab !== "ct" ? `<button type="button" class="ct-banner" data-action="pay-tab" data-tab="ct"><b>서명할 근로계약서가 있어요</b><span>보기</span></button>` : ""}
@@ -1342,8 +1339,8 @@ async function paySave() {
   pdf.save(`${name} ${m}월 급여명세서.pdf`);
 }
 
-// ---------- 직원·지원자가 보낸 것 받기 (원격 서명 · 가능 시간 · 이력서) ----------
-// 직원 링크의 서명·가능 시간은 그 직원 PIN 키로, 이력서는 매장 공개키로 잠겨 있다. 사장님 화면에서 풀어 본다.
+// ---------- 직원·지원자가 보낸 것 받기 (원격 서명 · 이력서) ----------
+// 직원 링크의 서명은 그 직원 PIN 키로, 이력서는 매장 공개키로 잠겨 있다. 사장님 화면에서 풀어 본다.
 const RSA = { name: "RSA-OAEP", hash: "SHA-256" };
 async function ensureResumeKey() {
   if (remote.priv?.resumeKey) return;
@@ -1389,15 +1386,6 @@ async function syncStaffInputs() {
       save();
       queueToast(`${signed.f.empName}님이 근로계약서에 서명했어요. 사장님 서명만 남았어요`);
     }
-    // 가능 시간
-    const avail = {};
-    for (const [empId, box] of Object.entries(remote.pub?.avail ?? {})) {
-      const raw = keys[empId];
-      if (!raw || !employeeById(empId)) continue;
-      try {
-        avail[empId] = JSON.parse(await openText(raw, parse(box, null)));
-      } catch {}
-    }
     // 지원자 이력서
     const apps = [];
     const rk = remote.priv?.resumeKey;
@@ -1409,10 +1397,9 @@ async function syncStaffInputs() {
       }
     }
     apps.sort((a, b) => (a.at < b.at ? 1 : -1));
-    const before = JSON.stringify([state.avail, state.applicants]);
-    state.avail = avail;
+    const before = JSON.stringify(state.applicants);
     state.applicants = apps;
-    if (signed || before !== JSON.stringify([avail, apps])) render();
+    if (signed || before !== JSON.stringify(apps)) render();
   } catch (err) {
     console.warn("직원 입력 받기 실패", err);
   } finally {
@@ -1469,40 +1456,6 @@ async function signOwnerRemote() {
     console.warn(err);
   }
   showToast(`${c.f.empName}님 근로계약서가 완성됐어요. 직원 링크에서도 볼 수 있어요`, "ok");
-}
-
-// ---------- 가능 시간 → 근무표 ----------
-function availLabel(a) {
-  return [1, 2, 3, 4, 5, 6, 0]
-    .filter((wd) => a.days?.[wd])
-    .map((wd) => `${WEEKDAYS[wd]} ${a.days[wd].start}~${a.days[wd].end}`)
-    .join(", ");
-}
-function renderAvailBox() {
-  const list = Object.entries(state.avail ?? {}).filter(([id]) => employeeById(id)?.active);
-  if (!list.length) return "";
-  return `
-    <details class="avail-box"${state.availOpen ? " open" : ""}>
-      <summary data-action="toggle-avail">직원이 낸 가능 시간 <b>${list.length}명</b></summary>
-      <ul>${list
-        .map(([id, a]) => {
-          const e = employeeById(id);
-          return `<li><div><b>${esc(e.name)}</b><small>${esc(availLabel(a) || "가능한 요일 없음")}${a.note ? ` · ${esc(a.note)}` : ""}</small></div><button type="button" class="pill plain-dark" data-action="apply-avail" data-id="${id}">근무표에 넣기</button></li>`;
-        })
-        .join("")}</ul>
-      <p class="sub small">넣은 뒤 근무표에서 고치고 <b>저장</b>해야 반영돼요.</p>
-    </details>`;
-}
-function applyAvail(empId) {
-  const a = state.avail?.[empId];
-  const emp = employeeById(empId);
-  if (!a || !emp) return;
-  for (const wd of [0, 1, 2, 3, 4, 5, 6]) {
-    const d = a.days?.[wd];
-    draftWeekly(emp, String(wd), d ? { start: d.start, end: d.end } : null);
-  }
-  showToast(`${emp.name}님 가능 시간을 근무표에 넣었어요. 확인하고 저장해 주세요`, "ok");
-  render();
 }
 
 // ---------- 지원자 → 직원 ----------
@@ -1654,15 +1607,12 @@ async function taxDownload(ym) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-// ---------- 직원 화면: 계약서 서명 · 가능 시간 ----------
+// ---------- 직원 화면: 계약서 서명 ----------
 async function payLoadExtras(v) {
   try {
     const ctBox = parse(slipsOf(v.empId).ct, null);
     if (ctBox) v.ct = JSON.parse(await openText(v.raw, ctBox));
-    const avBox = parse(remote.pub?.avail?.[v.empId], null);
-    if (avBox) v.avail = JSON.parse(await openText(v.raw, avBox));
   } catch {}
-  if (!v.avail) v.avail = { days: {}, note: "" };
   if (state.payView === v) render();
 }
 const ctNeedsSign = (v) => v.ct && v.ct.status === "sent" && !remote?.pub?.signs?.[v.empId]?.[v.ct.id] && !v.ctSent;
@@ -1677,25 +1627,6 @@ function renderPayCt(v) {
         ? `<button type="button" class="btn-primary pay-save" data-action="ct-sign">내용을 확인했어요 · 서명하기</button>`
         : `<p class="pay-hint ct-state">${waiting ? "서명했어요. 사장님이 서명하면 완성돼요." : "서명이 끝난 근로계약서예요. 필요할 때 언제든 여기서 볼 수 있어요."}</p>`
     }`;
-}
-function renderPayAvail(v) {
-  const a = v.avail ?? { days: {} };
-  return `
-    <p class="pay-hint">일할 수 있는 요일과 시간을 사장님께 보내요. 사장님이 근무표를 짤 때 참고해요.</p>
-    <div class="avail-form">
-      ${[1, 2, 3, 4, 5, 6, 0]
-        .map((wd) => {
-          const d = a.days?.[wd];
-          return `<div class="avail-row${d ? " on" : ""}">
-            <button type="button" class="chip${d ? " on" : ""}" data-action="avail-day" data-wd="${wd}">${WEEKDAYS[wd]}</button>
-            ${d ? `<input class="field" type="time" data-avail="${wd}" data-part="start" value="${d.start}" aria-label="${WEEKDAYS[wd]}요일 시작" /><span>~</span><input class="field" type="time" data-avail="${wd}" data-part="end" value="${d.end}" aria-label="${WEEKDAYS[wd]}요일 끝" />` : `<span class="muted">안 돼요</span>`}
-          </div>`;
-        })
-        .join("")}
-      <textarea class="field avail-note" data-avail-note placeholder="하고 싶은 말 (예: 시험 기간인 12월 둘째 주는 어려워요)">${esc(a.note ?? "")}</textarea>
-    </div>
-    <button type="button" class="btn-primary pay-save" data-action="avail-save">사장님께 보내기</button>
-    ${a.at ? `<p class="pay-hint">마지막으로 보낸 날 ${dot(a.at.slice(0, 10))}</p>` : ""}`;
 }
 async function ctSign() {
   const v = state.payView;
@@ -1712,15 +1643,6 @@ async function ctSign() {
   showToast("서명했어요. 사장님이 서명하면 완성돼요", "ok");
   render();
 }
-async function availSave() {
-  const v = state.payView;
-  v.avail = { ...v.avail, at: new Date().toISOString() };
-  const box = await sealText(v.raw, JSON.stringify(v.avail));
-  await cloud.db.ref(storePath(`public/avail/${v.empId}`)).set(JSON.stringify(box));
-  showToast("사장님께 보냈어요", "ok");
-  render();
-}
-
 // ---------- 여러 매장 ----------
 const ADMIN_STORE_KEY = "kok-admin-store";
 async function loadMyStores(user) {
@@ -1745,7 +1667,7 @@ function switchStore(code) {
     localStorage.setItem(ADMIN_STORE_KEY, code);
   } catch {}
   state.storeName = (state.myStores ?? []).find((s) => s.code === code)?.name ?? "";
-  Object.assign(state, { avail: {}, applicants: [], contractDraft: null, payslipId: null, sheet: null });
+  Object.assign(state, { applicants: [], contractDraft: null, payslipId: null, sheet: null });
   openStore(code, true);
   showToast(`${state.storeName}(으)로 바꿨어요`, "ok");
   render();
@@ -1998,7 +1920,6 @@ function renderScheduleMobile() {
       <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
     </details>
     <div id="sched-status">${renderSchedStatus()}</div>
-    ${renderAvailBox()}
     <div class="m-savebar">
       <button type="button" class="btn-ghost" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
       <button type="button" class="btn-primary" data-action="schedule-save"${hasDraft() ? "" : " disabled"}>저장</button>
@@ -4210,8 +4131,7 @@ function renderSchedule() {
     `
     <div class="sched-main">
       <div id="sched-status">${renderSchedStatus()}</div>
-      ${renderAvailBox()}
-      <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
+        <div class="sched-scroll" id="sched-scroll">${renderScheduleSheet()}</div>
       ${schedHelp()}
     </div>`,
     { center: true, wide: true },
@@ -5300,13 +5220,6 @@ app.addEventListener("click", (e) => {
     case "sign-owner":
       signOwnerRemote().catch((err) => uiAlert(err.message));
       return;
-    case "toggle-avail":
-      e.preventDefault();
-      state.availOpen = !state.availOpen;
-      break;
-    case "apply-avail":
-      applyAvail(id);
-      return;
     case "hire-applicant":
       hireApplicant(el.dataset.rid).catch((err) => uiAlert(err.message));
       return;
@@ -5327,18 +5240,6 @@ app.addEventListener("click", (e) => {
       return;
     case "ct-sign":
       ctSign().catch((err) => uiAlert(`서명을 보내지 못했어요. ${err.message}`));
-      return;
-    case "avail-day": {
-      const v = state.payView;
-      const wd = el.dataset.wd;
-      v.avail.days = { ...(v.avail.days ?? {}) };
-      if (v.avail.days[wd]) delete v.avail.days[wd];
-      else v.avail.days[wd] = { start: "09:00", end: "18:00" };
-      render();
-      return;
-    }
-    case "avail-save":
-      availSave().catch((err) => uiAlert(`보내지 못했어요. ${err.message}`));
       return;
     case "switch-store":
       switchStore(el.dataset.code);
@@ -5920,15 +5821,6 @@ app.addEventListener("change", (e) => {
     updateContractDraft(t);
     state.contractDirty = true;
     render();
-    return;
-  }
-  if (t.dataset.avail !== undefined && state.payView?.avail) {
-    const d = state.payView.avail.days?.[t.dataset.avail];
-    if (d && t.value) d[t.dataset.part] = t.value;
-    return;
-  }
-  if (t.dataset.availNote !== undefined && state.payView?.avail) {
-    state.payView.avail.note = t.value.slice(0, 200);
     return;
   }
   if (t.dataset.paymonth !== undefined && state.payView) {
