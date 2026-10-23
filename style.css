@@ -7179,3 +7179,152 @@ a.labor-box:hover { filter: brightness(0.98); }
   cursor: pointer;
 }
 .ss-add span { font-size: 18px; }
+
+/* ---------- 직원 화면 (PIN 넣은 뒤) : 토스처럼 ---------- */
+.my-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 8px -8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+.my-hello {
+  margin: 4px 0 22px;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+.my-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+}
+.my-tabs button {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--paper);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-sub);
+  cursor: pointer;
+}
+.my-tabs button.on {
+  background: var(--ink);
+  color: var(--bg);
+}
+.my-month {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.my-arrow {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.my-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.my-month-pick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: 18px;
+  cursor: pointer;
+}
+.my-month-pick span {
+  font-size: 11px;
+  color: var(--ink-sub);
+}
+.my-month-pick select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.my-sum {
+  margin-bottom: 14px;
+  padding: 22px 22px 18px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.my-sum small {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+.my-sum > b {
+  display: block;
+  margin: 6px 0 16px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+.my-sum-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.my-sum-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.my-sum-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--bg);
+}
+.my-sum-grid span {
+  font-size: 12.5px;
+  color: var(--ink-sub);
+}
+.my-sum-grid strong {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.my-doc {
+  padding: 18px 16px 16px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.my-doc-title {
+  margin: 0 4px 12px;
+  font-size: 16px;
+  font-weight: 800;
+}
+.my-doc .pay-slip {
+  margin-top: 0;
+}
+.my-doc .pay-img {
+  box-shadow: 0 0 0 1px var(--line);
+}
+@media (max-width: 400px) {
+  .my-sum-grid:not(.two) {
+    grid-template-columns: 1fr 1fr;
+  }
+  .my-sum-grid:not(.two) div:last-child {
+    grid-column: 1 / -1;
+  }
+}

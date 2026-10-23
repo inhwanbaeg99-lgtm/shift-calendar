@@ -1056,19 +1056,20 @@ async function publishSlips(onlyId = null) {
       // 근무 상세: 지난 12개월, 근무 기록이 있는 달만
       for (const m of recent) {
         if (!timesheet(m, empId, { includeAll: true }).rows[0]?.total) continue;
-        const html = renderTsCard(emp, m);
-        const sig = await slipSig(raw, html);
+        const tsRow = timesheet(m, empId, { includeAll: true }).rows[0];
+        const body = JSON.stringify({ html: renderTsCard(emp, m), days: tsRow.cells.filter((x) => x > 0).length, hours: Number(tsRow.total.toFixed(1)) });
+        const sig = await slipSig(raw, body);
         if (parse(slipsOf(empId)[`w-${m}`], {})?.sig === sig) continue;
-        await cloud.db.ref(storePath(`public/slips/${empId}/w-${m}`)).set(JSON.stringify({ ...(await sealText(raw, html)), sig }));
+        await cloud.db.ref(storePath(`public/slips/${empId}/w-${m}`)).set(JSON.stringify({ ...(await sealText(raw, body)), sig }));
       }
       for (const m of months) {
         const r = payrollFor(m, empId).rows.find((x) => x.emp.id === empId);
         // 근무가 없는 달, 공제액을 아직 안 넣은 월급제 직원은 올리지 않는다
         if (!r || r.net === null || !r.gross) continue;
-        const html = renderPayslip(r, m);
-        const sig = await slipSig(raw, html);
+        const body = JSON.stringify({ html: renderPayslip(r, m), net: r.net, gross: r.gross, deduct: r.dedTotal ?? 0, days: r.days, hours: Number(r.hours.toFixed(1)), payDate: payDateFor(m) });
+        const sig = await slipSig(raw, body.replace(/발행일 [\d.]+/, ""));
         if (parse(slipsOf(empId)[m], {})?.sig === sig) continue;
-        await cloud.db.ref(storePath(`public/slips/${empId}/${m}`)).set(JSON.stringify({ ...(await sealText(raw, html)), sig }));
+        await cloud.db.ref(storePath(`public/slips/${empId}/${m}`)).set(JSON.stringify({ ...(await sealText(raw, body)), sig }));
       }
     }
   } catch (err) {
@@ -1195,26 +1196,57 @@ function renderPayPage() {
         ? `<img class="pay-img" src="${got.img}" alt="${esc(`${emp?.name ?? ""} ${label} ${tab === "work" ? "근무 상세" : "급여명세서"}`)}" />
           <button type="button" class="btn-primary pay-save" data-action="pay-save">${tab === "work" ? "사진 저장" : "PDF 저장"}</button>`
         : (got?.error ?? `<p class="sub pay-wait">여는 중이에요…</p>`);
-    body = `
-      <div class="pay-who"><button type="button" class="pay-back-btn" data-action="pay-close" aria-label="이전">${ICON_BACK}</button><b>${esc(emp?.name ?? "")}님</b></div>
-      <div class="pay-tabs" role="tablist">
+    const m = ym ? Number(ym.slice(5)) : 0;
+    const meta = got?.meta;
+    const summary =
+      tab === "ct" || !meta
+        ? ""
+        : tab === "pay"
+          ? `<section class="my-sum">
+              <small>${m}월 급여${meta.payDate ? ` · ${Number(meta.payDate.slice(5, 7))}월 ${Number(meta.payDate.slice(8))}일 지급` : ""}</small>
+              <b>${won(meta.net ?? 0)}</b>
+              <div class="my-sum-grid">
+                <div><span>세전</span><strong>${won(meta.gross ?? 0)}</strong></div>
+                <div><span>공제</span><strong>${won(meta.deduct ?? 0)}</strong></div>
+                <div><span>근무</span><strong>${meta.days ?? 0}일 · ${meta.hours ?? 0}시간</strong></div>
+              </div>
+            </section>`
+          : `<section class="my-sum">
+              <small>${m}월 근무</small>
+              <b>${meta.hours ?? 0}시간</b>
+              <div class="my-sum-grid two">
+                <div><span>근무한 날</span><strong>${meta.days ?? 0}일</strong></div>
+                <div><span>하루 평균</span><strong>${meta.days ? Number((meta.hours / meta.days).toFixed(1)) : 0}시간</strong></div>
+              </div>
+            </section>`;
+    const tabsHtml = `
+      <div class="my-tabs" role="tablist">
         <button type="button" role="tab" class="${tab === "work" ? "on" : ""}" aria-selected="${tab === "work"}" data-action="pay-tab" data-tab="work">근무 상세</button>
         <button type="button" role="tab" class="${tab === "pay" ? "on" : ""}" aria-selected="${tab === "pay"}" data-action="pay-tab" data-tab="pay">급여명세서</button>
         ${v.ct ? `<button type="button" role="tab" class="${tab === "ct" ? "on" : ""}" aria-selected="${tab === "ct"}" data-action="pay-tab" data-tab="ct">계약서${ctNeedsSign(v) ? `<i class="dot-new"></i>` : ""}</button>` : ""}
+      </div>`;
+    const docTitle = { work: "근무 상세", pay: "급여명세서" }[tab];
+    body = `
+      <div class="my-top">
+        <button type="button" class="pay-back-btn" data-action="pay-close" aria-label="이전">${ICON_BACK}</button>
+        <span>${esc(storeName())}</span>
       </div>
+      <h1 class="my-hello">${esc(emp?.name ?? "")}님,<br />${tab === "pay" ? "급여명세서예요" : tab === "ct" ? "근로계약서예요" : "이번 달도 수고 많으셨어요"}</h1>
+      ${tabsHtml}
       ${ctNeedsSign(v) && tab !== "ct" ? `<button type="button" class="ct-banner" data-action="pay-tab" data-tab="ct"><b>서명할 근로계약서가 있어요</b><span>보기</span></button>` : ""}
       ${
         ym && !extra
-          ? `<div class="pay-month">
-              <button type="button" class="round-btn" data-action="pay-step" data-dir="1" aria-label="이전 달"${at >= months.length - 1 ? " disabled" : ""}>${ICON_PREV}</button>
-              <label class="pay-month-pick"><b>${label}</b><span aria-hidden="true">▾</span>
-                <select data-paymonth aria-label="달 고르기">${months.map((m) => `<option value="${m}"${m === ym ? " selected" : ""}>${Number(m.slice(0, 4))}년 ${Number(m.slice(5))}월</option>`).join("")}</select>
+          ? `<div class="my-month">
+              <button type="button" class="my-arrow" data-action="pay-step" data-dir="1" aria-label="이전 달"${at >= months.length - 1 ? " disabled" : ""}>${ICON_PREV}</button>
+              <label class="my-month-pick"><b>${label}</b><span aria-hidden="true">▾</span>
+                <select data-paymonth aria-label="달 고르기">${months.map((mm) => `<option value="${mm}"${mm === ym ? " selected" : ""}>${Number(mm.slice(0, 4))}년 ${Number(mm.slice(5))}월</option>`).join("")}</select>
               </label>
-              <button type="button" class="round-btn" data-action="pay-step" data-dir="-1" aria-label="다음 달"${at <= 0 ? " disabled" : ""}>${ICON_NEXT}</button>
+              <button type="button" class="my-arrow" data-action="pay-step" data-dir="-1" aria-label="다음 달"${at <= 0 ? " disabled" : ""}>${ICON_NEXT}</button>
             </div>`
           : ""
       }
-      <div class="pay-slip">${content}</div>`;
+      ${summary}
+      ${tab === "ct" || !ym || !got?.img ? `<div class="pay-slip">${content}</div>` : `<section class="my-doc"><p class="my-doc-title">${docTitle}</p><div class="pay-slip">${content}</div></section>`}`;
   }
   return `
     <div class="pay-page">
@@ -1280,7 +1312,12 @@ async function payLoadMonth() {
   v.cache[key] = null; // 여는 중 (같은 달을 두 번 열지 않게)
   const work = tab === "work";
   try {
-    const html = await openText(v.raw, parse(slipsOf(v.empId)[key], null));
+    const text = await openText(v.raw, parse(slipsOf(v.empId)[key], null));
+    let html = text;
+    let meta = null;
+    if (text.startsWith("{")) {
+      ({ html, ...meta } = JSON.parse(text));
+    }
     // 관리자 화면의 카톡 사진(근무 상세) · PDF(명세서)와 똑같이: 화면 밖에 그려서 2배로 찍는다
     const html2canvas = await loadLib("html2canvas");
     await document.fonts.ready;
@@ -1294,7 +1331,7 @@ async function payLoadMonth() {
     } finally {
       stage.remove();
     }
-    v.cache[key] = { img: work ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.95) };
+    v.cache[key] = { img: work ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.95), meta };
   } catch {
     v.cache[key] = { error: `<p class="sub pay-wait">이 달 내용을 열지 못했어요. 새로고침해 보세요.</p>` };
   }
