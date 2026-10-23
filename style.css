@@ -6930,8 +6930,13 @@ a.labor-box:hover { filter: brightness(0.98); }
 
 /* ---------- 직원 탭 (토스처럼 목록) ---------- */
 .staff-page {
-  width: min(760px, 100%);
-  margin: 0 auto;
+  width: 100%;
+}
+.sp-dot {
+  flex: 0 0 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
 }
 .sp-head {
   display: flex;

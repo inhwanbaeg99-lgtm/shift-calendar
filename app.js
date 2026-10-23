@@ -885,7 +885,7 @@ function renderEmployees() {
     const h = weekH(e);
     return `
       <a class="sp-row" style="--i:${i}" href="#/emp/${e.id}">
-        <span class="sp-avatar" style="--c:${cssColor(e.color)}">${esc(e.name.slice(0, 1))}</span>
+        <span class="sp-dot" style="background:${cssColor(e.color)}" title="근무표 색"></span>
         <span class="sp-main">
           <b>${esc(e.name)}${isManager(e) ? `<em class="sp-role">매니저</em>` : ""}</b>
           <small>${pay}${h ? ` · 주 ${Number(h.toFixed(1))}시간 · ${days(e)}` : " · 근무 요일 없음"}</small>
@@ -894,26 +894,32 @@ function renderEmployees() {
         <span class="sp-chev" aria-hidden="true">${ICON_CHEVRON}</span>
       </a>`;
   };
-  const addOpen = state.sheet?.type === "add-emp" && isDesktop();
   return renderAdminShell(
     "employees",
     `
+    ${isDesktop() ? "" : mHead(`직원 <span class="m-count">${act.length}명</span>`, `<button type="button" class="m-add" data-action="open-sheet" data-sheet="add-emp">+ 추가</button>`)}
     <div class="staff-page">
-      <div class="sp-head">
-        <h1>직원 <span>${act.length}명</span></h1>
-        <button type="button" class="sp-add" data-action="open-sheet" data-sheet="add-emp">+ 직원 추가</button>
-      </div>
+      ${isDesktop() ? `
+    <form class="toolbar" id="add-employee" style="margin-bottom:16px">
+      <div><span class="f-label" id="f-role-label">구분</span><div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>매니저</span></label></div></div>
+      <div><label for="f-name">이름</label><input id="f-name" class="field" style="width:112px" placeholder="홍길동" required /></div>
+      <div><label for="f-phone">전화번호 (선택)</label><input id="f-phone" class="field phone" style="width:144px" type="text" inputmode="numeric" placeholder="010-0000-0000" /></div>
+      <div class="f-wage-wrap"><label for="f-wage">시급(원)</label><input id="f-wage" class="field money" style="width:112px" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required /></div>
+      <div class="f-mgr-wrap" hidden><label for="f-salary">기본급 (월급)</label><input id="f-salary" class="field money" style="width:128px" type="text" inputmode="numeric" placeholder="2,000,000" /></div>
+      <div class="f-mgr-wrap" hidden><label for="f-meal">식대 (선택)</label><input id="f-meal" class="field money" style="width:104px" type="text" inputmode="numeric" placeholder="0" /></div>
+      <button type="submit" class="pill">추가</button>
+      <p class="f-mgr-note" hidden>공제액(4대보험·근로소득세)은 추가한 뒤 급여 화면 <b>명세서</b>에서 입력해요.</p>
+    </form>` : ""}
       ${renderLaborCard()}
       ${renderApplicants()}
       ${
         act.length
           ? `<div class="sp-list">${act.map(row).join("")}</div>`
-          : `<div class="sp-empty"><b>아직 직원이 없어요</b><small>위의 <b>+ 직원 추가</b>로 등록해 주세요.</small></div>`
+          : `<div class="sp-empty"><b>아직 직원이 없어요</b><small>${isDesktop() ? "위의 칸에 이름을 넣고 <b>추가</b>를 눌러 주세요." : "오른쪽 위 <b>+ 추가</b>로 등록해 주세요."}</small></div>`
       }
       ${off.length ? `<details class="sp-off"><summary>그만둔 직원 ${off.length}명</summary><div class="sp-list">${off.map(row).join("")}</div></details>` : ""}
       ${demoLoaded ? "" : renderStaffLink()}
     </div>
-    ${addOpen ? `<div class="ps-backdrop add-back" data-action="close-sheet"><div class="add-box" data-stop role="dialog" aria-modal="true" aria-label="직원 추가">${renderAddEmpSheet()}</div></div>` : ""}
     ${policyLinks()}
     ${renderContractModal()}`,
     { center: true },
@@ -4383,8 +4389,8 @@ const TOURS = {
     { sel: ".me-card:nth-of-type(6) .store-manage-actions", title: "매장 삭제", text: "매장과 계정을 지워요. 직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어서, 지우기 전에 급여 화면에서 급여대장을 받아 두세요." },
   ],
   employees: () => [
-    { sel: ".sp-add", title: "직원 추가", text: "알바 / 매니저를 고르고 이름과 시급(매니저는 월급)을 넣어 직원을 추가해요." },
-    { scene: "addSheet", sel: [".add-box", ".sheet"], title: "직원 추가 창", text: "알바는 시급, 매니저는 기본급(월급)과 식대(선택)를 넣고 <b>추가</b>를 눌러요." },
+    { sel: ["#add-employee", ".m-add"], title: "직원 추가", text: "알바 / 매니저를 고르고 이름과 시급(매니저는 기본급·식대)을 넣고 <b>추가</b>를 눌러요." },
+    { scene: "addSheet", sel: ".sheet", title: "직원 추가 창", text: "알바는 시급, 매니저는 기본급(월급)과 식대(선택)를 넣고 <b>추가</b>를 눌러요." },
     { sel: ".labor-chip", title: "노무 점검", text: "계약서·최저시급·휴게시간·보건증처럼 지금 확인할 것을 알려 줘요. 누르면 하나씩 펼쳐져요." },
     { sel: ".sp-row", title: "직원 누르기", text: "누르면 직원 페이지로 가요. <b>근로계약서</b>, 요일별 근무 시간, 시급·월급, 상태를 모두 거기서 바꿔요." },
     { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 매장 기기에 열어 두세요." },
