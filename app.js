@@ -874,62 +874,46 @@ const formatMoney = (text) => {
 const parseMoney = (text) => Number(String(text).replace(/\D/g, "")) || 0;
 
 function renderEmployees() {
-  if (!isDesktop()) return renderEmployeesMobile();
-  // 표는 월요일부터
-  const order = [1, 2, 3, 4, 5, 6, 0];
-  const rows = store.employees
-    .map(
-      (e, i) => `
-      <tr style="--i:${i}">
-        <td class="name"><a class="name-btn" href="#/emp/${e.id}" title="근로계약서 쓰기 · 보기"><span class="name-cell"><span class="swatch" style="background:${cssColor(e.color)}" title="근무표 색 (자동)"></span>${nameLabel(e)}<span class="name-chev" aria-hidden="true">›</span></span><span class="muted small">${esc(e.phone ? formatPhone(e.phone) : "")}</span></a></td>
-        ${order
-          .map(
-            (wd) =>
-              `<td class="day-cell${wd === 0 ? " rest" : ""}" data-label="${WEEKDAYS[wd]}"><input class="field range" type="text" placeholder="-" value="${rangeLabel(e.weekly[wd])}" data-weekly="${wd}" data-id="${e.id}" aria-label="${esc(e.name)} ${WEEKDAYS[wd]}요일 근무 시간" /></td>`,
-          )
-          .join("")}
-        <td class="wage-cell" data-label="급여">${
-          isSalaried(e)
-            ? `<span class="pay-kind" title="월급·공제액은 급여 화면의 명세서에서 입력해요">월급제</span>`
-            : `<input class="field money" style="width:88px;padding:4px 8px" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" />`
-        }<button type="button" class="pay-switch" data-action="toggle-paytype" data-id="${e.id}" title="${isSalaried(e) ? "시급제(3.3%)로 바꾸기" : "월급제(4대보험)로 바꾸기"}">${isSalaried(e) ? "시급으로" : "월급으로"}</button></td>
-        <td><button type="button" class="status${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button></td>
-        <td>${
-          `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요">${isManager(e) ? "매니저" : "알바"}</button>`
-        }</td>
-        <td class="manage-cell"><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
-      </tr>`,
-    )
-    .join("");
-
+  const act = store.employees.filter((e) => e.active);
+  const off = store.employees.filter((e) => !e.active);
+  const weekH = (e) => Object.values(e.weekly ?? {}).reduce((sum, r) => sum + spanMin(r.start, r.end) / 60, 0);
+  const days = (e) => [1, 2, 3, 4, 5, 6, 0].filter((wd) => e.weekly?.[wd]).map((wd) => WEEKDAYS[wd]).join("");
+  const row = (e, i) => {
+    const c = latestContract(e.id);
+    const ct = c?.status === "signed" ? ["ok", "계약서 ✓"] : c?.status === "sent" || c?.status === "emp-signed" ? ["wait", "서명 중"] : ["need", "계약서 필요"];
+    const pay = isSalaried(e) ? "월급제" : `시급 ${Number(e.hourlyWage || DEFAULT_WAGE).toLocaleString()}원`;
+    const h = weekH(e);
+    return `
+      <a class="sp-row" style="--i:${i}" href="#/emp/${e.id}">
+        <span class="sp-avatar" style="--c:${cssColor(e.color)}">${esc(e.name.slice(0, 1))}</span>
+        <span class="sp-main">
+          <b>${esc(e.name)}${isManager(e) ? `<em class="sp-role">매니저</em>` : ""}</b>
+          <small>${pay}${h ? ` · 주 ${Number(h.toFixed(1))}시간 · ${days(e)}` : " · 근무 요일 없음"}</small>
+        </span>
+        ${e.active ? `<span class="sp-ct ${ct[0]}">${ct[1]}</span>` : ""}
+        <span class="sp-chev" aria-hidden="true">${ICON_CHEVRON}</span>
+      </a>`;
+  };
+  const addOpen = state.sheet?.type === "add-emp" && isDesktop();
   return renderAdminShell(
     "employees",
     `
-    ${renderLaborCard()}
-    ${renderApplicants()}
-    <form class="toolbar" id="add-employee" style="margin-bottom:32px">
-      <div><span class="f-label" id="f-role-label">구분</span><div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>매니저</span></label></div></div>
-      <div><label for="f-name">이름</label><input id="f-name" class="field" style="width:112px" placeholder="홍길동" required /></div>
-      <div><label for="f-phone">전화번호 (선택)</label><input id="f-phone" class="field phone" style="width:144px" type="text" inputmode="numeric" placeholder="010-0000-0000" /></div>
-      <div class="f-wage-wrap"><label for="f-wage">시급(원)</label><input id="f-wage" class="field money" style="width:112px" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required /></div>
-      <div class="f-mgr-wrap" hidden><label for="f-salary">기본급 (월급)</label><input id="f-salary" class="field money" style="width:128px" type="text" inputmode="numeric" placeholder="2,000,000" /></div>
-      <div class="f-mgr-wrap" hidden><label for="f-meal">식대 (선택)</label><input id="f-meal" class="field money" style="width:104px" type="text" inputmode="numeric" placeholder="0" /></div>
-      <button type="submit" class="pill">추가</button>
-      <p class="f-mgr-note" hidden>공제액(4대보험·근로소득세)은 추가한 뒤 급여 화면 <b>명세서</b>에서 입력해요.</p>
-    </form>
-    ${demoLoaded ? "" : renderStaffLink()}
-    <div class="table-wrap">
-      <table class="schedule">
-        <thead><tr><th>이름</th>${order.map((wd) => `<th class="${wd === 0 ? "rest" : ""}">${WEEKDAYS[wd]}</th>`).join("")}<th>급여</th><th>상태</th><th>구분</th><th>관리</th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="12" class="empty">등록된 직원이 없습니다.</td></tr>`}</tbody>
-      </table>
+    <div class="staff-page">
+      <div class="sp-head">
+        <h1>직원 <span>${act.length}명</span></h1>
+        <button type="button" class="sp-add" data-action="open-sheet" data-sheet="add-emp">+ 직원 추가</button>
+      </div>
+      ${renderLaborCard()}
+      ${renderApplicants()}
+      ${
+        act.length
+          ? `<div class="sp-list">${act.map(row).join("")}</div>`
+          : `<div class="sp-empty"><b>아직 직원이 없어요</b><small>위의 <b>+ 직원 추가</b>로 등록해 주세요.</small></div>`
+      }
+      ${off.length ? `<details class="sp-off"><summary>그만둔 직원 ${off.length}명</summary><div class="sp-list">${off.map(row).join("")}</div></details>` : ""}
+      ${demoLoaded ? "" : renderStaffLink()}
     </div>
-    ${helpToggle(
-      "employees",
-      `요일 칸에 <b>7-12</b>, <b>18-2230</b> 처럼 입력하면 근무 시간이 저장돼요. 비우면 쉬는 날이에요.<br />
-      이름 앞 색은 근무표 색이에요(자동으로 겹치지 않게 정해져요). 근무표에서 같은 시각에 시작하면 위에 있는 사람이 왼쪽 칸에 들어가요.<br />
-      구분을 <b>매니저</b>로 바꾸면 자동으로 월급제(4대보험), <b>알바</b>로 바꾸면 시급제(3.3%)가 돼요. 알바인데 월급제면 급여 칸의 <b>월급으로</b>를 눌러요. 월급·식대·공제액은 급여 화면에서 이름 옆 <b>명세서</b>를 눌러 입력해요.`,
-    )}
+    ${addOpen ? `<div class="ps-backdrop add-back" data-action="close-sheet"><div class="add-box" data-stop role="dialog" aria-modal="true" aria-label="직원 추가">${renderAddEmpSheet()}</div></div>` : ""}
     ${policyLinks()}
     ${renderContractModal()}`,
     { center: true },
@@ -950,8 +934,8 @@ function renderMyPage() {
     ${isDesktop() ? "" : mHead("정보")}
     <div class="me">
       <section class="me-card">
-        <p class="me-store">${esc(storeName())}</p>
-        <p class="sub">매장 코드 <b>${demoLoaded ? "-" : codeLabel()}</b>${cloud?.auth.currentUser?.email ? ` · ${esc(cloud.auth.currentUser.email)}` : ""}</p>
+        ${(state.myStores ?? []).length > 1 && !demoLoaded ? `<h2>내 매장 <small class="me-count">${state.myStores.length}곳</small></h2>` : `<p class="me-store">${esc(storeName())}</p>
+        <p class="sub">매장 코드 <b>${demoLoaded ? "-" : codeLabel()}</b>${cloud?.auth.currentUser?.email ? ` · ${esc(cloud.auth.currentUser.email)}` : ""}</p>`}
         ${renderMyStores()}
       </section>
 
@@ -1683,10 +1667,23 @@ async function addStore() {
 function renderMyStores() {
   if (demoLoaded) return "";
   const list = state.myStores ?? [];
+  const code4 = (c) => c.match(/.{1,4}/g).join("-");
   return `
-    <div class="my-stores">
-      ${list.length > 1 ? `<ul>${list.map((s) => `<li class="${s.code === storeId ? "on" : ""}"><span>${esc(s.name)}</span>${s.code === storeId ? `<em>지금 매장</em>` : `<button type="button" class="pill plain-dark" data-action="switch-store" data-code="${s.code}">이 매장 열기</button>`}</li>`).join("")}</ul>` : ""}
-      <button type="button" class="pill plain" data-action="add-store">+ 매장 추가</button>
+    <div class="store-switch">
+      ${
+        list.length > 1
+          ? list
+              .map(
+                (st) => `<button type="button" class="ss-item${st.code === storeId ? " on" : ""}"${st.code === storeId ? " disabled" : ` data-action="switch-store" data-code="${st.code}"`}>
+              <span class="ss-avatar">${esc(st.name.slice(0, 1))}</span>
+              <span class="ss-main"><b>${esc(st.name)}</b><small>매장 코드 ${code4(st.code)}</small></span>
+              ${st.code === storeId ? `<em>지금 매장</em>` : `<span class="ss-go">열기</span>`}
+            </button>`,
+              )
+              .join("")
+          : ""
+      }
+      <button type="button" class="ss-add" data-action="add-store"><span>+</span>매장 추가</button>
     </div>`;
 }
 
@@ -1768,6 +1765,7 @@ function weeklySummary(e) {
   return days.map((wd) => `${WEEKDAYS[wd]} ${rangeLabel(e.weekly[wd])}`).join(" · ");
 }
 
+// (예전 휴대폰 직원 목록 · 지금은 renderEmployees 하나로 같이 쓴다)
 function renderEmployeesMobile() {
   const list = store.employees
     .map(
@@ -2107,24 +2105,20 @@ function allowancesFor(ym, empId) {
 // 설정: payMonth "next"(다음 달, 기본) | "same"(그달), payday 1~31 | "last"(말일)
 function payDateFor(ym) {
   let [y, m] = ym.split("-").map(Number);
-  if ((store.settings?.payMonth ?? "next") === "next") {
-    m += 1;
-    if (m > 12) {
-      m = 1;
-      y += 1;
-    }
+  m += 1; // 급여는 다음 달에 준다
+  if (m > 12) {
+    m = 1;
+    y += 1;
   }
   const last = new Date(y, m, 0).getDate();
   const day = store.settings?.payday ?? "10";
   const d = day === "last" ? last : Math.min(Number(day) || 10, last);
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
-const payDayLabel = () => `${(store.settings?.payMonth ?? "next") === "next" ? "다음 달" : "그달"} ${(store.settings?.payday ?? "10") === "last" ? "말일" : `${store.settings?.payday ?? 10}일`}`;
+const payDayLabel = () => `다음 달 ${(store.settings?.payday ?? "10") === "last" ? "말일" : `${store.settings?.payday ?? 10}일`}`;
 function payDaySelects(cls = "field") {
-  const month = store.settings?.payMonth ?? "next";
   const day = String(store.settings?.payday ?? "10");
-  return `<select class="${cls}" data-setting="payMonth" aria-label="지급 달"><option value="next"${month === "next" ? " selected" : ""}>다음 달</option><option value="same"${month === "same" ? " selected" : ""}>그달</option></select>
-    <select class="${cls}" data-setting="payday" aria-label="지급일">${[...Array.from({ length: 28 }, (_, i) => String(i + 1)), "last"].map((d) => `<option value="${d}"${d === day ? " selected" : ""}>${d === "last" ? "말일" : `${d}일`}</option>`).join("")}</select>`;
+  return `<select class="${cls}" data-setting="payday" aria-label="급여 지급일 (다음 달)">${[...Array.from({ length: 28 }, (_, i) => String(i + 1)), "last"].map((d) => `<option value="${d}"${d === day ? " selected" : ""}>${d === "last" ? "말일" : `${d}일`}</option>`).join("")}</select>`;
 }
 const dot = (d) => (d ? d.replaceAll("-", ".") : "");
 
@@ -3299,7 +3293,7 @@ function renderTplResume() {
       <div class="info-cards">
         <section class="info-card">
           <h2>첫 화면 인사말</h2>
-          <textarea class="field tpl-area" data-rtpl="hello" rows="3" placeholder="예: 온의동 콕카페에서 주말에 함께 일할 분을 찾아요!">${esc(t.hello ?? "")}</textarea>
+          <textarea class="field tpl-area" data-rtpl="hello" rows="3" placeholder="예: 주말에 함께 일할 분을 찾아요! 처음이어도 괜찮아요.">${esc(t.hello ?? "")}</textarea>
           <h2>묻는 항목</h2>
           <div class="info-row"><span>이름 · 연락처</span><b class="muted">항상 물어요</b></div>
           <div class="info-row"><span>가능한 요일 · 시작일</span><b class="muted">항상 물어요</b></div>
@@ -3307,7 +3301,7 @@ function renderTplResume() {
         </section>
         <section class="info-card">
           <h2>우리 매장 추가 질문 <small>3개까지</small></h2>
-          ${qs.map((q, i) => `<label class="info-row"><span>질문 ${i + 1}</span><input class="field" data-rtpl-q="${i}" value="${esc(q)}" placeholder="${["예: 주말 마감까지 가능한가요?", "예: 커피 만들어 본 적 있나요?", "예: 집에서 매장까지 얼마나 걸려요?"][i]}" /></label>`).join("")}
+          ${qs.map((q, i) => `<label class="info-row"><span>질문 ${i + 1}</span><input class="field" data-rtpl-q="${i}" value="${esc(q)}" placeholder="${["예: 주말 마감까지 가능한가요?", "예: 계산대 업무를 해 본 적 있나요?", "예: 집에서 매장까지 얼마나 걸려요?"][i]}" /></label>`).join("")}
           <div class="info-actions"><a class="pill plain-dark" href="${esc(resumeUrl())}" target="_blank" rel="noopener">이력서 미리보기</a></div>
         </section>
       </div>
@@ -3416,7 +3410,7 @@ function renderEmpPage(id) {
       </div>
       <div class="emp-tabs" role="tablist">
         ${tabBtn("contract", "근로계약서", `<em class="${ctState[0]}">${ctState[1]}</em>`)}
-        ${tabBtn("info", "기본 정보")}
+        ${tabBtn("info", "근무 · 정보")}
         ${retired ? tabBtn("leave", "퇴사 처리") : ""}
       </div>
       ${body}
@@ -3428,8 +3422,20 @@ function renderEmpInfo(e) {
   const row = (k, label, ph, extra = "") =>
     `<label class="info-row"><span>${label}</span><input class="field" data-empf="${k}" data-id="${e.id}" value="${esc(e[k] ?? "")}" placeholder="${esc(ph)}" ${extra}/></label>`;
   const view = (label, value) => `<div class="info-row"><span>${label}</span><b>${esc(value || "-")}</b></div>`;
+  const seg = (action, on, a, b) => `<button type="button" class="seg2" data-action="${action}" data-id="${e.id}"><span class="${on ? "" : "on"}">${a}</span><span class="${on ? "on" : ""}">${b}</span></button>`;
   return `
     <div class="info-cards">
+      <section class="info-card">
+        <h2>근무 시간 <small>예: 9-18, 18-2230 · 비우면 쉬는 날</small></h2>
+        ${[1, 2, 3, 4, 5, 6, 0].map((wd) => `<label class="info-row week-row${wd === 0 ? " sun" : wd === 6 ? " sat" : ""}"><span>${WEEKDAYS[wd]}요일</span><input class="field" type="text" placeholder="쉬는 날" value="${rangeLabel(e.weekly?.[wd])}" data-weekly="${wd}" data-id="${e.id}" aria-label="${esc(e.name)} ${WEEKDAYS[wd]}요일 근무 시간" /></label>`).join("")}
+      </section>
+      <section class="info-card">
+        <h2>급여 · 구분</h2>
+        <div class="info-row"><span>급여 방식</span>${seg("toggle-paytype", isSalaried(e), "시급제", "월급제")}</div>
+        ${isSalaried(e) ? `<div class="info-row"><span>월급 · 공제</span><b class="muted">급여 화면 명세서에서 넣어요</b></div>` : `<label class="info-row"><span>시급</span><input class="field" type="text" inputmode="numeric" value="${formatMoney(e.hourlyWage)}" data-wage="${e.id}" aria-label="${esc(e.name)} 시급" /></label>`}
+        <div class="info-row"><span>구분</span>${seg("toggle-role", isManager(e), "알바", "매니저")}</div>
+        <div class="info-row"><span>상태</span>${seg("toggle-active", !e.active, "재직중", "그만둠")}</div>
+      </section>
       <section class="info-card">
         <h2>근무</h2>
         ${view("입사일", e.hireDate ? dot(e.hireDate) : "")}
@@ -3443,6 +3449,10 @@ function renderEmpInfo(e) {
         ${row("bank", "은행", "국민은행")}
         ${row("account", "계좌번호", "000000-00-000000", 'inputmode="numeric"')}
         ${row("holder", "예금주", e.name)}
+      </section>
+      <section class="info-card info-danger">
+        <button type="button" class="danger-row" data-action="remove-employee" data-id="${e.id}">직원 삭제</button>
+        <p class="info-note">그만둔 직원은 삭제하지 말고 <b>상태 → 그만둠</b>으로 두세요. 삭제하면 근무 기록도 함께 지워져요.</p>
       </section>
     </div>`;
 }
@@ -4298,27 +4308,13 @@ const TOURS = {
     { sel: ".my-stores", title: "여러 매장", text: "매장이 여럿이면 <b>+ 매장 추가</b>로 한 계정에서 같이 관리하고, 여기서 매장을 바꿔요." },
     { sel: ".me-card:nth-of-type(6) .store-manage-actions", title: "매장 삭제", text: "매장과 계정을 지워요. 직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어서, 지우기 전에 급여 화면에서 급여대장을 받아 두세요." },
   ],
-  employees: (pc) =>
-    pc
-      ? [
-          { sel: "#add-employee .seg", title: "알바 / 매니저", text: "새 직원이 알바인지 매니저인지 골라요. 매니저를 고르면 시급 대신 기본급(월급)과 식대를 넣어요." },
-          { sel: "#add-employee", title: "직원 추가", text: "이름과 시급(매니저는 월급)을 넣고 <b>추가</b>를 눌러요. 전화번호는 넣지 않아도 돼요." },
-          { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
-          { sel: "table.schedule tbody tr:first-child .day-cell", title: "요일별 근무 시간", text: "칸에 <b>7-12</b>, <b>18-2230</b>처럼 입력하면 그 요일 고정 근무 시간이 저장돼요. 비우면 쉬는 날이에요." },
-          { sel: "table.schedule tbody tr:first-child .wage-cell", title: "시급 · 월급", text: "알바는 시급을 고쳐요. <b>월급으로</b>를 누르면 월급제(4대보험) 직원이 되고, 월급은 급여 화면 명세서에서 입력해요." },
-          { sel: "table.schedule tbody tr:first-child [data-action=toggle-active]", title: "재직중 · 비활성", text: "그만둔 직원은 <b>비활성</b>으로 바꿔요. 기록은 남고, 달력과 근무표에서만 빠져요." },
-          { sel: "table.schedule tbody tr:first-child [data-action=toggle-role]", title: "알바 · 매니저", text: "매니저로 바꾸면 목록 맨 위로 오고 월급제가 돼요. 다시 알바로 바꾸면 시급제로 돌아가요." },
-          { sel: "table.schedule tbody tr:first-child .name-btn", title: "직원 페이지 · 근로계약서", text: "이름을 누르면 그 직원 페이지로 가서 바로 <b>전자 근로계약서</b>를 써요. 직원 정보로 미리 채워지고, 매장에서 화면에 서명받아요." },
-          { scene: "contract", sel: ".ct-side", title: "계약서 쓰기", text: "기간, 근무 요일·시간, 임금, 사회보험, 사업주 정보를 확인하고 <b>서명 받기</b>를 눌러요. 직원이 먼저, 사장님이 다음에 손가락으로 서명해요." },
-          { scene: "contract", sel: ".ct-preview", title: "계약서 미리보기", text: "고용노동부 표준근로계약서 항목대로 만들어져요. 서명이 끝나면 <b>카카오톡 전송</b>이나 <b>PDF</b>로 직원에게 꼭 한 부 줘요." },
-        ]
-      : [
-          { sel: ".m-add", title: "직원 추가", text: "여기를 누르면 직원 추가 창이 열려요." },
-          { scene: "addSheet", sel: ".sheet", title: "직원 추가 창", text: "알바 / 매니저를 고르고 이름을 넣어요. 알바는 시급, 매니저는 기본급(월급)과 식대(선택)를 넣고 <b>추가</b>를 눌러요." },
-          { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
-          { sel: ".m-list .m-row", title: "직원 누르기", text: "직원을 누르면 정보 창이 열려요." },
-          { scene: "empSheet", sel: ".sheet", title: "직원 정보", text: "요일별 근무 시간, 시급, 재직중·비활성, 알바·매니저, 시급제·월급제, 입사일·퇴사일, <b>근로계약서</b>를 여기서 바꾸고 써요." },
-        ],
+  employees: () => [
+    { sel: ".sp-add", title: "직원 추가", text: "알바 / 매니저를 고르고 이름과 시급(매니저는 월급)을 넣어 직원을 추가해요." },
+    { scene: "addSheet", sel: [".add-box", ".sheet"], title: "직원 추가 창", text: "알바는 시급, 매니저는 기본급(월급)과 식대(선택)를 넣고 <b>추가</b>를 눌러요." },
+    { sel: ".labor-chip", title: "노무 점검", text: "계약서·최저시급·휴게시간·보건증처럼 지금 확인할 것을 알려 줘요. 누르면 하나씩 펼쳐져요." },
+    { sel: ".sp-row", title: "직원 누르기", text: "누르면 직원 페이지로 가요. <b>근로계약서</b>, 요일별 근무 시간, 시급·월급, 상태를 모두 거기서 바꿔요." },
+    { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 매장 기기에 열어 두세요." },
+  ],
   schedule: (pc) =>
     pc
       ? [
@@ -4455,6 +4451,7 @@ const TOUR_SCENES = {
   slotAdd: { set: () => tourSlot(true) },
   empSheet: { set: () => (state.sheet = { type: "emp", id: store.employees[0]?.id ?? null }) },
   addSheet: { set: () => (state.sheet = { type: "add-emp", id: null }) },
+  empInfo: { hash: () => `#/emp/${store.employees[0]?.id ?? ""}`, set: () => (state.empTab = "info") },
   contract: { set: () => { const e = store.employees[0]; if (e) state.contractDraft = latestContract(e.id) ? structuredClone(latestContract(e.id)) : newContract(e); } },
 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -5094,6 +5091,7 @@ app.addEventListener("click", (e) => {
           save();
           queueToast(`${emp.name}님을 삭제했어요`);
           if (state.sheet?.id === id) state.sheet = null;
+          if (route().name === "emp") location.hash = "#/employees";
           render();
         };
         // 줄이 옆으로 밀려나며 사라진 뒤에 지운다

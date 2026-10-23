@@ -690,7 +690,7 @@
         { id: "area", q: "어디에 살아요?", hint: "동까지만 알려주세요", field: { k: "area", ph: "춘천시 온의동" } },
         { id: "days", q: "언제 일할 수 있어요?", hint: "가능한 요일을 모두 골라주세요" },
         { id: "start", q: "언제부터,\n얼마나 일할 수 있어요?" },
-        { id: "health", q: "보건증이 있나요?", hint: "음식을 다루는 일이라 필요해요" },
+        { id: "health", q: "보건증이 있나요?", hint: "음식을 다루는 매장이면 필요해요" },
         { id: "career", q: "일해 본 곳이 있나요?", hint: "없으면 다음을 눌러 넘어가도 괜찮아요" },
         { id: "school", q: "학교나 학력을\n알려주세요", hint: "적지 않아도 괜찮아요", field: { k: "school", ph: "○○대학교 2학년 휴학" } },
         { id: "intro", q: "하고 싶은 말을\n적어주세요", hint: "성격, 지원 이유 등 편하게 써 주세요" },
@@ -754,16 +754,16 @@
                 (c, i) => `<div class="career">
                   <div class="career-head">경력 ${i + 1}<button type="button" class="text-btn" data-del="${i}">삭제</button></div>
                   <div class="fields" style="margin-top:8px;gap:18px">
-                    <label class="f"><span>근무한 곳</span><input class="line-input" data-c="${i}" data-ck="w" value="${esc(c.w)}" placeholder="○○카페" autocomplete="off" /></label>
+                    <label class="f"><span>근무한 곳</span><input class="line-input" data-c="${i}" data-ck="w" value="${esc(c.w)}" placeholder="○○매장" autocomplete="off" /></label>
                     <label class="f"><span>기간</span><input class="line-input" data-c="${i}" data-ck="p" value="${esc(c.p)}" placeholder="2025.03 ~ 2025.12" autocomplete="off" /></label>
-                    <label class="f"><span>한 일</span><input class="line-input" data-c="${i}" data-ck="j" value="${esc(c.j)}" placeholder="음료 제조, 계산" autocomplete="off" /></label>
+                    <label class="f"><span>한 일</span><input class="line-input" data-c="${i}" data-ck="j" value="${esc(c.j)}" placeholder="손님 응대, 계산" autocomplete="off" /></label>
                   </div>
                 </div>`,
               )
               .join("")}
             ${v.careers.length < 3 ? `<button type="button" class="add-career" data-add-career>+ ${v.careers.length ? "경력 더 추가" : "경력 추가"}</button>` : ""}
           </div>`;
-        if (step.id === "intro") return `<div class="fields"><textarea class="line-input" data-k="intro" placeholder="예: 카페에서 6개월 일해 봤고, 주말에도 일할 수 있어요.">${esc(v.intro ?? "")}</textarea></div>`;
+        if (step.id === "intro") return `<div class="fields"><textarea class="line-input" data-k="intro" placeholder="예: 매장에서 6개월 일해 봤고, 주말에도 일할 수 있어요.">${esc(v.intro ?? "")}</textarea></div>`;
         // 마지막: 쓴 내용 확인 + 동의
         const days = DAY_KEYS.filter(([k]) => v[k]).map(([, l]) => l).join(" · ");
         const careers = v.careers.filter((c) => c.w || c.p || c.j).map((c) => [c.w, c.p, c.j].filter(Boolean).join(" · ")).join("\n");

@@ -6927,3 +6927,255 @@ a.labor-box:hover { filter: brightness(0.98); }
 .switch.on { background: var(--accent); }
 .switch.on i { transform: translateX(18px); }
 .info-row > b.muted { color: var(--ink-sub); font-weight: 500; font-size: 14px; }
+
+/* ---------- 직원 탭 (토스처럼 목록) ---------- */
+.staff-page {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+.sp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 18px;
+}
+.sp-head h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+.sp-head h1 span {
+  margin-left: 4px;
+  color: var(--accent);
+}
+.sp-add {
+  height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+}
+.sp-list {
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.sp-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.12s;
+}
+.sp-row + .sp-row {
+  border-top: 1px solid var(--line);
+}
+.sp-row:hover {
+  background: var(--bg);
+}
+.sp-avatar {
+  display: grid;
+  flex: 0 0 44px;
+  place-items: center;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c) 70%, #fff);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
+  font-size: 17px;
+  font-weight: 800;
+  color: #191f28;
+}
+.sp-main {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.sp-main b {
+  font-size: 16.5px;
+}
+.sp-main small {
+  overflow: hidden;
+  font-size: 13.5px;
+  color: var(--ink-sub);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sp-role {
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  font-style: normal;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  vertical-align: 2px;
+}
+.sp-ct {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.sp-ct.ok { background: var(--accent-soft); color: var(--accent); }
+.sp-ct.wait { background: #fff3d6; color: #b45309; }
+.sp-ct.need { background: #fff1f2; color: #e5484d; }
+.sp-chev {
+  display: grid;
+  color: var(--ink-sub);
+}
+.sp-empty {
+  display: grid;
+  gap: 6px;
+  padding: 40px 20px;
+  border-radius: 20px;
+  background: var(--paper);
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.sp-empty small { color: var(--ink-sub); }
+.sp-off {
+  margin-top: 14px;
+}
+.sp-off summary {
+  padding: 10px 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  cursor: pointer;
+}
+.staff-page .staff-link {
+  margin-top: 20px;
+}
+.staff-page .labor,
+.staff-page .applicants {
+  margin-bottom: 14px;
+}
+@media (max-width: 600px) {
+  .sp-ct { display: none; }
+  .sp-row { padding: 14px 16px; }
+}
+
+/* 직원 추가 창 (컴퓨터) */
+.add-back {
+  display: grid;
+  place-items: center;
+}
+.add-box {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 26px 26px 22px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.2);
+}
+.add-box .sheet-head h2 { margin: 0 0 6px; font-size: 22px; font-weight: 800; }
+.add-box .sheet-label { display: block; margin: 16px 2px 8px; font-size: 14px; font-weight: 700; }
+.add-box .field { width: 100%; height: 46px; font-size: 16px; }
+.add-box .sheet-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 22px; }
+.add-box .seg { width: 100%; }
+.add-box .seg label { flex: 1; }
+
+/* 직원 페이지 · 근무와 정보: 요일 줄 · 고르기 버튼 · 삭제 */
+.week-row .field { text-align: right; }
+.week-row.sun > span { color: var(--red); }
+.seg2 {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 3px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--bg);
+  font: inherit;
+  cursor: pointer;
+}
+.seg2 span {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-sub);
+}
+.seg2 span.on {
+  background: var(--paper);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  color: var(--ink);
+}
+.info-danger { padding-top: 14px; }
+.danger-row {
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff1f2;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: #e5484d;
+  cursor: pointer;
+}
+.info-danger .info-note { margin: 10px 0 4px; }
+
+/* 정보: 여러 매장 */
+.me-count { margin-left: 4px; font-size: 14px; font-weight: 600; color: var(--accent); }
+.store-switch { display: grid; gap: 8px; margin-top: 14px; }
+.ss-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.ss-item:hover:not(:disabled) { background: var(--bg); }
+.ss-item.on { border-color: var(--accent); background: var(--accent-soft); cursor: default; }
+.ss-avatar {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--bg);
+  font-weight: 800;
+}
+.ss-item.on .ss-avatar { background: var(--accent); color: #fff; }
+.ss-main { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.ss-main b { font-size: 16px; }
+.ss-main small { font-size: 12.5px; color: var(--ink-sub); }
+.ss-item em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--accent); }
+.ss-go { font-size: 13px; font-weight: 700; color: var(--ink-sub); }
+.ss-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 52px;
+  border: 1.5px dashed var(--line);
+  border-radius: 16px;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+}
+.ss-add span { font-size: 18px; }
