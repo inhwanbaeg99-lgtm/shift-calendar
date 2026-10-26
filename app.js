@@ -3301,42 +3301,42 @@ function renderScheduleSheet({ wide = false, share = false } = {}) {
   const all = days.flatMap((d) => d.items);
   const first = all.length ? Math.floor(Math.min(...all.map((it) => it.start)) / 60) : 9;
   const last = all.length ? Math.ceil(Math.max(...all.map((it) => it.end)) / 60) : 18;
-  const span = (last - first) * 60;
-  const pct = (min) => `${(((min - first * 60) / span) * 100).toFixed(3)}%`;
+  // 주간 표: 요일은 왼쪽 → 오른쪽, 시간은 위 → 아래 (같은 시간에 여럿이면 칸 안에서 나란히)
+  const H = compact ? 30 : share ? 40 : 46; // 1시간 높이(px)
+  const top = (min) => `${((min - first * 60) / 60) * H}px`;
   const hours = Array.from({ length: last - first }, (_, i) => first + i);
-  const step = compact ? 2 : 1; // 휴대폰은 2시간마다 글자
-  // 컴퓨터: 근무 입력칸은 누른 요일 바로 아래에 (휴대폰은 아래에서 올라오는 창)
+  // 컴퓨터: 근무 입력칸은 표 바로 아래에 (휴대폰은 아래에서 올라오는 창)
   const inlineEdit = Boolean(ed) && !wide && isDesktop();
-
-  const axis = [...hours, last]
-    .map((h, i) => (i % step ? "" : `<span style="left:${pct(h * 60)}">${h % 24}${compact ? "" : share ? "시" : ":00"}</span>`))
-    .join("");
-  const lines = hours.slice(1).map((h) => `<i style="left:${pct(h * 60)}"></i>`).join("");
-  const rows = days
+  const axis = [...hours, last].map((h) => `<span style="top:${top(h * 60)}">${h % 24}${compact ? "" : "시"}</span>`).join("");
+  const lines = hours.slice(1).map((h) => `<i style="top:${top(h * 60)}"></i>`).join("");
+  const cols = days
     .map(({ wd, items, lanes }) => {
       // 빈 곳을 누르면 그 시각으로 추가
       const slots = hours
-        .map((hh) => `<div class="tl-slot" data-action="edit-slot" data-wd="${wd}" data-start="${(hh % 24) * 60}" aria-label="${WEEKDAYS[wd]}요일 ${hh % 24}시 근무자 추가"></div>`)
+        .map((hh) => `<div class="wk-slot" data-action="edit-slot" data-wd="${wd}" data-start="${(hh % 24) * 60}" style="top:${top(hh * 60)};height:${H}px" aria-label="${WEEKDAYS[wd]}요일 ${hh % 24}시 근무자 추가"></div>`)
         .join("");
       const bars = items
         .map((it) => {
           const bg = cssColor(it.e.color);
           const editing = ed && String(ed.wd) === String(wd) && (ed.empId ?? ed.addEmpId) === it.e.id;
-          const tight = (it.end - it.start) / span < (compact ? 0.2 : 0.14); // 짧은 근무는 이름만
+          const h = ((it.end - it.start) / 60) * H;
+          const w = 100 / lanes;
           return `
-            <div class="tl-bar${editing ? " sc-editing" : ""}" role="button" tabindex="0" data-action="edit-slot" data-wd="${wd}" data-id="${it.e.id}" data-start="${it.start}"
-              style="left:${pct(it.start)};width:${pct(it.end - it.start + first * 60)};top:calc(var(--lh) * ${it.lane});--c:${bg};color:${textOn(bg)}" title="${esc(it.e.name)} ${it.r.start}~${it.r.end}">
-              <b>${esc(it.e.name)}</b>${compact || tight ? "" : `<small>${it.r.start}~${it.r.end}</small>`}
+            <div class="wk-bar${editing ? " sc-editing" : ""}${h < 42 ? " short" : ""}" role="button" tabindex="0" data-action="edit-slot" data-wd="${wd}" data-id="${it.e.id}" data-start="${it.start}"
+              style="top:calc(${top(it.start)} + 2px);height:${h - 4}px;left:calc(${(w * it.lane).toFixed(3)}% + 2px);width:calc(${w.toFixed(3)}% - 4px);--c:${bg};color:${textOn(bg)}" title="${esc(it.e.name)} ${it.r.start}~${it.r.end}">
+              <b>${esc(it.e.name)}</b>${h < 42 || (compact && lanes > 1) ? "" : `<small>${compact || lanes > 1 ? `${it.r.start}<br />${it.r.end}` : `${it.r.start} ~ ${it.r.end}`}</small>`}
             </div>`;
         })
         .join("");
-      return `
-        <div class="tl-row${wd === 0 ? " sun" : wd === 6 ? " sat" : ""}">
-          <div class="tl-day"><b>${WEEKDAYS[wd]}</b></div>
-          <div class="tl-track" style="--lanes:${lanes}"><div class="tl-lines">${lines}</div><div class="tl-slots">${slots}</div>${bars}</div>
-        </div>${inlineEdit && String(ed.wd) === String(wd) ? `<div class="tl-edit" id="tl-edit" data-html2canvas-ignore>${renderSlotPanel()}</div>` : ""}`;
+      return `<div class="wk-col${wd === 0 ? " sun" : wd === 6 ? " sat" : ""}${ed && String(ed.wd) === String(wd) ? " editing" : ""}"><div class="wk-lines">${lines}</div>${slots}${bars}</div>`;
     })
     .join("");
+  const grid = `
+      <div class="wk${compact ? " compact" : ""}${share ? " share" : ""}" style="--wk-h:${(last - first) * H}px">
+        <div class="wk-head"><div></div>${days.map(({ wd }) => `<div class="wk-day${wd === 0 ? " sun" : wd === 6 ? " sat" : ""}">${WEEKDAYS[wd]}</div>`).join("")}</div>
+        <div class="wk-body"><div class="wk-axis">${axis}</div>${cols}</div>
+      </div>
+      ${inlineEdit ? `<div class="tl-edit wk-edit" id="tl-edit" data-html2canvas-ignore>${renderSlotPanel()}</div>` : ""}`;
   const actions = `
         <div class="sc-actions" data-html2canvas-ignore>
           <button type="button" class="pill plain-dark" data-action="schedule-temp"${schedDirty() ? "" : " disabled"}>임시저장</button>
@@ -3354,10 +3354,7 @@ function renderScheduleSheet({ wide = false, share = false } = {}) {
         ${compact ? "" : actions}
       </div>
       ${compact ? `<div class="sc-help" data-html2canvas-ignore>${schedHelp()}</div>` : ""}
-      <div class="tl${compact ? " compact" : ""}">
-        <div class="tl-axis"><div></div><div class="tl-hours">${axis}</div></div>
-        ${rows}
-      </div>
+      ${grid}
       ${compact ? actions : ""}
       <p class="sc-brand">${esc(storeName())} · ${todayDateString().replaceAll("-", ".")} 출력 · 콕</p>
     </div>`;
@@ -3366,7 +3363,7 @@ function renderScheduleSheet({ wide = false, share = false } = {}) {
 function schedHelp() {
   return helpToggle(
     "schedule",
-    `근무 막대를 누르면 수정·삭제, 빈 곳을 누르면 그 시각에 근무자를 추가해요. ${isDesktop() ? "옆에서" : "아래에서"} 입력하면 표에 바로 보여요.<br />
+    `근무 블록을 누르면 수정·삭제, 빈 칸을 누르면 그 시각에 근무자를 추가해요. ${isDesktop() ? "표 아래에서" : "아래에서"} 입력하면 표에 바로 보여요.<br />
     <b>저장</b>하면 직원 관리·달력·근무 기록에 반영되고, <b>임시저장</b>은 반영하지 않고 고친 내용만 보관해요.<br />
     지난 근무 기록은 제목 기간의 시작일(<b>${shortDate(scheduleStart())}</b>)부터 바뀌어요. 제목의 기간도 눌러서 고칠 수 있어요.`,
   );
@@ -3590,9 +3587,9 @@ const TOURS = {
     pc
       ? [
           { sel: ".sc-period", title: "근무표 시작 날짜", text: "이 근무표를 언제부터 쓸지 숫자 8자리로 입력해요(예: 20261101). 저장할 때마다 한 번씩 다시 입력해야 저장돼요." },
-          { sel: ".tl-row .tl-track", title: "근무자 추가", text: "막대가 없는 빈 곳을 누르면 그 요일, 그 시각으로 근무자를 추가해요." },
-          { scene: "slotAdd", sel: "#tl-edit", title: "근무자 추가 입력칸", text: "누른 요일 바로 아래에 열려요. 직원을 고르고 시작·끝 시간을 넣으면 표에 바로 보이고, <b>완료</b>를 누르면 들어가요." },
-          { sel: ".tl-bar", title: "근무 막대", text: "막대를 누르면 그 근무를 고칠 수 있어요. 같은 시간에 여러 명이면 아래 줄에 쌓여요." },
+          { sel: ".wk-col", title: "근무자 추가", text: "블록이 없는 빈 칸을 누르면 그 요일, 그 시각으로 근무자를 추가해요." },
+          { scene: "slotAdd", sel: "#tl-edit", title: "근무자 추가 입력칸", text: "근무표 바로 아래에 열려요. 직원을 고르고 시작·끝 시간을 넣으면 표에 바로 보이고, <b>완료</b>를 누르면 들어가요." },
+          { sel: ".wk-bar", title: "근무 블록", text: "블록을 누르면 그 근무를 고칠 수 있어요. 같은 시간에 여러 명이면 칸 안에서 나란히 보여요." },
           { scene: "slot", sel: "#tl-edit", title: "근무 고치기 · 삭제", text: "시간을 고치면 바로 반영돼요. <b>근무 삭제</b>로 그 요일 근무를 뺄 수 있어요." },
           { sel: ".sc-actions [data-action=schedule-temp]", title: "임시저장", text: "고친 내용을 보관만 해요. 직원 화면·달력·근무 기록에는 아직 반영되지 않아요." },
           { sel: ".sc-actions [data-action=schedule-save]", title: "저장", text: "시작 날짜부터 직원 화면, 달력, 근무 기록에 반영돼요." },

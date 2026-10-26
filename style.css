@@ -6531,3 +6531,153 @@ a.m-toggle {
   width: 16px;
   height: 16px;
 }
+
+/* ---------- 근무표: 주간 표 (요일 왼→오, 시간 위→아래) · 콕 스타일 ---------- */
+.wk {
+  --axis: 52px;
+  margin-top: 8px;
+  border-radius: 18px;
+  background: var(--paper);
+}
+.wk-head,
+.wk-body {
+  display: grid;
+  grid-template-columns: var(--axis) repeat(7, minmax(0, 1fr));
+}
+.wk-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding-bottom: 8px;
+  background: var(--paper);
+}
+.wk-day {
+  padding: 8px 0 6px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.wk-day.sun {
+  color: var(--red);
+}
+.wk-body {
+  position: relative;
+  height: var(--wk-h);
+}
+.wk-axis {
+  position: relative;
+}
+.wk-axis span {
+  position: absolute;
+  right: 10px;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-sub);
+  white-space: nowrap;
+}
+.wk-axis span:first-child {
+  transform: none;
+}
+.wk-axis span:last-child {
+  transform: translateY(-100%);
+}
+.wk-col {
+  position: relative;
+  margin: 0 3px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+.wk-col.editing {
+  box-shadow: inset 0 0 0 2px rgb(14 165 160 / 0.45);
+}
+.wk-lines i {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  border-top: 1px dashed rgb(139 149 161 / 0.3);
+}
+.wk-slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  cursor: pointer;
+  border-radius: 10px;
+}
+.wk-slot:hover {
+  background: rgb(14 165 160 / 0.1);
+}
+.wk-bar {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--c);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), inset 0 0 0 1px rgb(0 0 0 / 0.05);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.wk-bar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgb(0 0 0 / 0.12);
+}
+.wk-bar.sc-editing {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--accent);
+}
+.wk-bar b {
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.wk-bar small {
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  opacity: 0.85;
+}
+.wk-bar.short {
+  justify-content: center;
+  padding: 2px 6px;
+}
+.wk-edit {
+  margin-top: 16px;
+}
+/* 휴대폰 한눈에 보기 (좁은 칸) */
+.wk.compact {
+  --axis: 26px;
+}
+.wk.compact .wk-day {
+  font-size: 13px;
+}
+.wk.compact .wk-axis span {
+  right: 4px;
+  font-size: 10px;
+}
+.wk.compact .wk-col {
+  margin: 0 1px;
+  border-radius: 8px;
+}
+.wk.compact .wk-bar {
+  padding: 4px 3px;
+  border-radius: 7px;
+}
+.wk.compact .wk-bar b {
+  font-size: 10.5px;
+}
+.wk.compact .wk-bar small {
+  font-size: 9.5px;
+}
+/* 카톡 사진 */
+.wk.share .wk-head {
+  position: static;
+}
+.wk.share .wk-bar {
+  box-shadow: none;
+}
