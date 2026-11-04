@@ -2686,7 +2686,7 @@ const TOURS = {
       ? [
           { sel: "#add-employee .seg", title: "알바 / 직원", text: "새로 넣을 사람이 알바인지 직원인지 골라요. 직원을 고르면 시급 대신 기본급(월급)과 식대를 넣어요." },
           { sel: "#add-employee", title: "직원 추가", text: "이름과 시급(직원은 월급)을 넣고 <b>추가</b>를 눌러요. 전화번호는 넣지 않아도 돼요." },
-          { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
+          { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근과 퇴근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
           { sel: "table.schedule tbody tr:first-child .day-cell", title: "요일별 근무 시간", text: "칸에 <b>7-12</b>, <b>18-2230</b>처럼 입력하면 그 요일 고정 근무 시간이 저장돼요. 비우면 쉬는 날이에요." },
           { sel: "table.schedule tbody tr:first-child .wage-cell", title: "시급 · 월급", text: "알바는 시급을 고쳐요. <b>월급으로</b>를 누르면 월급제(4대보험) 직원이 되고, 월급은 급여 화면 명세서에서 입력해요." },
           { sel: "table.schedule tbody tr:first-child [data-action=toggle-active]", title: "재직중 · 비활성", text: "그만둔 직원은 <b>비활성</b>으로 바꿔요. 기록은 남고, 달력과 근무표에서만 빠져요." },
@@ -2695,7 +2695,7 @@ const TOURS = {
       : [
           { sel: ".m-add", title: "직원 추가", text: "여기를 누르면 직원 추가 창이 열려요." },
           { scene: "addSheet", sel: ".sheet", title: "직원 추가 창", text: "알바 / 직원을 고르고 이름을 넣어요. 알바는 시급, 직원은 기본급(월급)과 식대(선택)를 넣고 <b>추가</b>를 눌러요." },
-          { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
+          { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근과 퇴근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
           { sel: ".m-list .m-row", title: "직원 누르기", text: "직원을 누르면 정보 창이 열려요." },
           { scene: "empSheet", sel: ".sheet", title: "직원 정보", text: "요일별 근무 시간, 시급, 재직중·비활성, 알바·직원, 시급제·월급제, 입사일·퇴사일을 여기서 바꿔요." },
         ],
@@ -2729,7 +2729,7 @@ const TOURS = {
     { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "그날 출근 기록이 이름과 시간으로 보여요. 근무표보다 <b style=\"color:var(--more)\">더 일하면 파랑</b>, <b style=\"color:var(--red)\">덜 일하면 빨강</b>이에요. 날짜를 누르면 그날이 열려요." },
     { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 큰 글씨는 급여에 쓰는 근무 시간이에요. 찍은 시각을 <b>10분 단위로 반올림</b>해요(13:52 → 13:50, 13:55 → 14:00). 아래 <b>찍은 시각</b>은 직원이 실제로 누른 시각이에요." },
     { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름을 누르면 고칠 수 있어요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날만 시간 바꾸기), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 퇴근을 안 찍은 지난 날은 <b>퇴근 안 찍음</b>으로 보여요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날 시간 고치기, 찍은 시각보다 우선해요), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 퇴근을 안 찍은 지난 날은 <b>퇴근 안 찍음</b>으로 보이고, 근무표 종료 시각으로 계산돼요. 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
   ],
   // 직원용 달력 (출근 화면)
@@ -2738,10 +2738,10 @@ const TOURS = {
     pc
       ? { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "그날 출근한 사람과 시간이 보여요. 근무표보다 <b style=\"color:var(--more)\">더 일하면 파랑</b>, <b style=\"color:var(--red)\">덜 일하면 빨강</b>이에요. 날짜를 누르면 그날이 열려요." }
       : { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "점이 있는 날은 출근 기록이 있는 날이에요. 날짜를 누르면 그날 화면이 열려요." },
-    { scene: "day", sel: ".date-box", title: "출근 기록", text: "날짜를 누르면 이렇게 열려요. 그날 실제로 출근한 사람과 시간이에요." },
+    { scene: "day", sel: ".date-box", title: "출근 기록", text: "날짜를 누르면 이렇게 열려요. 큰 글씨는 10분 단위로 반올림한 근무 시간(13:52 → 13:50, 13:55 → 14:00)이고, 아래 <b>찍은 시각</b>은 실제로 누른 시각이에요." },
     { scene: "day", sel: ".staff", title: "오늘 근무자", text: "근무표에 있는 오늘 근무자예요. <b>본인 이름</b>을 찾아 눌러요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근 · 퇴근 찍기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 누르고, 일이 끝나면 다시 이름을 눌러 <b>퇴근</b>을 눌러 주세요. 찍은 시각은 10분 단위로 반올림돼서 급여에 들어가요. 자정을 넘겨 끝나면 다음 날 화면 맨 위에 퇴근 버튼이 나와요. 그날만 시간이 바뀌었으면 <b>수정</b>으로 고쳐요." },
-    { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "근무표에 없는데 일하게 됐으면 <b>+</b>를 눌러 이름과 시간을 넣고 <b>등록</b>해요. 그다음 이름을 눌러 출근하면 돼요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근 · 퇴근 찍기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 누르고, 일이 끝나면 다시 이름을 눌러 <b>퇴근</b>을 눌러 주세요. 찍은 시각은 10분 단위로 반올림돼서 급여에 들어가요. 자정을 넘겨 끝나면 다음 날 화면 맨 위에 퇴근 버튼이 나와요. 지난 날 퇴근을 못 찍었으면 관리자에게 말해 주세요." },
+    { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "근무표에 없는데 일하게 됐으면 <b>+</b>를 눌러 이름과 시간을 넣고 <b>등록</b>해요. 그다음 이름을 눌러 출근과 퇴근을 찍으면 돼요." },
   ],
   records: (pc) =>
     pc
@@ -2754,7 +2754,7 @@ const TOURS = {
           { scene: "emp", sel: [".ts-wrap", ".timesheet"], title: "이 직원 근무 상세", text: "날짜별 근무 시간이에요. 근무표보다 더 일하면 파랑, 덜 일하면 빨강으로 보여요." },
           { sel: "#r-tax", title: "세금", text: "알바(시급제) 세금이에요. 보통 3.3%를 떼요. 월급제 직원의 공제액은 명세서에서 따로 입력해요." },
           { sel: "[data-action=export-ledger]", title: "엑셀 파일", text: "세무사에게 보낼 급여대장이에요. 알바·직원(4대보험)·날짜별 근무시간·주휴수당 내역이 한 파일에 들어가요." },
-          { sel: ".pay-table", title: "급여 정산", text: "기본급, 주휴수당, 수당, 세금, 실지급액이 계산돼요. 주휴수당에 마우스를 올리면 주별 내역이 보여요." },
+          { sel: ".pay-table", title: "급여 정산", text: "기본급, 주휴수당, 수당, 세금, 실지급액이 계산돼요. 알바 기본급은 찍은 시각을 <b>10분 단위로 반올림</b>한 근무시간으로 계산해요(퇴근을 안 찍은 날은 근무표 종료 시각). 주휴수당은 근무표 시간 기준이고, 마우스를 올리면 주별 내역이 보여요." },
           { sel: ".pay-table .ps-cell [data-action=open-payslip]", title: "명세서", text: "이름 옆 <b>명세서</b>를 누르면 명세서 창이 열려요. 알바와 직원은 창이 조금 달라요." },
           { scene: "payslipAlba", sel: ".ps-allow", title: "알바 명세서 · 수당 입력", text: "특근수당 같은 수당을 이름과 금액으로 넣어요. <b>+ 수당 추가</b>로 여러 개 넣을 수 있어요." },
           { scene: "payslipAlba", sel: ".ps-preview", title: "알바 명세서", text: "기본급, 주휴수당, 수당에서 3.3%를 뗀 금액이에요. 입력하는 대로 바로 바뀌고, 이 모양 그대로 PDF가 돼요." },
@@ -2767,7 +2767,7 @@ const TOURS = {
           { sel: ".m-month", title: "달 바꾸기", text: "화살표로 지난달 급여를 볼 수 있어요." },
           { sel: ".m-hero", title: "이번 달 합계", text: "실지급액 합계예요. 오른쪽에서 알바 세금(3.3% / 공제 안 함)을 바꿔요." },
           { sel: ".m-pay", title: "직원 누르기", text: "직원을 누르면 그 사람 급여 내역이 열려요." },
-          { scene: "paySheet", sel: ".sheet .m-hero", title: "받을 금액", text: "이 직원이 받을 금액과 기본급, 주휴수당, 세금 내역이에요." },
+          { scene: "paySheet", sel: ".sheet .m-hero", title: "받을 금액", text: "이 직원이 받을 금액과 기본급, 주휴수당, 세금 내역이에요. 알바 기본급은 찍은 시각을 <b>10분 단위로 반올림</b>한 근무시간으로 계산해요(퇴근을 안 찍은 날은 근무표 종료 시각)." },
           { scene: "paySheet", sel: ".sheet .m-share", title: "카카오톡 전송하기", text: "누르면 이 직원의 한 달 근무를 달력 사진으로 만들어요." },
           { scene: "share", sel: ".share-box img", title: "근무 사진 미리보기", text: "이런 사진이 만들어져요. 날짜별 근무 시간과 한 달 합계가 들어가요." },
           { scene: "share", sel: ".share-actions", title: "카카오톡 전송하기", text: "<b>카카오톡 전송하기</b>를 누르면 공유 창이 열려서 카톡 채팅방을 고르면 돼요. <b>사진 저장</b>으로 앨범에 저장할 수도 있어요." },
