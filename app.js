@@ -666,7 +666,8 @@ function renderCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     cells.push(`${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
   }
-  while (cells.length % 7) cells.push(null);
+  // 달마다 달력 크기가 달라지지 않게 항상 6주 칸을 그린다
+  while (cells.length < 42) cells.push(null);
 
   const body = cells
     .map((date, i) => {

@@ -233,6 +233,7 @@ ul {
 .grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: auto repeat(6, 1fr);
   row-gap: 4px;
   text-align: center;
 }
