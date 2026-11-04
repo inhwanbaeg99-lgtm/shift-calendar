@@ -655,6 +655,13 @@ function renderPick() {
     </div>`;
 }
 
+// 6주인 달은 칸이 작아지므로, "+N명" 줄까지 칸에 들어가는 만큼만 이름을 보여 준다 (style.css 의 --cell-h 와 같은 계산)
+function sixWeekChips() {
+  const fiveWeekCell = Math.min(168, Math.max(100, (window.innerHeight - 244) / 6));
+  const cell = (fiveWeekCell * 5 - 4) / 6;
+  return Math.max(1, Math.floor((cell - 38) / 14.64) - 1);
+}
+
 function renderCalendar() {
   const { year, month, selectedDate } = state;
   const today = todayDateString();
@@ -666,8 +673,9 @@ function renderCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     cells.push(`${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
   }
-  // 달마다 달력 크기가 달라지지 않게 항상 6주 칸을 그린다
-  while (cells.length < 42) cells.push(null);
+  while (cells.length % 7) cells.push(null);
+  const sixWeeks = cells.length > 35;
+  const maxVisible = sixWeeks ? sixWeekChips() : MAX_VISIBLE;
 
   const body = cells
     .map((date, i) => {
@@ -677,12 +685,12 @@ function renderCalendar() {
       const isRest = i % 7 === 0 || Boolean(holiday);
       const numClass = date === today ? "today" : isRest ? "rest" : "";
       const chips = [
-        ...entries.slice(0, MAX_VISIBLE).map((r) => {
+        ...entries.slice(0, maxVisible).map((r) => {
           const emp = employeeById(r.employeeId);
           const diff = diffClass(emp, date, hoursBetween(r.clockIn, r.clockOut));
           return `<span class="chip">${nameLabel(emp, r)} ${needsCheck(r) ? `<span class="chip-time under">${formatTime(r.clockIn)}~확인 필요</span>` : noEndOpen(r) ? `<span class="chip-time">${formatTime(r.clockIn)}~-</span>` : `<span class="chip-time${diff}">${formatTime(r.clockIn)}~${formatTime(r.clockOut)}</span>`}</span>`;
         }),
-        entries.length > MAX_VISIBLE ? `<span class="chip more">+${entries.length - MAX_VISIBLE}명</span>` : "",
+        entries.length > maxVisible ? `<span class="chip more">+${entries.length - maxVisible}명</span>` : "",
       ].join("");
       return `
         <button type="button" class="cell${date === selectedDate ? " selected" : ""}" data-date="${date}">
@@ -702,7 +710,7 @@ function renderCalendar() {
       <p class="cal-title">${year}년 ${month}월</p>
       <button type="button" class="round-btn" data-action="next-month" aria-label="다음 달">${ICON_NEXT}</button>
     </div>
-    <div class="grid${state.monthDir ? ` slide-${state.monthDir}` : ""}">
+    <div class="grid${sixWeeks ? " six-weeks" : ""}${state.monthDir ? ` slide-${state.monthDir}` : ""}">
       ${WEEKDAYS.map((w, i) => `<div class="weekday${i === 0 ? " rest" : ""}">${w}</div>`).join("")}
       ${body}
     </div>`;

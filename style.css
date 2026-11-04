@@ -233,7 +233,10 @@ ul {
 .grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: auto repeat(6, 1fr);
+  /* 달력 높이는 5주 달 크기로 고정, 주 수에 따라 칸 높이만 달라진다 */
+  grid-template-rows: auto;
+  grid-auto-rows: minmax(0, 1fr);
+  height: 314px;
   row-gap: 4px;
   text-align: center;
 }
@@ -258,6 +261,13 @@ ul {
   border-radius: 10px;
   padding: 4px 0;
   transition: background-color 0.15s, border-color 0.15s;
+}
+
+@media (max-width: 767px) {
+  .grid.six-weeks .cell {
+    gap: 0;
+    padding: 0;
+  }
 }
 
 .cell-top {
@@ -316,13 +326,14 @@ ul {
   }
   .grid {
     gap: 4px;
+    height: calc(var(--cell-h) * 5 + 46px);
   }
   .weekday {
     font-size: 14px;
   }
   .cell,
   .empty-cell {
-    height: var(--cell-h);
+    min-height: 0;
   }
   .cell {
     overflow: hidden;
