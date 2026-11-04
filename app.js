@@ -1552,7 +1552,8 @@ function payrollFor(ym, employeeId) {
 }
 
 const won = (n) => `${n.toLocaleString()}원`;
-const hrs = (n) => `${Number(n.toFixed(2))}시간`;
+// 화면 표시만 소수 첫째 자리로 (금액은 반올림 전 시간으로 계산한다)
+const hrs = (n) => `${Number(n.toFixed(1))}시간`;
 const hour1 = (n) => (n ? n.toFixed(1) : "");
 const shortDate = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))} (${WEEKDAYS[weekdayOf(d)]})`;
 
