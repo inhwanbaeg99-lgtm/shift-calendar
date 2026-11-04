@@ -1,5 +1,24 @@
 {
   "database": {
     "rules": "database.rules.json"
+  },
+  "hosting": {
+    "site": "kokwork",
+    "public": "_site",
+    "cleanUrls": true,
+    "ignore": [
+      "**/.*"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
   }
 }

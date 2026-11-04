@@ -3,6 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script>
+      // 옛 깃허브 주소로 들어오면 새 주소로 (이 기기에 기억된 매장 코드는 주소에 실어 넘긴다)
+      if (location.hostname.endsWith("github.io")) {
+        var q = new URLSearchParams(location.search), code = null;
+        try { code = localStorage.getItem("shift-calendar:store"); } catch (e) {}
+        if (code && !q.get("s")) q.set("s", code);
+        var qs = q.toString();
+        location.replace("https://kokwork.web.app" + location.pathname.replace(/^\/shift-calendar/, "") + (qs ? "?" + qs : "") + location.hash);
+      }
+    </script>
     <title>콕 관리자</title>
     <meta name="apple-mobile-web-app-title" content="콕 관리자" />
     <link rel="manifest" href="manifest.json" />
