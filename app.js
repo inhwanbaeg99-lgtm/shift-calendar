@@ -1552,9 +1552,9 @@ function payrollFor(ym, employeeId) {
 }
 
 const won = (n) => `${n.toLocaleString()}원`;
-// 화면 표시만 소수 첫째 자리로 (금액은 반올림 전 시간으로 계산한다)
-const hrs = (n) => `${Number(n.toFixed(1))}시간`;
-const hour1 = (n) => (n ? n.toFixed(1) : "");
+const hrs = (n) => `${Number(n.toFixed(2))}시간`;
+// 근무 상세 칸: 소수 둘째 자리까지 (5, 4.5, 0.75). 급여 정산 · 명세서와 같은 숫자
+const hour1 = (n) => (n ? String(Number(n.toFixed(2))) : "");
 const shortDate = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))} (${WEEKDAYS[weekdayOf(d)]})`;
 
 function shiftMonth(ym, delta) {
@@ -1612,7 +1612,7 @@ function renderTimesheet(ym, employeeId) {
             <tr>
               <td class="ts-name">${nameLabel(r.emp)}</td>
               ${r.cells.map((_, j) => cell(r, j)).join("")}
-              <td class="ts-total">${r.total.toFixed(1)}</td>
+              <td class="ts-total">${Number(r.total.toFixed(2))}</td>
             </tr>`,
             )
             .join("")}
@@ -1649,7 +1649,7 @@ function renderTimesheetMobile(days, rows, cell, dayClass) {
                 `<tr class="${dayClass(d).includes("today") ? "today-row" : ""}"><th class="ts-date${dayClass(d)}"><span class="ts-dn">${Number(d.slice(8))}</span><span class="ts-wd">${WEEKDAYS[weekdayOf(d)]}</span></th>${rows.map((r) => cell(r, j)).join("")}</tr>`,
             )
             .join("")}
-          <tr class="ts-sum"><th class="ts-date">합계</th>${rows.map((r) => `<td class="ts-total">${r.total.toFixed(1)}</td>`).join("")}</tr>
+          <tr class="ts-sum"><th class="ts-date">합계</th>${rows.map((r) => `<td class="ts-total">${Number(r.total.toFixed(2))}</td>`).join("")}</tr>
         </tbody>
       </table>
     </div>`;
@@ -2267,7 +2267,7 @@ function renderTsCard(emp, ym) {
     <div class="tsc">
       <p class="tsc-store">${esc(storeName())}</p>
       <h1>${esc(emp.name)} · ${y}년 ${m}월 근무</h1>
-      <p class="tsc-sum">근무 <b>${workDays}일</b> · 총 <b>${row ? row.total.toFixed(1) : "0.0"}시간</b></p>
+      <p class="tsc-sum">근무 <b>${workDays}일</b> · 총 <b>${row ? Number(row.total.toFixed(2)) : 0}시간</b></p>
       <div class="tsc-grid">
         ${WEEKDAYS.map((w, i) => `<div class="tsc-wd${i === 0 ? " sun" : ""}">${w}</div>`).join("")}
         ${'<div class="tsc-cell blank"></div>'.repeat(lead)}
