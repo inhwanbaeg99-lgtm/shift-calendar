@@ -410,7 +410,8 @@ ensureColors();
 // ---------- 근무표 변경 → 근무 기록 연동 ----------
 // 근무표 제목의 기간 시작일(예: "2026. 10. 5 ~ 11. 8" → 2026-10-05, 연도가 없으면 가까운 해)부터 오늘까지의 기록을 새 근무 시간에 맞춘다.
 // - 날짜별로 따로 수정한 날(store.shifts)은 건드리지 않는다
-// - 자동으로 채운 지난 기록: 시간 변경 / 근무 추가 시 생성 / 근무 삭제 시 제거
+// - 출근 기록은 새로 만들지 않는다 (직접 출근 또는 관리자 출근 처리로만 생긴다)
+// - 예전에 자동으로 채운 기록: 시간 변경 / 근무 삭제 시 제거
 // - 직접 출근한 기록: 시간만 맞추고 지우지는 않는다
 // 기간에 연도가 없으면 지금 판단한 연도를 앞에 붙여 고정한다.
 // (몇 달 뒤에 다시 판단하면 해가 바뀌어 보일 수 있으므로 저장할 때 박아 둔다)
@@ -447,7 +448,6 @@ function syncWeekday(emp, wd) {
       const clockIn = roundIso(kstIso(date, shift.start));
       const clockOut = roundIso(endIso(date, shift.start, shift.end));
       if (rec) Object.assign(rec, { clockIn, clockOut });
-      else if (date < today) store.records.push({ id: uid(), employeeId: emp.id, date, clockIn, clockOut, createdAt: clockIn, auto: true });
     } else if (rec?.auto) {
       store.records = store.records.filter((r) => r !== rec);
     }
