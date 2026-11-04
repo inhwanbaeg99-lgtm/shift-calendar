@@ -825,7 +825,6 @@ function renderAdminShell(active, content, { center = false, wide = false } = {}
       ${link("#/schedule", "근무표", "schedule")}
       ${link("#/calendar", "달력", "calendar")}
       ${link("#/records", "급여", "records")}
-      ${link("#/me", "정보", "me")}
       ${demoLoaded ? `<a class="logout login-btn" href="#/login">로그인</a>` : `<button type="button" class="logout" data-action="logout">로그아웃</button>`}
     </nav>
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. 내 매장으로 쓰려면 <a href="#/signup">매장 등록</a> 또는 <a href="#/login">로그인</a>해주세요.</p>` : ""}
@@ -919,26 +918,6 @@ function renderEmployees() {
   );
 }
 
-// ---------- 정보 탭: 매장 · 매장 삭제 ----------
-function renderMyPage() {
-  const content = `
-    ${isDesktop() ? "" : mHead("정보")}
-    <div class="me">
-      <section class="me-card">
-        <p class="me-store">${esc(storeName())}</p>
-        <p class="sub">매장 코드 <b>${demoLoaded ? "-" : codeLabel()}</b>${cloud?.auth.currentUser?.email ? ` · ${esc(cloud.auth.currentUser.email)}` : ""}</p>
-      </section>
-
-      <section class="me-card">
-        <h2>매장 삭제</h2>
-        <div class="store-manage-actions">
-          <button type="button" class="pill danger-pill" data-action="delete-store"${demoLoaded ? " disabled" : ""}>매장 · 계정 삭제</button>
-        </div>
-      </section>
-    </div>`;
-  return renderAdminShell("me", content, { center: true });
-}
-
 // 직원용 달력으로 가는 버튼 (새 탭)
 const staffCalLink = (cls = "") =>
   `<a${cls ? ` class="${cls}"` : ""} href="${esc(staffUrl())}" target="_blank" rel="noopener" title="매장 코드 ${codeLabel()} · 이 주소를 매장 기기에서 열어주세요">직원용 달력 ↗</a>`;
@@ -980,7 +959,7 @@ function renderMobileShell(active, content) {
     ${renderInstallHint()}
     <main class="m-main${state.pageEnter ? " page-enter" : ""}">${content}</main>
     <nav class="m-tabbar" aria-label="관리자 메뉴">
-      ${tab("employees", "직원")}${tab("schedule", "근무표")}${tab("calendar", "달력")}${tab("records", "급여")}${tab("me", "정보")}
+      ${tab("employees", "직원")}${tab("schedule", "근무표")}${tab("calendar", "달력")}${tab("records", "급여")}
     </nav>
     ${renderSheet()}
     ${toastHtml()}`;
@@ -1908,63 +1887,6 @@ function uiDialog({ message, ok = "확인", cancel = null, danger = false }) {
 }
 const uiAlert = (message) => uiDialog({ message });
 
-// 글자를 입력받는 창. 확인이면 입력한 글자, 취소면 null
-function uiPrompt(message, { ok = "확인", placeholder = "", allowEmpty = false, kind = "text", danger = false } = {}) {
-  return new Promise((resolve) => {
-    const prev = document.activeElement;
-    const back = document.createElement("div");
-    back.className = "ui-back";
-    back.innerHTML = `
-      <form class="ui-box" role="dialog" aria-modal="true" aria-describedby="ui-msg">
-        <p class="ui-msg" id="ui-msg"></p>
-        <input class="field ui-input${kind === "pin" ? "" : " ui-input-text"}" type="${kind === "text" ? "text" : "password"}"${kind === "pin" ? ' inputmode="numeric" pattern="[0-9]*"' : ""} maxlength="${kind === "pin" ? 6 : 60}" autocomplete="${kind === "password" ? "current-password" : "off"}" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder || "입력")}" />
-        <p class="ui-err" hidden></p>
-        <div class="ui-actions">
-          <button type="button" class="ui-btn ui-no" data-ui="no">취소</button>
-          <button type="submit" class="ui-btn ui-yes${danger ? " danger" : ""}">${esc(ok)}</button>
-        </div>
-      </form>`;
-    back.querySelector(".ui-msg").textContent = message;
-    const input = back.querySelector(".ui-input");
-    const err = back.querySelector(".ui-err");
-    let closed = false;
-    const close = (value) => {
-      if (closed) return;
-      closed = true;
-      document.removeEventListener("keydown", onKey, true);
-      back.classList.add("leave");
-      setTimeout(() => back.remove(), reducedMotion() ? 0 : 160);
-      if (prev && document.contains(prev)) prev.focus({ preventScroll: true });
-      resolve(value);
-    };
-    const onKey = (e) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        close(null);
-      }
-    };
-    if (kind === "pin") input.addEventListener("input", () => (input.value = input.value.replace(/\D/g, "").slice(0, 6)));
-    back.querySelector("form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const v = input.value.trim();
-      if (kind === "pin" ? /^\d{6}$/.test(v) : v || allowEmpty) close(v);
-      else {
-        err.textContent = kind === "pin" ? "숫자 6자리를 입력해주세요." : "입력해주세요.";
-        err.hidden = false;
-        input.focus();
-      }
-    });
-    back.addEventListener("click", (e) => {
-      if (e.target.closest("[data-ui=no]") || e.target === back) close(null);
-    });
-    document.body.appendChild(back);
-    setTimeout(() => {
-      document.addEventListener("keydown", onKey, true);
-      input.focus();
-    });
-  });
-}
-
 const uiConfirm = (message, options = {}) => uiDialog({ message, cancel: "취소", ...options });
 
 async function withBusy(button, text, task) {
@@ -2166,62 +2088,6 @@ function exportLedger(button) {
 }
 
 // ---------- 매장 · 계정 삭제 ----------
-// 매장 이름을 다시 입력하고 비밀번호로 한 번 더 확인한 뒤, 매장 기록 전부와 관리자 계정을 지운다
-async function deleteStore() {
-  const name = storeName();
-  const yes = await uiConfirm(`매장과 계정을 삭제할까요?\n직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어요.\n먼저 급여 화면의 [엑셀 파일]로 달마다 보관해 두세요.`, { ok: "계속", danger: true });
-  if (!yes) return;
-  const typed = await uiPrompt(`확인을 위해 매장 이름을 똑같이 입력해주세요.\n${name}`, { kind: "text", placeholder: name, ok: "다음", danger: true });
-  if (typed === null) return;
-  if (typed !== name) {
-    uiAlert("매장 이름이 달라서 삭제하지 않았어요.");
-    return;
-  }
-  const password = await uiPrompt("마지막으로 관리자 비밀번호를 입력해주세요.", { kind: "password", placeholder: "비밀번호", ok: "삭제", danger: true });
-  if (password === null) return;
-  const user = cloud?.auth.currentUser;
-  if (!user) return;
-  try {
-    await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, password));
-  } catch {
-    uiAlert("비밀번호가 맞지 않아서 삭제하지 않았어요.");
-    return;
-  }
-  const code = storeId;
-  // 먼저 연결을 끊는다 (지우는 동안 "저장소가 비었다"며 이 기기 기록을 다시 올리지 않게)
-  watchPrivate(false);
-  storeId = null;
-  watchStore();
-  store = initialData();
-  try {
-    // 규칙상 public · private 은 meta(주인 정보)가 있어야 지울 수 있어서 meta 를 마지막에
-    await cloud.db.ref(`stores/${code}/public`).remove();
-    await cloud.db.ref(`stores/${code}/private`).remove();
-    await cloud.db.ref(`stores/${code}/meta`).remove();
-  } catch (err) {
-    console.warn(err);
-    storeId = code; // 다시 연결
-    watchStore();
-    watchPrivate(true);
-    uiAlert("삭제하지 못했어요. 인터넷 연결을 확인하고 다시 시도해주세요.");
-    return;
-  }
-  // 이 기기에 남은 캐시도 지운다
-  try {
-    localStorage.removeItem(`shift-calendar:${code}`);
-    if (localStorage.getItem(LAST_STORE_KEY) === code) localStorage.removeItem(LAST_STORE_KEY);
-  } catch {}
-  try {
-    await user.delete();
-  } catch (err) {
-    console.warn("계정 삭제 실패", err);
-    await cloud.auth.signOut();
-  }
-  state.notice = "매장과 계정을 삭제했어요. 그동안 써 주셔서 고마워요.";
-  location.hash = "#/login";
-  render();
-}
-
 // ---------- PDF (급여명세서) ----------
 
 async function payslipPdf(button, empIds) {
@@ -2734,10 +2600,6 @@ async function scheduleShare(button) {
 // 지금 화면 위를 어둡게 덮고, 설명할 버튼·칸만 밝게 뚫어 옆에 말풍선으로 설명한다. [다음]으로 하나씩.
 // sel 은 여러 개를 줄 수 있고, 화면에 보이는 첫 번째를 가리킨다. 지금 화면에 없는 단계는 건너뛴다.
 const TOURS = {
-  me: () => [
-    { sel: ".me-card:first-child", title: "매장 코드", text: "우리 매장 이름과 코드예요. 직원이 직원용 달력을 처음 열 때 <b>매장 코드</b>를 넣으면 돼요." },
-    { sel: ".store-manage-actions", title: "매장 삭제", text: "매장과 계정을 지워요. 직원·근무·급여 기록이 모두 지워지고 되살릴 수 없어서, 지우기 전에 급여 화면에서 <b>엑셀 파일</b>을 받아 두세요." },
-  ],
   employees: (pc) =>
     pc
       ? [
@@ -3064,7 +2926,7 @@ function route() {
   const day = hash.match(/^\/day\/(\d{4}-\d{2}-\d{2})$/);
   if (day) return { name: "day", date: day[1] };
   if (!ADMIN_SITE) return { name: "home" };
-  const page = { "/records": "records", "/schedule": "schedule", "/calendar": "calendar", "/me": "me" }[hash];
+  const page = { "/records": "records", "/schedule": "schedule", "/calendar": "calendar" }[hash];
   return { name: page ?? "employees" };
 }
 
@@ -3085,7 +2947,6 @@ function render() {
   else if (r.name === "employees") app.innerHTML = renderEmployees();
   else if (r.name === "records") app.innerHTML = renderRecords();
   else if (r.name === "schedule") app.innerHTML = renderSchedule();
-  else if (r.name === "me") app.innerHTML = renderMyPage();
   else app.innerHTML = renderHome();
 
   for (const [id, value] of kept) {
@@ -3566,9 +3427,6 @@ app.addEventListener("click", (e) => {
       return;
     case "start-tour":
       startTour(route().name);
-      return;
-    case "delete-store":
-      deleteStore();
       return;
     case "export-ledger":
       exportLedger(el);
@@ -4544,7 +4402,6 @@ function watchPrivate(on) {
     "value",
     (snap) => {
       if (sid !== storeId) return;
-      const first = !remote.privLoaded;
       remote.priv = snap.val();
       remote.privLoaded = true;
       applyRemote();

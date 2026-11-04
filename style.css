@@ -5465,48 +5465,10 @@ td.name {
   font-size: 16px;
   letter-spacing: 0;
 }
-.store-manage {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 32px;
-  padding: 18px 22px;
-  border-radius: 16px;
-  background: var(--paper);
-  box-shadow: var(--shadow);
-}
-.store-manage-title {
-  margin: 0 0 2px;
-  font-weight: 800;
-}
-.store-manage .sub {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink-sub);
-}
-.store-manage-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 .pill.danger-pill {
   background: none;
   color: var(--red);
   box-shadow: inset 0 0 0 1px currentColor;
-}
-@media (max-width: 767px) {
-  .store-manage {
-    margin: 24px 16px 0;
-    padding: 16px;
-  }
-  .store-manage-actions {
-    width: 100%;
-  }
-  .store-manage-actions .pill {
-    flex: 1;
-  }
 }
 .sal-title small {
   font-size: 11px;
@@ -5564,45 +5526,6 @@ a.m-store {
 a.m-store span {
   color: var(--ink-sub);
   font-weight: 600;
-}
-
-/* 마이페이지 */
-.me {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  width: 100%;
-  margin: 0 auto;
-}
-.me-card {
-  padding: 22px 24px;
-  border-radius: 18px;
-  background: var(--paper);
-  box-shadow: var(--shadow);
-}
-.me-card h2 {
-  margin: 0 0 4px;
-  font-size: 17px;
-}
-.me-card .sub {
-  margin: 0 0 14px;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: var(--ink-sub);
-}
-.me-card .sub.small {
-  margin: 12px 0 0;
-  font-size: 12.5px;
-}
-.me-store {
-  margin: 6px 0 2px;
-  font-size: 22px;
-  font-weight: 800;
-}
-@media (max-width: 600px) {
-  .me-card {
-    padding: 18px;
-  }
 }
 
 /* 컴퓨터 직원 표: 이름 → 직원 정보 창 */
@@ -5692,12 +5615,6 @@ a.m-toggle {
   display: grid;
   place-items: center;
   text-decoration: none;
-}
-.me-card h2 + .store-manage-actions {
-  margin-top: 12px;
-}
-.me-card > .me-store:first-child {
-  margin-top: 0;
 }
 
 /* ---------- 근무표: 주간 표 (요일 왼→오, 시간 위→아래) · 콕 스타일 ---------- */
