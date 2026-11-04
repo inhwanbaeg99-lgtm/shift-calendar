@@ -736,9 +736,10 @@ function renderDateBox(date, { closable }) {
 function renderStaffItem(emp, date) {
   const today = todayDateString();
   const isToday = date === today;
-  const editable = ADMIN_SITE || date >= today;
   const rec = recordFor(emp.id, date);
   const done = Boolean(rec?.clockIn);
+  // 직원 화면: 오늘 찍을 게 남아 있을 때만 이름을 누를 수 있다 (시간 수정은 관리자만)
+  const editable = ADMIN_SITE || (isToday && (!done || punchOpen(rec)));
   // 이름 밑에는 항상 근무표 시간. 관리자가 고치는 칸에는 기록이 있으면 기록된 시간을 넣는다
   const shift = shiftFor(emp, date);
   const start = ADMIN_SITE && rec ? formatTime(rec.clockIn) : shift.start;
@@ -751,7 +752,7 @@ function renderStaffItem(emp, date) {
   } else if (expanded) {
     action = `
       <div class="action-row">
-        <button type="button" class="btn-ghost" data-action="edit-shift" data-id="${emp.id}">수정</button>
+        ${ADMIN_SITE ? `<button type="button" class="btn-ghost" data-action="edit-shift" data-id="${emp.id}">수정</button>` : ""}
         ${!ADMIN_SITE && isToday && !done ? `<button type="button" class="btn-primary" data-action="clock-in" data-id="${emp.id}">출근</button>` : ""}
         ${!ADMIN_SITE && isToday && punchOpen(rec) ? `<button type="button" class="btn-primary" data-action="clock-out" data-id="${emp.id}">퇴근</button>` : ""}
         ${ADMIN_SITE && punchOpen(rec) && date <= today ? `<button type="button" class="btn-primary" data-action="admin-clock-out" data-id="${emp.id}">퇴근 처리</button>` : ""}
@@ -811,7 +812,7 @@ function renderStaff(date) {
   const today = todayDateString();
   const isToday = date === today;
   let scheduled = scheduledOn(date);
-  let sub = isToday ? "본인 이름을 눌러 출근 · 퇴근을 찍으세요" : date > today ? "이름을 눌러 시간을 수정할 수 있어요" : "지난 날짜예요";
+  let sub = isToday ? "본인 이름을 눌러 출근 · 퇴근을 찍으세요" : date > today ? "근무표에 있는 근무 예정이에요" : "지난 날짜예요";
   if (ADMIN_SITE) {
     // 근무 예정인 사람 + 근무표에 없지만 그날 기록이 있는 사람
     const ids = new Set(scheduled.map((e) => e.id));
@@ -3351,6 +3352,7 @@ app.addEventListener("click", (e) => {
       break;
     }
     case "edit-shift":
+      if (!ADMIN_SITE) return;
       state.error = "";
       state.editingId = id;
       state.editingWhere = "staff";
@@ -3361,6 +3363,7 @@ app.addEventListener("click", (e) => {
       state.editingWhere = null;
       break;
     case "save-shift": {
+      if (!ADMIN_SITE) return;
       const start = readTime("edit-start");
       const end = readTime("edit-end");
       if (!start || !end) {
