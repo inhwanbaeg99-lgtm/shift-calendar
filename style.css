@@ -5614,6 +5614,13 @@ td.name {
   box-shadow: 0 2px 6px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.14);
   animation: dd-in 0.14s ease;
 }
+/* 스크롤은 되지만 스크롤바는 안 보이게 */
+.dd-list {
+  scrollbar-width: none;
+}
+.dd-list::-webkit-scrollbar {
+  display: none;
+}
 .dd-list.right {
   left: auto;
   right: 0;
