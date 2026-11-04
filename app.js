@@ -82,6 +82,9 @@ function endIso(date, start, end) {
   return kstIso(end > start ? date : addDays(date, 1), end);
 }
 
+// ISO 시각이 매장 시간대로 며칠인지 (YYYY-MM-DD)
+const dateOfIso = (iso) => new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE }).format(new Date(iso));
+
 function addDays(dateStr, n) {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
@@ -269,7 +272,7 @@ function scheduledOn(date) {
     .sort((a, b) => (shiftFor(a, date).start < shiftFor(b, date).start ? -1 : 1));
 }
 
-// 퇴근은 따로 누르지 않으므로, 퇴근 시각은 그날 근무 종료 시간으로 본다 (자정을 넘기면 다음 날)
+// 급여에 쓰는 퇴근 시각은 그날 근무 종료 시간으로 본다 (자정을 넘기면 다음 날)
 function scheduledEnd(emp, date) {
   const { start, end } = shiftFor(emp, date);
   return endIso(date, start, end);
@@ -281,7 +284,7 @@ function clockIn(employeeId) {
   if (!emp || !emp.active) return "직원을 찾을 수 없습니다.";
   const date = todayDateString();
   if (recordFor(employeeId, date)?.clockIn) return "이미 출근 처리되었습니다.";
-  // 누른 시각이 아니라 그날 근무 시간대로 출퇴근을 기록한다
+  // 급여(clockIn · clockOut)는 그날 근무 시간대로, 실제로 누른 시각은 punchIn · punchOut 에 따로 남긴다
   const { start } = shiftFor(emp, date);
   store.records.push({
     manual: true,
@@ -290,11 +293,41 @@ function clockIn(employeeId) {
     date,
     clockIn: kstIso(date, start),
     clockOut: scheduledEnd(emp, date),
+    punchIn: new Date().toISOString(),
     createdAt: new Date().toISOString(),
   });
   save();
   return null;
 }
+
+// 출근은 찍었는데 퇴근을 아직 안 찍은 기록 (퇴근 찍기를 넣기 전 기록은 punchIn 이 없어서 해당 없음)
+const punchOpen = (rec) => Boolean(rec?.punchIn && !rec.punchOut);
+// 어제 시작해서 오늘 끝나는 근무 (자정 넘김): 오늘 화면에서 퇴근을 찍게 한다
+function overnightOpen(today) {
+  return recordsOn(addDays(today, -1)).filter((r) => punchOpen(r) && dateOfIso(r.clockOut) === today);
+}
+
+// 퇴근 찍기: 오늘 기록, 또는 어제 시작해서 오늘 끝나는 근무만
+function clockOut(employeeId, date) {
+  const rec = recordFor(employeeId, date);
+  if (!punchOpen(rec)) return "이미 퇴근 처리되었습니다.";
+  const today = todayDateString();
+  if (date !== today && !(date === addDays(today, -1) && dateOfIso(rec.clockOut) === today)) return "지난 날짜의 퇴근은 관리자에게 말해주세요.";
+  rec.punchOut = new Date().toISOString();
+  save();
+  return null;
+}
+
+// 관리자가 대신 퇴근 처리: 그날 근무 종료 시간으로 남긴다
+function adminClockOut(empId, date) {
+  const rec = recordFor(empId, date);
+  if (!punchOpen(rec)) return;
+  rec.punchOut = rec.clockOut;
+  save();
+}
+
+// 찍은 시각 (08:57 ~ 13:02, 퇴근 전이면 08:57 ~ -)
+const punchLabel = (rec) => (rec?.punchIn ? `찍은 시각 ${formatTime(rec.punchIn)} ~ ${rec.punchOut ? formatTime(rec.punchOut) : "-"}` : "");
 
 // 관리자 달력에서 그날 근무 기록을 직접 넣거나 고친다. 근무 상세·급여 정산은 기록으로 계산되므로 바로 반영된다.
 // 직접 고친 기록(edited)은 이후 근무표를 저장해도 덮어쓰지 않는다.
@@ -655,6 +688,7 @@ function renderDateBox(date, { closable }) {
             <span class="in-name">${nameLabel(employeeById(r.employeeId), r)}</span>
             <span class="in-time${diffClass(employeeById(r.employeeId), date, hoursBetween(r.clockIn, r.clockOut))}">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span>
           </div>
+          ${r.punchIn ? `<p class="in-punch">${punchLabel(r)}</p>` : ""}
         </li>`,
     )
     .join("");
@@ -695,6 +729,8 @@ function renderStaffItem(emp, date) {
       <div class="action-row">
         <button type="button" class="btn-ghost" data-action="edit-shift" data-id="${emp.id}">수정</button>
         ${!ADMIN_SITE && isToday && !done ? `<button type="button" class="btn-primary" data-action="clock-in" data-id="${emp.id}">출근</button>` : ""}
+        ${!ADMIN_SITE && isToday && punchOpen(rec) ? `<button type="button" class="btn-primary" data-action="clock-out" data-id="${emp.id}">퇴근</button>` : ""}
+        ${ADMIN_SITE && punchOpen(rec) && date <= today ? `<button type="button" class="btn-primary" data-action="admin-clock-out" data-id="${emp.id}">퇴근 처리</button>` : ""}
         ${ADMIN_SITE && !done && date <= today ? `<button type="button" class="btn-primary" data-action="admin-clock-in" data-id="${emp.id}">출근 처리</button>` : ""}
         ${ADMIN_SITE && done ? `<button type="button" class="btn-ghost danger-ghost" data-action="remove-record" data-id="${emp.id}">기록 삭제</button>` : ""}
       </div>`;
@@ -705,7 +741,7 @@ function renderStaffItem(emp, date) {
     <li class="staff-item${expanded ? " expanded" : ""}">
       <button type="button" class="staff-name-btn" data-action="toggle-staff" data-id="${emp.id}"${editable ? "" : " disabled"}>
         <span class="staff-name">${nameLabel(emp, rec)}</span>
-        ${done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
+        ${punchOpen(rec) && date < today && !(date === addDays(today, -1) && dateOfIso(rec.clockOut) === today) ? `<span class="badge none">퇴근 안 찍음</span>` : rec?.punchOut ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">퇴근 완료</span>` : done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
         <span class="staff-time${ADMIN_SITE && rec ? diffClass(emp, date, hoursBetween(rec.clockIn, rec.clockOut)) : ""}">${start} ~ ${end}</span>
       </button>
       ${action ? `<div class="staff-action${state.expandEnter ? " enter" : ""}">${action}</div>` : ""}
@@ -751,7 +787,7 @@ function renderStaff(date) {
   const today = todayDateString();
   const isToday = date === today;
   let scheduled = scheduledOn(date);
-  let sub = isToday ? "본인 이름을 눌러 출근하세요" : date > today ? "이름을 눌러 시간을 수정할 수 있어요" : "지난 날짜예요";
+  let sub = isToday ? "본인 이름을 눌러 출근 · 퇴근을 찍으세요" : date > today ? "이름을 눌러 시간을 수정할 수 있어요" : "지난 날짜예요";
   if (ADMIN_SITE) {
     // 근무 예정인 사람 + 근무표에 없지만 그날 기록이 있는 사람
     const ids = new Set(scheduled.map((e) => e.id));
@@ -760,11 +796,21 @@ function renderStaff(date) {
     sub = date < today ? "이름을 눌러 시간을 고치면 근무 기록·급여에 바로 반영돼요" : "이름을 눌러 근무 시간을 바꿀 수 있어요";
   }
 
+  // 자정을 넘겨 어제 시작한 근무: 오늘 화면 맨 위에서 퇴근을 찍는다
+  const overnight = !ADMIN_SITE && isToday
+    ? overnightOpen(today).map((r) => `
+        <li class="staff-item expanded">
+          <div class="staff-name-btn"><span class="staff-name">${nameLabel(employeeById(r.employeeId))}</span><span class="badge done">어제 출근</span><span class="staff-time">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span></div>
+          <div class="staff-action"><div class="action-row"><button type="button" class="btn-primary" data-action="clock-out" data-id="${r.employeeId}" data-rec-date="${r.date}">퇴근</button></div></div>
+        </li>`).join("")
+    : "";
+
   return `
     <section class="staff" aria-label="근무자">
       <p class="staff-title">${isToday ? "오늘 근무자" : "근무 예정"}</p>
       <p class="sub">${sub}</p>
       <ul class="staff-list">
+        ${overnight}
         ${scheduled.map((e) => renderStaffItem(e, date)).join("") || `<li class="in-empty">근무 예정인 직원이 없어요</li>`}
       </ul>
       ${ADMIN_SITE || date >= today ? renderAddExtra() : ""}
@@ -881,7 +927,7 @@ function renderEmployees() {
         }<button type="button" class="pay-switch" data-action="toggle-paytype" data-id="${e.id}" title="${isSalaried(e) ? "시급제(3.3%)로 바꾸기" : "월급제(4대보험)로 바꾸기"}">${isSalaried(e) ? "시급으로" : "월급으로"}</button></td>
         <td><button type="button" class="status${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button></td>
         <td>${
-          `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요">${isManager(e) ? "매니저" : "알바"}</button>`
+          `<button type="button" class="status${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}" title="직원으로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요">${isManager(e) ? "직원" : "알바"}</button>`
         }</td>
         <td class="manage-cell"><button type="button" class="danger" data-action="remove-employee" data-id="${e.id}">삭제</button></td>
       </tr>`,
@@ -892,7 +938,7 @@ function renderEmployees() {
     "employees",
     `
     <form class="toolbar" id="add-employee" style="margin-bottom:32px">
-      <div><span class="f-label" id="f-role-label">구분</span><div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>매니저</span></label></div></div>
+      <div><span class="f-label" id="f-role-label">구분</span><div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>직원</span></label></div></div>
       <div><label for="f-name">이름</label><input id="f-name" class="field" style="width:112px" placeholder="홍길동" required /></div>
       <div><label for="f-phone">전화번호 (선택)</label><input id="f-phone" class="field phone" style="width:144px" type="text" inputmode="numeric" placeholder="010-0000-0000" /></div>
       <div class="f-wage-wrap"><label for="f-wage">시급(원)</label><input id="f-wage" class="field money" style="width:112px" type="text" inputmode="numeric" value="${formatMoney(DEFAULT_WAGE)}" required /></div>
@@ -912,7 +958,7 @@ function renderEmployees() {
       "employees",
       `요일 칸에 <b>7-12</b>, <b>18-2230</b> 처럼 입력하면 근무 시간이 저장돼요. 비우면 쉬는 날이에요.<br />
       이름 앞 색은 근무표 색이에요(자동으로 겹치지 않게 정해져요). 근무표에서 같은 시각에 시작하면 위에 있는 사람이 왼쪽 칸에 들어가요.<br />
-      구분을 <b>매니저</b>로 바꾸면 자동으로 월급제(4대보험), <b>알바</b>로 바꾸면 시급제(3.3%)가 돼요. 알바인데 월급제면 급여 칸의 <b>월급으로</b>를 눌러요. 월급·식대·공제액은 급여 화면에서 이름 옆 <b>명세서</b>를 눌러 입력해요.`,
+      구분을 <b>직원</b>로 바꾸면 자동으로 월급제(4대보험), <b>알바</b>로 바꾸면 시급제(3.3%)가 돼요. 알바인데 월급제면 급여 칸의 <b>월급으로</b>를 눌러요. 월급·식대·공제액은 급여 화면에서 이름 옆 <b>명세서</b>를 눌러 입력해요.`,
     )}`,
     { center: true },
   );
@@ -1003,7 +1049,7 @@ function renderEmployeesMobile() {
       <button type="button" class="m-row" style="--i:${i}" data-action="open-sheet" data-sheet="emp" data-id="${e.id}">
         <span class="swatch big" style="background:${cssColor(e.color)}"></span>
         <span class="m-row-body">
-          <b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}${e.active ? "" : `<em class="m-chip off">비활성</em>`}</b>
+          <b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">직원</em>` : ""}${e.active ? "" : `<em class="m-chip off">비활성</em>`}</b>
           <small>${esc(weeklySummary(e))}</small>
         </span>
         <span class="m-chev">${ICON_CHEVRON}</span>
@@ -1053,10 +1099,10 @@ function renderEmpSheet(e) {
     }
     <div class="m-toggles">
       <button type="button" class="m-toggle${e.active ? " on" : ""}" data-action="toggle-active" data-id="${e.id}">${e.active ? "재직중" : "비활성"}</button>
-      <button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "매니저" : "알바"}</button>
+      <button type="button" class="m-toggle${isManager(e) ? " on" : ""}" data-action="toggle-role" data-id="${e.id}">${isManager(e) ? "직원" : "알바"}</button>
       <button type="button" class="m-toggle${isSalaried(e) ? " on" : ""}" data-action="toggle-paytype" data-id="${e.id}">${isSalaried(e) ? "월급제" : "시급제"}</button>
     </div>
-    <p class="sheet-note">매니저로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요. 매니저는 출근을 안 찍어도 근무표대로 급여에 나와요.</p>
+    <p class="sheet-note">직원으로 바꾸면 월급제, 알바로 바꾸면 시급제가 돼요. 직원은 출근을 안 찍어도 근무표대로 급여에 나와요.</p>
     <div class="sheet-actions">
       <button type="button" class="btn-ghost danger-ghost" data-action="remove-employee" data-id="${e.id}">삭제</button>
       <button type="button" class="btn-primary" data-action="close-sheet">완료</button>
@@ -1068,7 +1114,7 @@ function renderAddEmpSheet() {
     <div class="sheet-head"><div><h2>직원 추가</h2></div></div>
     <form id="add-employee" class="m-form">
       <span class="sheet-label" id="f-role-label">구분</span>
-      <div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>매니저</span></label></div>
+      <div class="seg" role="radiogroup" aria-labelledby="f-role-label"><label><input type="radio" name="f-role" value="alba" checked /><span>알바</span></label><label><input type="radio" name="f-role" value="manager" /><span>직원</span></label></div>
       <label class="sheet-label" for="f-name">이름</label>
       <input id="f-name" class="field" placeholder="홍길동" required autocomplete="off" />
       <label class="sheet-label" for="f-phone">전화번호 (선택)</label>
@@ -1105,7 +1151,7 @@ function renderDayShifts() {
       return `
         <button type="button" class="m-shift" style="--i:${i};--emp:${cssColor(e.color)}" data-action="edit-slot" data-wd="${wd}" data-id="${e.id}" data-start="${toMin(shift.start)}">
           <span class="m-shift-bar"></span>
-          <span class="m-shift-body"><b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">매니저</em>` : ""}</b><small>${shift.start} ~ ${shift.end}</small></span>
+          <span class="m-shift-body"><b>${esc(e.name)}${isManager(e) ? `<em class="m-chip">직원</em>` : ""}</b><small>${shift.start} ~ ${shift.end}</small></span>
           <span class="m-shift-hours">${hour1(hours)}시간</span>
         </button>`;
     })
@@ -2500,7 +2546,7 @@ function renderSlotPanel() {
           ? `<input type="hidden" id="slot-emp" value="${ed.addEmpId}" />`
           : `<select id="slot-emp" class="field" aria-label="직원">
               <option value="">직원 선택</option>
-              ${choices.map((e) => `<option value="${e.id}"${e.id === ed.addEmpId ? " selected" : ""}>${esc(e.name)}${isManager(e) ? " (매니저)" : ""}</option>`).join("")}
+              ${choices.map((e) => `<option value="${e.id}"${e.id === ed.addEmpId ? " selected" : ""}>${esc(e.name)}${isManager(e) ? " (직원)" : ""}</option>`).join("")}
             </select>`
       }
       <div class="edit-row">
@@ -2628,20 +2674,20 @@ const TOURS = {
   employees: (pc) =>
     pc
       ? [
-          { sel: "#add-employee .seg", title: "알바 / 매니저", text: "새 직원이 알바인지 매니저인지 골라요. 매니저를 고르면 시급 대신 기본급(월급)과 식대를 넣어요." },
-          { sel: "#add-employee", title: "직원 추가", text: "이름과 시급(매니저는 월급)을 넣고 <b>추가</b>를 눌러요. 전화번호는 넣지 않아도 돼요." },
+          { sel: "#add-employee .seg", title: "알바 / 직원", text: "새로 넣을 사람이 알바인지 직원인지 골라요. 직원을 고르면 시급 대신 기본급(월급)과 식대를 넣어요." },
+          { sel: "#add-employee", title: "직원 추가", text: "이름과 시급(직원은 월급)을 넣고 <b>추가</b>를 눌러요. 전화번호는 넣지 않아도 돼요." },
           { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
           { sel: "table.schedule tbody tr:first-child .day-cell", title: "요일별 근무 시간", text: "칸에 <b>7-12</b>, <b>18-2230</b>처럼 입력하면 그 요일 고정 근무 시간이 저장돼요. 비우면 쉬는 날이에요." },
           { sel: "table.schedule tbody tr:first-child .wage-cell", title: "시급 · 월급", text: "알바는 시급을 고쳐요. <b>월급으로</b>를 누르면 월급제(4대보험) 직원이 되고, 월급은 급여 화면 명세서에서 입력해요." },
           { sel: "table.schedule tbody tr:first-child [data-action=toggle-active]", title: "재직중 · 비활성", text: "그만둔 직원은 <b>비활성</b>으로 바꿔요. 기록은 남고, 달력과 근무표에서만 빠져요." },
-          { sel: "table.schedule tbody tr:first-child [data-action=toggle-role]", title: "알바 · 매니저", text: "매니저로 바꾸면 목록 맨 위로 오고 월급제가 돼요. 다시 알바로 바꾸면 시급제로 돌아가요." },
+          { sel: "table.schedule tbody tr:first-child [data-action=toggle-role]", title: "알바 · 직원", text: "직원으로 바꾸면 목록 맨 위로 오고 월급제가 돼요. 다시 알바로 바꾸면 시급제로 돌아가요." },
         ]
       : [
           { sel: ".m-add", title: "직원 추가", text: "여기를 누르면 직원 추가 창이 열려요." },
-          { scene: "addSheet", sel: ".sheet", title: "직원 추가 창", text: "알바 / 매니저를 고르고 이름을 넣어요. 알바는 시급, 매니저는 기본급(월급)과 식대(선택)를 넣고 <b>추가</b>를 눌러요." },
+          { scene: "addSheet", sel: ".sheet", title: "직원 추가 창", text: "알바 / 직원을 고르고 이름을 넣어요. 알바는 시급, 직원은 기본급(월급)과 식대(선택)를 넣고 <b>추가</b>를 눌러요." },
           { sel: ".staff-link", title: "직원용 달력 주소", text: "직원들이 출근을 찍는 달력 주소예요. <b>주소 복사</b>로 단톡방에 보내 주세요." },
           { sel: ".m-list .m-row", title: "직원 누르기", text: "직원을 누르면 정보 창이 열려요." },
-          { scene: "empSheet", sel: ".sheet", title: "직원 정보", text: "요일별 근무 시간, 시급, 재직중·비활성, 알바·매니저, 시급제·월급제, 입사일·퇴사일을 여기서 바꿔요." },
+          { scene: "empSheet", sel: ".sheet", title: "직원 정보", text: "요일별 근무 시간, 시급, 재직중·비활성, 알바·직원, 시급제·월급제, 입사일·퇴사일을 여기서 바꿔요." },
         ],
   schedule: (pc) =>
     pc
@@ -2671,9 +2717,9 @@ const TOURS = {
     ...(pc ? [] : [{ sel: ".m-today", title: "오늘 근무자", text: "오늘 일할 사람과 출근했는지가 보여요. 누르면 오늘 화면으로 가요." }]),
     { sel: ".cal-head", title: "달 바꾸기", text: "화살표로 지난달, 다음 달을 봐요." },
     { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "그날 출근 기록이 이름과 시간으로 보여요. 근무표보다 <b style=\"color:var(--more)\">더 일하면 파랑</b>, <b style=\"color:var(--red)\">덜 일하면 빨강</b>이에요. 날짜를 누르면 그날이 열려요." },
-    { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 실제로 출근한 사람과 시간이에요." },
+    { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 큰 글씨는 급여에 쓰는 근무 시간, 아래 <b>찍은 시각</b>은 직원이 실제로 누른 시각이에요." },
     { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름을 누르면 고칠 수 있어요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날만 시간 바꾸기), <b>출근 처리</b>(출근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날만 시간 바꾸기), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 퇴근을 안 찍은 지난 날은 <b>퇴근 안 찍음</b>으로 보여요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
   ],
   // 직원용 달력 (출근 화면)
@@ -2684,7 +2730,7 @@ const TOURS = {
       : { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "점이 있는 날은 출근 기록이 있는 날이에요. 날짜를 누르면 그날 화면이 열려요." },
     { scene: "day", sel: ".date-box", title: "출근 기록", text: "날짜를 누르면 이렇게 열려요. 그날 실제로 출근한 사람과 시간이에요." },
     { scene: "day", sel: ".staff", title: "오늘 근무자", text: "근무표에 있는 오늘 근무자예요. <b>본인 이름</b>을 찾아 눌러요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근하기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 눌러 주세요. 그날만 시간이 바뀌었으면 <b>수정</b>으로 고쳐요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근 · 퇴근 찍기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 누르고, 일이 끝나면 다시 이름을 눌러 <b>퇴근</b>을 눌러 주세요. 자정을 넘겨 끝나면 다음 날 화면 맨 위에 퇴근 버튼이 나와요. 그날만 시간이 바뀌었으면 <b>수정</b>으로 고쳐요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "근무표에 없는데 일하게 됐으면 <b>+</b>를 눌러 이름과 시간을 넣고 <b>등록</b>해요. 그다음 이름을 눌러 출근하면 돼요." },
   ],
   records: (pc) =>
@@ -2699,12 +2745,12 @@ const TOURS = {
           { sel: "#r-tax", title: "세금", text: "알바(시급제) 세금이에요. 보통 3.3%를 떼요. 월급제 직원의 공제액은 명세서에서 따로 입력해요." },
           { sel: "[data-action=export-ledger]", title: "엑셀 파일", text: "세무사에게 보낼 급여대장이에요. 알바·직원(4대보험)·날짜별 근무시간·주휴수당 내역이 한 파일에 들어가요." },
           { sel: ".pay-table", title: "급여 정산", text: "기본급, 주휴수당, 수당, 세금, 실지급액이 계산돼요. 주휴수당에 마우스를 올리면 주별 내역이 보여요." },
-          { sel: ".pay-table .ps-cell [data-action=open-payslip]", title: "명세서", text: "이름 옆 <b>명세서</b>를 누르면 명세서 창이 열려요. 알바와 직원(매니저)은 창이 조금 달라요." },
+          { sel: ".pay-table .ps-cell [data-action=open-payslip]", title: "명세서", text: "이름 옆 <b>명세서</b>를 누르면 명세서 창이 열려요. 알바와 직원은 창이 조금 달라요." },
           { scene: "payslipAlba", sel: ".ps-allow", title: "알바 명세서 · 수당 입력", text: "특근수당 같은 수당을 이름과 금액으로 넣어요. <b>+ 수당 추가</b>로 여러 개 넣을 수 있어요." },
           { scene: "payslipAlba", sel: ".ps-preview", title: "알바 명세서", text: "기본급, 주휴수당, 수당에서 3.3%를 뗀 금액이에요. 입력하는 대로 바로 바뀌고, 이 모양 그대로 PDF가 돼요." },
           { scene: "payslipAlba", sel: ".ps-side [data-action=save-payslip]", title: "저장", text: "저장하면 급여 정산과 명세서에 반영돼요." },
-          { scene: "payslipMgr", sel: ".sal-box", title: "직원(매니저) 명세서 · 월급 · 공제액", text: "매니저(월급제)는 기본급·식대와 세무사에게 받은 공제액 6가지를 넣어요. 한 번 넣으면 다음 달에도 그대로 이어지고, 바뀐 달에만 고치면 돼요." },
-          { scene: "payslipMgr", sel: ".ps-preview", title: "직원(매니저) 명세서", text: "기본급·식대에서 4대보험과 근로소득세를 뗀 금액이에요. 공제액을 아직 안 넣었으면 \"공제액 입력 필요\"로 보여요." },
+          { scene: "payslipMgr", sel: ".sal-box", title: "직원 명세서 · 월급 · 공제액", text: "직원(월급제)는 기본급·식대와 세무사에게 받은 공제액 6가지를 넣어요. 한 번 넣으면 다음 달에도 그대로 이어지고, 바뀐 달에만 고치면 돼요." },
+          { scene: "payslipMgr", sel: ".ps-preview", title: "직원 명세서", text: "기본급·식대에서 4대보험과 근로소득세를 뗀 금액이에요. 공제액을 아직 안 넣었으면 \"공제액 입력 필요\"로 보여요." },
           { sel: ".section-head [data-action=payslip-pdf-all]", title: "명세서 PDF", text: "직원마다 따로 급여명세서 PDF를 받아요. 직원에게 보내 주면 돼요." },
         ]
       : [
@@ -2715,9 +2761,9 @@ const TOURS = {
           { scene: "paySheet", sel: ".sheet .m-share", title: "카카오톡 전송하기", text: "누르면 이 직원의 한 달 근무를 달력 사진으로 만들어요." },
           { scene: "share", sel: ".share-box img", title: "근무 사진 미리보기", text: "이런 사진이 만들어져요. 날짜별 근무 시간과 한 달 합계가 들어가요." },
           { scene: "share", sel: ".share-actions", title: "카카오톡 전송하기", text: "<b>카카오톡 전송하기</b>를 누르면 공유 창이 열려서 카톡 채팅방을 고르면 돼요. <b>사진 저장</b>으로 앨범에 저장할 수도 있어요." },
-          { scene: "paySheet", sel: ".sheet .sheet-actions", title: "수당 · 명세서 / 명세서 PDF", text: "<b>수당 · 명세서</b>에서 수당(매니저는 월급·공제액)을 넣고, <b>명세서 PDF</b>로 명세서를 받아요." },
+          { scene: "paySheet", sel: ".sheet .sheet-actions", title: "수당 · 명세서 / 명세서 PDF", text: "<b>수당 · 명세서</b>에서 수당(직원은 월급·공제액)을 넣고, <b>명세서 PDF</b>로 명세서를 받아요." },
           { scene: "payslipAlba", sel: ".ps-allow", title: "알바 명세서 · 수당 입력", text: "특근수당 같은 수당을 이름과 금액으로 넣고 <b>저장</b>해요." },
-          { scene: "payslipMgr", sel: ".sal-box", title: "직원(매니저) 명세서 · 월급 · 공제액", text: "매니저는 기본급·식대와 세무사에게 받은 공제액을 넣어요. 한 번 넣으면 다음 달에도 그대로 이어져요." },
+          { scene: "payslipMgr", sel: ".sal-box", title: "직원 명세서 · 월급 · 공제액", text: "직원은 기본급·식대와 세무사에게 받은 공제액을 넣어요. 한 번 넣으면 다음 달에도 그대로 이어져요." },
           { sel: ".m-fold > summary", title: "날짜별 근무 시간", text: "전체 직원의 날짜별 근무 시간 표예요." },
           { sel: ".m-btns [data-action=export-ledger]", title: "엑셀 파일", text: "세무사에게 보낼 급여대장이에요." },
           { sel: ".m-btns [data-action=payslip-pdf-all]", title: "명세서 PDF 전체", text: "직원마다 따로 급여명세서 PDF를 받아요." },
@@ -3342,6 +3388,22 @@ app.addEventListener("click", (e) => {
       state.justAddedId = null;
       return;
     }
+    case "clock-out": {
+      const date = el.dataset.recDate ?? todayDateString();
+      state.error = clockOut(id, date) || "";
+      if (!state.error) {
+        state.expandedId = null;
+        queueToast(`${employeeById(id).name}님 퇴근 완료!`);
+      }
+      break;
+    }
+    case "admin-clock-out": {
+      const date = activeDate();
+      adminClockOut(id, date);
+      state.expandedId = null;
+      queueToast(`${employeeById(id).name}님 ${shortDate(date)} 퇴근 처리했어요`);
+      break;
+    }
     case "clock-in":
       state.error = clockIn(id) || "";
       if (!state.error) {
@@ -3424,7 +3486,7 @@ app.addEventListener("click", (e) => {
       store.salary = store.salary ?? {};
       store.salary[emp.id] = { hist: [], ...store.salary[emp.id], on: isManager(emp) };
       save();
-      queueToast(isManager(emp) ? `${emp.name}님을 매니저(월급제)로 바꿨어요. 급여 화면 명세서에서 월급을 입력해주세요` : `${emp.name}님을 알바(시급제)로 바꿨어요`);
+      queueToast(isManager(emp) ? `${emp.name}님을 직원(월급제)로 바꿨어요. 급여 화면 명세서에서 월급을 입력해주세요` : `${emp.name}님을 알바(시급제)로 바꿨어요`);
       break;
     }
     case "open-sheet":
@@ -3922,7 +3984,7 @@ app.addEventListener("submit", (e) => {
   save();
   state.sheet = null;
   render();
-  showToast(manager ? `${name}님을 매니저(월급제)로 추가했어요. 공제액은 급여 화면 명세서에서 입력해주세요` : `${name}님을 알바로 추가했어요`, "ok");
+  showToast(manager ? `${name}님을 직원(월급제)로 추가했어요. 공제액은 급여 화면 명세서에서 입력해주세요` : `${name}님을 알바로 추가했어요`, "ok");
 });
 
 app.addEventListener("change", (e) => {
@@ -4262,7 +4324,7 @@ function cleanStore(data) {
   let nextNo = employees.reduce((max, e) => (Number.isInteger(e.no) && e.no > max ? e.no : max), 0);
   for (const e of employees) if (!Number.isInteger(e.no) || e.no < 1) e.no = ++nextNo;
   const records = (Array.isArray(data.records) ? data.records : []).filter(
-    (r) => r && safeId(r.id) && safeId(r.employeeId) && safeDate(r.date) && safeIso(r.clockIn) && (!r.clockOut || safeIso(r.clockOut)),
+    (r) => r && safeId(r.id) && safeId(r.employeeId) && safeDate(r.date) && safeIso(r.clockIn) && (!r.clockOut || safeIso(r.clockOut)) && (!r.punchIn || safeIso(r.punchIn)) && (!r.punchOut || safeIso(r.punchOut)),
   );
   const shifts = {};
   for (const [date, byEmp] of Object.entries(data.shifts && typeof data.shifts === "object" ? data.shifts : {})) {
