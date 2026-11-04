@@ -484,15 +484,24 @@ button.in-row:hover {
   background: var(--paper);
 }
 .in-action {
-  padding: 4px 10px 10px;
+  padding: 4px 12px 12px;
+}
+/* 수정: 시간 칸을 줄 전체 너비로 나눠 길게 */
+.in-action .edit-row .field.time,
+.staff-action .edit-row .field.time {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 44px;
+  text-align: center;
 }
 .in-row {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 10px;
+  padding: 14px 12px;
   text-align: left;
 }
 
@@ -524,12 +533,12 @@ button.in-row:hover {
 }
 
 .in-name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
 }
 
 .in-time {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ink-sub);
   font-variant-numeric: tabular-nums;
 }
