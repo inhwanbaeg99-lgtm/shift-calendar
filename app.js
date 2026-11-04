@@ -1944,23 +1944,23 @@ function exportLedger(button) {
     const made = todayDateString().replaceAll("-", ".");
     const store_ = storeName();
 
-    const C = { line: { style: "thin", color: { rgb: "D5DCDA" } } };
+    const C = { line: { style: "thin", color: { rgb: "FFD5DCDA" } } };
     const border = { top: C.line, bottom: C.line, left: C.line, right: C.line };
     const st = {
       title: { font: { bold: true, sz: 14 } },
       meta: { font: { color: { rgb: "66736F" } } },
-      head: { font: { bold: true }, fill: { fgColor: { rgb: "E2F4F2" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, border },
+      head: { font: { bold: true }, fill: { patternType: "solid", fgColor: { rgb: "FFE2F4F2" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, border },
       text: { border },
       name: { font: { bold: true }, border },
       num: { numFmt: "#,##0", alignment: { horizontal: "right" }, border },
       dec: { numFmt: "#,##0.##", alignment: { horizontal: "right" }, border },
       net: { numFmt: "#,##0", font: { bold: true, color: { rgb: "0E8F8A" } }, alignment: { horizontal: "right" }, border },
-      sum: { numFmt: "#,##0", font: { bold: true }, fill: { fgColor: { rgb: "F3F6F5" } }, alignment: { horizontal: "right" }, border },
-      sumText: { font: { bold: true }, fill: { fgColor: { rgb: "F3F6F5" } }, border },
+      sum: { numFmt: "#,##0", font: { bold: true }, fill: { patternType: "solid", fgColor: { rgb: "FFF3F6F5" } }, alignment: { horizontal: "right" }, border },
+      sumText: { font: { bold: true }, fill: { patternType: "solid", fgColor: { rgb: "FFF3F6F5" } }, border },
       note: { font: { color: { rgb: "B45309" } }, border },
       mid: { alignment: { horizontal: "center" }, border },
       sun: { font: { color: { rgb: "D64545" } }, alignment: { horizontal: "center" }, border },
-      headSun: { font: { bold: true, color: { rgb: "D64545" } }, fill: { fgColor: { rgb: "E2F4F2" } }, alignment: { horizontal: "center", wrapText: true }, border },
+      headSun: { font: { bold: true, color: { rgb: "D64545" } }, fill: { patternType: "solid", fgColor: { rgb: "FFE2F4F2" } }, alignment: { horizontal: "center", wrapText: true }, border },
     };
     const cell = (v, s) => ({ v: v ?? "", t: typeof v === "number" ? "n" : "s", s });
     // 시트 만들기: 제목·기간 줄 + 표. widths = 열 너비(글자 수)
@@ -2073,6 +2073,32 @@ function exportLedger(button) {
       [10, 16, 12, 10, 10, 9, 11, 22],
     );
 
+    // 어두운 화면(휴대폰 미리보기·다크 모드)에서 열어도 검게 보이지 않게, 모든 칸에 흰 바탕·검은 글자를 직접 넣는다
+    const paint = (ws) => {
+      const r = XLSX.utils.decode_range(ws["!ref"]);
+      // 제목·기간 줄은 표 너비만큼 합쳐서 글자가 잘리지 않게
+      ws["!merges"] = [0, 1].map((row) => ({ s: { r: row, c: 0 }, e: { r: row, c: r.e.c } }));
+      // 표 바깥도 오른쪽 8칸 · 아래 40줄까지 흰 칸(옅은 칸 선)으로 채워서, 어두운 화면에서도 빈 엑셀 칸처럼 보이게
+      const grid = { style: "thin", color: { rgb: "FFE5E8EB" } };
+      const blank = { fill: { patternType: "solid", fgColor: { rgb: "FFFFFFFF" } }, border: { top: grid, bottom: grid, left: grid, right: grid } };
+      const lastR = r.e.r + 40;
+      const lastC = r.e.c + 8;
+      for (let R = r.s.r; R <= lastR; R++) {
+        for (let C = r.s.c; C <= lastC; C++) {
+          const ref = XLSX.utils.encode_cell({ r: R, c: C });
+          const inTable = R <= r.e.r && C <= r.e.c;
+          const c = (ws[ref] = ws[ref] ?? { t: "s", v: "", s: inTable ? undefined : blank });
+          const st0 = c.s ?? {};
+          c.s = {
+            ...st0,
+            fill: st0.fill ?? { patternType: "solid", fgColor: { rgb: "FFFFFFFF" } },
+            font: { ...st0.font, color: { rgb: `FF${(st0.font?.color?.rgb ?? "191F28").slice(-6)}` } },
+          };
+        }
+      }
+      ws["!ref"] = XLSX.utils.encode_range({ s: r.s, e: { r: lastR, c: lastC } });
+    };
+    [ws1, ws2, ws3, ws4].forEach(paint);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws1, "알바 (3.3%)");
     XLSX.utils.book_append_sheet(wb, ws2, "직원 (4대보험)");
@@ -2087,7 +2113,6 @@ function exportLedger(button) {
   });
 }
 
-// ---------- 매장 · 계정 삭제 ----------
 // ---------- PDF (급여명세서) ----------
 
 async function payslipPdf(button, empIds) {
