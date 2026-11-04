@@ -278,6 +278,13 @@ function scheduledEnd(emp, date) {
   return endIso(date, start, end);
 }
 
+// 직원 화면에서 이름만 넣은 대타: 정해진 근무 시간이 없다 (start · end 는 등록한 시각, 화면에는 "대타"로 나온다)
+const noTimeShift = (emp, date) => Boolean(store.shifts[date]?.[emp.id]?.noTime);
+const shiftLabel = (emp, date) => {
+  const { start, end } = shiftFor(emp, date);
+  return noTimeShift(emp, date) ? "대타" : `${start} ~ ${end}`;
+};
+
 // 찍은 시각을 10분 단위로 반올림 (초는 버림, 13:52 → 13:50, 13:55 · 13:57 → 14:00)
 function roundPunch(now) {
   const TEN_MIN = 600_000;
@@ -292,9 +299,11 @@ function clockIn(employeeId, now = new Date()) {
   const date = todayDateString();
   if (recordFor(employeeId, date)?.clockIn) return "이미 출근 처리되었습니다.";
   // 급여(clockIn · clockOut)는 찍은 시각을 10분 단위로 반올림한 값, 실제로 누른 시각은 punchIn · punchOut 에 그대로 남긴다.
-  // 퇴근을 찍기 전까지 clockOut 은 그날 근무 종료 시간이다 (퇴근을 못 찍으면 이 시간으로 계산된다)
+  // 퇴근을 찍기 전까지 clockOut 은 그날 근무 종료 시간이다 (퇴근을 못 찍으면 이 시간으로 계산된다).
+  // 근무 시간이 없는 대타는 출근 시각과 같게 둔다 (퇴근을 찍거나 관리자가 시간을 넣기 전까지 0시간)
   const start = roundPunch(now);
-  const end = scheduledEnd(emp, date);
+  const noEnd = noTimeShift(emp, date);
+  const end = noEnd ? start : scheduledEnd(emp, date);
   store.records.push({
     manual: true,
     id: uid(),
@@ -303,6 +312,7 @@ function clockIn(employeeId, now = new Date()) {
     clockIn: start,
     clockOut: end > start ? end : start,
     punchIn: now.toISOString(),
+    ...(noEnd ? { noEnd: true } : {}),
     createdAt: now.toISOString(),
   });
   save();
@@ -311,9 +321,12 @@ function clockIn(employeeId, now = new Date()) {
 
 // 출근은 찍었는데 퇴근을 아직 안 찍은 기록 (퇴근 찍기를 넣기 전 기록은 punchIn 이 없어서 해당 없음)
 const punchOpen = (rec) => Boolean(rec?.punchIn && !rec.punchOut);
+// 이름만 넣은 대타가 아직 일하는 중 (달력에 퇴근 시간 대신 - 를 보여 준다)
+const noEndOpen = (rec) => Boolean(rec.noEnd && punchOpen(rec) && !rec.edited);
 // 출근을 찍고 근무표 종료 시간이 지났는데 퇴근을 안 찍은 기록 (관리자가 시간을 고쳤거나 퇴근 처리하면 사라진다)
 function needsCheck(rec) {
   if (!punchOpen(rec) || rec.edited) return false;
+  if (rec.noEnd) return todayDateString() > rec.date; // 대타는 종료 시간이 없으니 자정이 지나면
   const emp = employeeById(rec.employeeId);
   return Boolean(emp) && new Date() > new Date(scheduledEnd(emp, rec.date));
 }
@@ -322,16 +335,17 @@ function needsCheck(rec) {
 function payCheckNotice(month) {
   const list = store.records.filter((r) => r.date.startsWith(month) && needsCheck(r)).sort((a, b) => (a.date < b.date ? -1 : 1));
   if (!list.length) return "";
+  const how = list.some((r) => r.noEnd) ? "근무표가 있으면 종료 시간으로, 이름만 넣은 대타는 0시간으로 계산하고 있어요." : "근무표 종료 시간으로 계산하고 있어요.";
   return `
     <div class="pay-check">
-      <p><b>퇴근 확인 필요 ${list.length}건</b> 퇴근을 안 찍어서 근무표 종료 시간으로 계산하고 있어요. 눌러서 시간을 확인해 주세요.</p>
+      <p><b>퇴근 확인 필요 ${list.length}건</b> 퇴근을 안 찍었어요. ${how} 눌러서 시간을 확인해 주세요.</p>
       <div class="pay-check-list">${list.map((r) => `<a href="#/day/${r.date}">${esc(employeeById(r.employeeId).name)} ${shortDate(r.date)}</a>`).join("")}</div>
     </div>`;
 }
 
 // 어제 시작해서 오늘 끝나는 근무 (자정 넘김): 오늘 화면에서 퇴근을 찍게 한다
 function overnightOpen(today) {
-  return recordsOn(addDays(today, -1)).filter((r) => punchOpen(r) && dateOfIso(r.clockOut) === today);
+  return recordsOn(addDays(today, -1)).filter((r) => punchOpen(r) && (r.noEnd || dateOfIso(r.clockOut) === today));
 }
 
 // 퇴근 찍기: 오늘 기록, 또는 어제 시작해서 오늘 끝나는 근무만
@@ -339,7 +353,7 @@ function clockOut(employeeId, date, now = new Date()) {
   const rec = recordFor(employeeId, date);
   if (!punchOpen(rec)) return "이미 퇴근 처리되었습니다.";
   const today = todayDateString();
-  if (date !== today && !(date === addDays(today, -1) && dateOfIso(rec.clockOut) === today)) return "지난 날짜의 퇴근은 관리자에게 말해주세요.";
+  if (date !== today && !(date === addDays(today, -1) && (rec.noEnd || dateOfIso(rec.clockOut) === today))) return "지난 날짜의 퇴근은 관리자에게 말해주세요.";
   rec.punchOut = now.toISOString();
   if (!rec.edited) rec.clockOut = roundPunch(now); // 관리자가 직접 고친 시간은 그대로 둔다
   save();
@@ -349,7 +363,7 @@ function clockOut(employeeId, date, now = new Date()) {
 // 관리자가 대신 퇴근 처리: 그날 근무 종료 시간으로 남긴다
 function adminClockOut(empId, date) {
   const rec = recordFor(empId, date);
-  if (!punchOpen(rec)) return;
+  if (!punchOpen(rec) || rec.noEnd) return; // 근무 시간이 없는 대타는 수정으로 시간을 넣는다
   rec.punchOut = rec.clockOut;
   save();
 }
@@ -372,7 +386,7 @@ function nameLabel(emp) {
 // 관리자가 대신 출근 처리: 그날 근무 시간(근무표 또는 그날 바꾼 시간) 그대로 기록한다
 function adminClockIn(empId, date) {
   const emp = employeeById(empId);
-  if (!emp || recordFor(empId, date)) return;
+  if (!emp || recordFor(empId, date) || noTimeShift(emp, date)) return;
   const { start } = shiftFor(emp, date);
   store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: kstIso(date, start), clockOut: scheduledEnd(emp, date), createdAt: new Date().toISOString() });
   if (store.absent) delete store.absent[`${empId}|${date}`];
@@ -669,7 +683,7 @@ function renderCalendar() {
         ...entries.slice(0, MAX_VISIBLE).map((r) => {
           const emp = employeeById(r.employeeId);
           const diff = diffClass(emp, date, hoursBetween(r.clockIn, r.clockOut));
-          return `<span class="chip">${nameLabel(emp, r)} ${needsCheck(r) ? `<span class="chip-time under">${formatTime(r.clockIn)}~확인 필요</span>` : `<span class="chip-time${diff}">${formatTime(r.clockIn)}~${formatTime(r.clockOut)}</span>`}</span>`;
+          return `<span class="chip">${nameLabel(emp, r)} ${needsCheck(r) ? `<span class="chip-time under">${formatTime(r.clockIn)}~확인 필요</span>` : noEndOpen(r) ? `<span class="chip-time">${formatTime(r.clockIn)}~-</span>` : `<span class="chip-time${diff}">${formatTime(r.clockIn)}~${formatTime(r.clockOut)}</span>`}</span>`;
         }),
         entries.length > MAX_VISIBLE ? `<span class="chip more">+${entries.length - MAX_VISIBLE}명</span>` : "",
       ].join("");
@@ -711,7 +725,7 @@ function renderDateBox(date, { closable }) {
         <li class="in-item${r.id === state.justAddedId ? " new" : ""}">
           <div class="in-row">
             <span class="in-name">${nameLabel(employeeById(r.employeeId), r)}</span>
-            ${needsCheck(r) ? `<span class="in-time under">${formatTime(r.clockIn)} ~ 퇴근 확인 필요</span>` : `<span class="in-time${diffClass(employeeById(r.employeeId), date, hoursBetween(r.clockIn, r.clockOut))}">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span>`}
+            ${needsCheck(r) ? `<span class="in-time under">${formatTime(r.clockIn)} ~ 퇴근 확인 필요</span>` : noEndOpen(r) ? `<span class="in-time">${formatTime(r.clockIn)} ~ -</span>` : `<span class="in-time${diffClass(employeeById(r.employeeId), date, hoursBetween(r.clockIn, r.clockOut))}">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span>`}
           </div>
         </li>`,
     )
@@ -755,8 +769,8 @@ function renderStaffItem(emp, date) {
         ${ADMIN_SITE ? `<button type="button" class="btn-ghost" data-action="edit-shift" data-id="${emp.id}">수정</button>` : ""}
         ${!ADMIN_SITE && isToday && !done ? `<button type="button" class="btn-primary" data-action="clock-in" data-id="${emp.id}">출근</button>` : ""}
         ${!ADMIN_SITE && isToday && punchOpen(rec) ? `<button type="button" class="btn-primary" data-action="clock-out" data-id="${emp.id}">퇴근</button>` : ""}
-        ${ADMIN_SITE && punchOpen(rec) && date <= today ? `<button type="button" class="btn-primary" data-action="admin-clock-out" data-id="${emp.id}">퇴근 처리</button>` : ""}
-        ${ADMIN_SITE && !done && date <= today ? `<button type="button" class="btn-primary" data-action="admin-clock-in" data-id="${emp.id}">출근 처리</button>` : ""}
+        ${ADMIN_SITE && punchOpen(rec) && !rec.noEnd && date <= today ? `<button type="button" class="btn-primary" data-action="admin-clock-out" data-id="${emp.id}">퇴근 처리</button>` : ""}
+        ${ADMIN_SITE && !done && date <= today && !noTimeShift(emp, date) ? `<button type="button" class="btn-primary" data-action="admin-clock-in" data-id="${emp.id}">출근 처리</button>` : ""}
         ${ADMIN_SITE && done ? `<button type="button" class="btn-ghost danger-ghost" data-action="remove-record" data-id="${emp.id}">기록 삭제</button>` : ""}
       </div>`;
   }
@@ -767,7 +781,7 @@ function renderStaffItem(emp, date) {
       <button type="button" class="staff-name-btn" data-action="toggle-staff" data-id="${emp.id}"${editable ? "" : " disabled"}>
         <span class="staff-name">${nameLabel(emp, rec)}</span>
         ${needsCheck(rec) ? `<span class="badge check">퇴근 확인 필요</span>` : rec?.punchOut ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">퇴근 완료</span>` : done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
-        <span class="staff-time">${shift.start} ~ ${shift.end}</span>
+        <span class="staff-time">${shiftLabel(emp, date)}</span>
       </button>
       ${action ? `<div class="staff-action${state.expandEnter ? " enter" : ""}">${action}</div>` : ""}
     </li>`;
@@ -795,11 +809,11 @@ function renderAddExtra() {
   return `
     <form class="add-form" id="add-extra">
       <input id="extra-name" class="field" placeholder="이름" required autocomplete="off" />
-      <div class="edit-row">
+      ${ADMIN_SITE ? `<div class="edit-row">
         ${timeInput("extra-start", "09:00", "시작 시간")}
         <span>~</span>
         ${timeInput("extra-end", "18:00", "종료 시간")}
-      </div>
+      </div>` : ""}
       <div class="action-row">
         <button type="button" class="btn-ghost" data-action="cancel-add">취소</button>
         <button type="submit" class="btn-primary">등록</button>
@@ -825,7 +839,7 @@ function renderStaff(date) {
   const overnight = !ADMIN_SITE && isToday
     ? overnightOpen(today).map((r) => `
         <li class="staff-item expanded">
-          <div class="staff-name-btn"><span class="staff-name">${nameLabel(employeeById(r.employeeId))}</span>${needsCheck(r) ? `<span class="badge check">퇴근 확인 필요</span>` : `<span class="badge done">어제 출근</span>`}<span class="staff-time">${shiftFor(employeeById(r.employeeId), r.date).start} ~ ${shiftFor(employeeById(r.employeeId), r.date).end}</span></div>
+          <div class="staff-name-btn"><span class="staff-name">${nameLabel(employeeById(r.employeeId))}</span>${needsCheck(r) ? `<span class="badge check">퇴근 확인 필요</span>` : `<span class="badge done">어제 출근</span>`}<span class="staff-time">${shiftLabel(employeeById(r.employeeId), r.date)}</span></div>
           <div class="staff-action"><div class="action-row"><button type="button" class="btn-primary" data-action="clock-out" data-id="${r.employeeId}" data-rec-date="${r.date}">퇴근</button></div></div>
         </li>`).join("")
     : "";
@@ -838,7 +852,7 @@ function renderStaff(date) {
         ${overnight}
         ${scheduled.map((e) => renderStaffItem(e, date)).join("") || `<li class="in-empty">근무 예정인 직원이 없어요</li>`}
       </ul>
-      ${ADMIN_SITE || date >= today ? renderAddExtra() : ""}
+      ${ADMIN_SITE || isToday ? renderAddExtra() : ""}
     </section>`;
 }
 
@@ -2747,7 +2761,7 @@ const TOURS = {
     { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 여기 보이는 출퇴근 시간이 급여에 들어가요. 찍은 시각을 <b>10분 단위로 반올림</b>한 시간이에요(13:52 → 13:50, 13:55 → 14:00)." },
     { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름 밑 시간은 <b>근무표 시간</b>이에요. 이름을 누르면 고칠 수 있어요." },
     { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날 시간 고치기, 찍은 시간보다 우선해요), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 출근을 찍고 근무표 종료 시간이 지나도 퇴근을 안 찍으면 <b>퇴근 확인 필요</b>로 보이고, 근무표 종료 시간으로 계산돼요. 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
-    { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
+    { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 직원 달력에서는 오늘 날짜에 이름만 넣고, 시간은 출근·퇴근을 찍으면 정해져요. 그런 대타가 퇴근을 안 찍으면 다음 날 <b>퇴근 확인 필요</b>로 뜨니 <b>수정</b>으로 시간을 넣어 주세요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
   ],
   // 직원용 달력 (출근 화면)
   home: (pc) => [
@@ -2758,7 +2772,7 @@ const TOURS = {
     { scene: "day", sel: ".date-box", title: "출근 기록", text: "날짜를 누르면 이렇게 열려요. 보이는 시간은 출근·퇴근을 찍은 시각을 <b>10분 단위로 반올림</b>한 시간이에요(13:52 → 13:50, 13:55 → 14:00)." },
     { scene: "day", sel: ".staff", title: "오늘 근무자", text: "근무표에 있는 오늘 근무자예요. 이름 밑 시간은 <b>근무표 시간</b>이에요. <b>본인 이름</b>을 찾아 눌러요." },
     { scene: "staff", sel: ".staff-item.expanded", title: "출근 · 퇴근 찍기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 누르고, 일이 끝나면 다시 이름을 눌러 <b>퇴근</b>을 눌러 주세요. 찍은 시각은 10분 단위로 반올림돼서 급여에 들어가요. 자정을 넘겨 끝나면 다음 날 화면 맨 위에 퇴근 버튼이 나와요. 지난 날 퇴근을 못 찍었으면 관리자에게 말해 주세요." },
-    { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "근무표에 없는데 일하게 됐으면 <b>+</b>를 눌러 이름과 시간을 넣고 <b>등록</b>해요. 그다음 이름을 눌러 출근과 퇴근을 찍으면 돼요." },
+    { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "근무표에 없는데 오늘 일하게 됐으면 <b>+</b>를 눌러 <b>이름만</b> 넣고 <b>등록</b>해요. 그다음 이름을 눌러 출근과 퇴근을 찍으면 그 시간이 근무 시간이 돼요." },
   ],
   records: (pc) =>
     pc
@@ -3835,7 +3849,7 @@ function renderTodayCard() {
           people
             .map((e) => {
               const { start, end } = shiftFor(e, today);
-              return `<span class="m-pp${done(e) ? " on" : ""}"><i style="background:${cssColor(e.color)}"></i>${nameLabel(e)}<small>${shortTime(start)}~${shortTime(end)}</small></span>`;
+              return `<span class="m-pp${done(e) ? " on" : ""}"><i style="background:${cssColor(e.color)}"></i>${nameLabel(e)}<small>${noTimeShift(e, today) ? "대타" : `${shortTime(start)}~${shortTime(end)}`}</small></span>`;
             })
             .join("") || `<span class="m-pp-empty">오늘 근무자가 없어요</span>`
         }
@@ -4100,10 +4114,11 @@ app.addEventListener("change", (e) => {
 // + 로 일정에 없던 인원을 그날 근무자로 등록. 처음 보는 이름이면 직원으로도 추가된다.
 async function addExtra() {
   const name = document.getElementById("extra-name").value.trim();
-  const start = readTime("extra-start");
-  const end = readTime("extra-end");
+  // 직원 화면은 이름만 받는다 (시간은 출근 · 퇴근을 찍으면 정해진다)
+  const start = ADMIN_SITE ? readTime("extra-start") : null;
+  const end = ADMIN_SITE ? readTime("extra-end") : null;
   if (!name) return;
-  if (!start || !end || start === end) {
+  if (ADMIN_SITE && (!start || !end || start === end)) {
     alertField(start === end ? "extra-end" : "extra-start");
     return;
   }
@@ -4117,7 +4132,12 @@ async function addExtra() {
   }
   const date = activeDate();
   if (ADMIN_SITE && date < todayDateString()) setRecordTimes(emp.id, date, start, end);
-  else setShift(emp.id, date, start, end);
+  else if (ADMIN_SITE) setShift(emp.id, date, start, end);
+  else if (!scheduledOn(date).includes(emp) && !recordFor(emp.id, date)) {
+    // 이미 오늘 근무자면 근무 시간을 덮어쓰지 않고 그대로 펼쳐 준다
+    const now = formatTime(new Date().toISOString());
+    store.shifts[date] = { ...store.shifts[date], [emp.id]: { start: now, end: now, noTime: true } };
+  }
   save();
   state.adding = false;
   state.expandedId = ADMIN_SITE ? null : emp.id; // 직원 화면: 바로 출근할 수 있게 펼쳐 둔다
@@ -4324,7 +4344,7 @@ function cssColor(v) {
 }
 function cleanRange(r) {
   const ok = (t) => typeof t === "string" && /^\d{2}:\d{2}$/.test(t);
-  return r && ok(r.start) && ok(r.end) ? { start: r.start, end: r.end } : null;
+  return r && ok(r.start) && ok(r.end) ? { start: r.start, end: r.end, ...(r.noTime === true ? { noTime: true } : {}) } : null;
 }
 function cleanWeekly(w) {
   const out = {};
