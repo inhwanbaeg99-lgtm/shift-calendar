@@ -360,14 +360,6 @@ function clockOut(employeeId, date, now = new Date()) {
   return null;
 }
 
-// 관리자가 대신 퇴근 처리: 그날 근무 종료 시간으로 남긴다
-function adminClockOut(empId, date) {
-  const rec = recordFor(empId, date);
-  if (!punchOpen(rec) || rec.noEnd) return; // 근무 시간이 없는 대타는 수정으로 시간을 넣는다
-  rec.punchOut = rec.clockOut;
-  save();
-}
-
 // 관리자 달력에서 그날 근무 기록을 직접 넣거나 고친다. 근무 상세·급여 정산은 기록으로 계산되므로 바로 반영된다.
 // 직접 고친 기록(edited)은 이후 근무표를 저장해도 덮어쓰지 않는다.
 function setRecordTimes(empId, date, start, end) {
@@ -550,6 +542,7 @@ const state = {
   selectedDate: null,
   animateOpen: false,
   expandedId: null, // 이름을 눌러 출근/수정 버튼이 펼쳐진 직원
+  expandedRecId: null, // 관리자: 출근 기록에서 이름을 눌러 수정/삭제 버튼이 펼쳐진 직원
   editingId: null, // 근무 시간을 수정 중인 직원
   editingWhere: null, // "staff"(근무자 목록) 또는 "box"(날짜 박스)
   adding: false, // + 로 일정에 없던 인원 등록 중
@@ -723,10 +716,11 @@ function renderDateBox(date, { closable }) {
     .map(
       (r) => `
         <li class="in-item${r.id === state.justAddedId ? " new" : ""}">
-          <div class="in-row">
+          <${ADMIN_SITE ? `button type="button" data-action="toggle-rec" data-id="${r.employeeId}"` : "div"} class="in-row">
             <span class="in-name">${nameLabel(employeeById(r.employeeId), r)}</span>
             ${needsCheck(r) ? `<span class="in-time under">${formatTime(r.clockIn)} ~ 퇴근 확인 필요</span>` : noEndOpen(r) ? `<span class="in-time">${formatTime(r.clockIn)} ~ -</span>` : `<span class="in-time${diffClass(employeeById(r.employeeId), date, hoursBetween(r.clockIn, r.clockOut))}">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span>`}
-          </div>
+          </${ADMIN_SITE ? "button" : "div"}>
+          ${ADMIN_SITE && state.expandedRecId === r.employeeId ? `<div class="in-action">${renderRecordActions(r)}</div>` : ""}
         </li>`,
     )
     .join("");
@@ -740,11 +734,25 @@ function renderDateBox(date, { closable }) {
         </div>
         ${closable ? `<button type="button" class="close-btn" data-action="close-panel" aria-label="닫기">${ICON_CLOSE}</button>` : ""}
       </div>
-      <p class="box-label">출근 ${records.length}명</p>
+      <p class="box-label">출근 ${records.length}명${ADMIN_SITE && records.length ? " · 이름을 눌러 시간을 고쳐요" : ""}</p>
       <ul class="in-list">
         ${rows || `<li class="in-empty">아직 출근한 사람이 없어요</li>`}
       </ul>
     </section>`;
+}
+
+// 관리자: 출근 기록의 수정 · 삭제. 고치면 기록만 바뀌고 근무자 목록의 근무표 시간은 그대로다
+function renderRecordActions(rec) {
+  const id = rec.employeeId;
+  if (state.editingWhere === "box" && state.editingId === id) {
+    // 이름만 넣은 대타가 퇴근을 안 찍었으면 퇴근 칸은 비워 둔다
+    return renderTimeEditor(id, formatTime(rec.clockIn), noEndOpen(rec) || (rec.noEnd && needsCheck(rec)) ? "" : formatTime(rec.clockOut)) + (state.error ? `<p class="error">${esc(state.error)}</p>` : "");
+  }
+  return `
+    <div class="action-row">
+      <button type="button" class="btn-ghost danger-ghost" data-action="remove-record" data-id="${id}">기록 삭제</button>
+      <button type="button" class="btn-primary" data-action="edit-shift" data-where="box" data-id="${id}">수정</button>
+    </div>`;
 }
 
 function renderStaffItem(emp, date) {
@@ -753,11 +761,12 @@ function renderStaffItem(emp, date) {
   const rec = recordFor(emp.id, date);
   const done = Boolean(rec?.clockIn);
   // 직원 화면: 오늘 찍을 게 남아 있을 때만 이름을 누를 수 있다 (시간 수정은 관리자만)
-  const editable = ADMIN_SITE || (isToday && (!done || punchOpen(rec)));
+  // 관리자 화면: 출근 기록이 없을 때만 (기록이 있으면 위쪽 출근 기록에서 고친다)
+  const editable = ADMIN_SITE ? !done : isToday && (!done || punchOpen(rec));
   // 이름 밑에는 항상 근무표 시간. 관리자가 고치는 칸에는 기록이 있으면 기록된 시간을 넣는다
   const shift = shiftFor(emp, date);
-  const start = ADMIN_SITE && rec ? formatTime(rec.clockIn) : shift.start;
-  const end = ADMIN_SITE && rec ? formatTime(rec.clockOut) : shift.end;
+  const start = shift.start;
+  const end = noTimeShift(emp, date) ? "" : shift.end;
   const expanded = editable && state.expandedId === emp.id;
 
   let action = "";
@@ -766,12 +775,10 @@ function renderStaffItem(emp, date) {
   } else if (expanded) {
     action = `
       <div class="action-row">
-        ${ADMIN_SITE ? `<button type="button" class="btn-ghost" data-action="edit-shift" data-id="${emp.id}">수정</button>` : ""}
+        ${ADMIN_SITE && date > today ? `<button type="button" class="btn-ghost" data-action="edit-shift" data-id="${emp.id}">수정</button>` : ""}
         ${!ADMIN_SITE && isToday && !done ? `<button type="button" class="btn-primary" data-action="clock-in" data-id="${emp.id}">출근</button>` : ""}
         ${!ADMIN_SITE && isToday && punchOpen(rec) ? `<button type="button" class="btn-primary" data-action="clock-out" data-id="${emp.id}">퇴근</button>` : ""}
-        ${ADMIN_SITE && punchOpen(rec) && !rec.noEnd && date <= today ? `<button type="button" class="btn-primary" data-action="admin-clock-out" data-id="${emp.id}">퇴근 처리</button>` : ""}
-        ${ADMIN_SITE && !done && date <= today && !noTimeShift(emp, date) ? `<button type="button" class="btn-primary" data-action="admin-clock-in" data-id="${emp.id}">출근 처리</button>` : ""}
-        ${ADMIN_SITE && done ? `<button type="button" class="btn-ghost danger-ghost" data-action="remove-record" data-id="${emp.id}">기록 삭제</button>` : ""}
+        ${ADMIN_SITE && !done && date <= today ? (noTimeShift(emp, date) ? `<button type="button" class="btn-primary" data-action="edit-shift" data-id="${emp.id}">출근 처리</button>` : `<button type="button" class="btn-primary" data-action="admin-clock-in" data-id="${emp.id}">출근 처리</button>`) : ""}
       </div>`;
   }
   if (expanded && state.error && state.editingWhere !== "staff") action += `<p class="error">${esc(state.error)}</p>`;
@@ -832,7 +839,7 @@ function renderStaff(date) {
     const ids = new Set(scheduled.map((e) => e.id));
     const extra = recordsOn(date).map((r) => employeeById(r.employeeId)).filter((e) => !ids.has(e.id));
     scheduled = [...scheduled, ...extra];
-    sub = date < today ? "이름을 눌러 시간을 고치면 근무 기록·급여에 바로 반영돼요" : "이름을 눌러 근무 시간을 바꿀 수 있어요";
+    sub = date > today ? "이름을 눌러 그날만 근무 시간을 바꿀 수 있어요" : "출근 기록이 없는 사람은 이름을 눌러 출근 처리해요";
   }
 
   // 자정을 넘겨 어제 시작한 근무: 오늘 화면 맨 위에서 퇴근을 찍는다
@@ -2759,9 +2766,10 @@ const TOURS = {
     { sel: ".cal-head", title: "달 바꾸기", text: "화살표로 지난달, 다음 달을 봐요." },
     { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "그날 출근 기록이 이름과 시간으로 보여요. 근무표보다 <b style=\"color:var(--more)\">더 일하면 파랑</b>, <b style=\"color:var(--red)\">덜 일하면 빨강</b>이에요. 날짜를 누르면 그날이 열려요." },
     { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 여기 보이는 출퇴근 시간이 급여에 들어가요. 찍은 시각을 <b>10분 단위로 반올림</b>한 시간이에요(13:52 → 13:50, 13:55 → 14:00)." },
-    { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름 밑 시간은 <b>근무표 시간</b>이에요. 이름을 누르면 고칠 수 있어요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날 시간 고치기, 찍은 시간보다 우선해요), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 출근을 찍고 근무표 종료 시간이 지나도 퇴근을 안 찍으면 <b>퇴근 확인 필요</b>로 보이고, 근무표 종료 시간으로 계산돼요. 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
-    { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 직원 달력에서는 오늘 날짜에 이름만 넣고, 시간은 출근·퇴근을 찍으면 정해져요. 그런 대타가 퇴근을 안 찍으면 다음 날 <b>퇴근 확인 필요</b>로 뜨니 <b>수정</b>으로 시간을 넣어 주세요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
+    { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름 밑 시간은 <b>근무표 시간</b>이라 출퇴근 기록을 고쳐도 바뀌지 않아요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리", text: "출근 기록이 없는 사람은 이름을 눌러 <b>출근 처리</b>해요. 근무표 시간대로 위쪽 출근 기록에 들어가요. 앞으로의 날짜는 여기서 <b>수정</b>으로 그날만 근무 시간을 바꿔요." },
+    { scene: "rec", sel: ".in-action", title: "출퇴근 시간 수정", text: "위쪽 출근 기록에서 이름을 누르면 <b>수정</b>과 <b>기록 삭제</b>가 나와요. 고친 시간이 찍은 시간보다 우선하고 급여에 바로 반영돼요. 퇴근을 안 찍어서 <b>퇴근 확인 필요</b>로 뜬 날, 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
+    { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 직원 달력에서는 오늘 날짜에 이름만 넣고, 시간은 출근·퇴근을 찍으면 정해져요. 그런 대타가 퇴근을 안 찍으면 다음 날 <b>퇴근 확인 필요</b>로 떠요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
   ],
   // 직원용 달력 (출근 화면)
   home: (pc) => [
@@ -2778,7 +2786,7 @@ const TOURS = {
     pc
       ? [
           { sel: ".month-nav", title: "달 바꾸기", text: "화살표로 지난달 급여를 볼 수 있어요." },
-          { sel: ".pay-check", title: "퇴근 확인 필요", text: "출근을 찍고 근무표 종료 시간이 지나도록 퇴근을 안 찍은 기록이에요. 눌러서 그날 화면으로 가서 <b>퇴근 처리</b>하거나 <b>수정</b>으로 시간을 고치면 사라져요." },
+          { sel: ".pay-check", title: "퇴근 확인 필요", text: "출근을 찍고 근무표 종료 시간이 지나도록 퇴근을 안 찍은 기록이에요. 눌러서 그날 화면으로 간 뒤, 출근 기록에서 이름을 눌러 <b>수정</b>으로 시간을 넣으면 사라져요." },
           { sel: "#r-emp", title: "직원 고르기", text: "한 명을 고르면 그 사람 것만 보여요." },
           { scene: "emp", sel: "[data-action=share-ts-image]", title: "카카오톡 전송하기", text: "직원을 고르면 나타나요. 누르면 이 직원의 한 달 근무를 달력 사진으로 만들어요." },
           { scene: "share", sel: ".share-box img", title: "근무 사진 미리보기", text: "이런 사진이 만들어져요. 날짜별 근무 시간과 출퇴근 시간, 한 달 합계가 들어가요." },
@@ -2797,7 +2805,7 @@ const TOURS = {
         ]
       : [
           { sel: ".m-month", title: "달 바꾸기", text: "화살표로 지난달 급여를 볼 수 있어요." },
-          { sel: ".pay-check", title: "퇴근 확인 필요", text: "출근을 찍고 근무표 종료 시간이 지나도록 퇴근을 안 찍은 기록이에요. 눌러서 그날 화면으로 가서 <b>퇴근 처리</b>하거나 <b>수정</b>으로 시간을 고치면 사라져요." },
+          { sel: ".pay-check", title: "퇴근 확인 필요", text: "출근을 찍고 근무표 종료 시간이 지나도록 퇴근을 안 찍은 기록이에요. 눌러서 그날 화면으로 간 뒤, 출근 기록에서 이름을 눌러 <b>수정</b>으로 시간을 넣으면 사라져요." },
           { sel: ".m-hero", title: "이번 달 합계", text: "실지급액 합계예요. 오른쪽에서 알바 세금(3.3% / 공제 안 함)을 바꿔요." },
           { sel: ".m-pay", title: "직원 누르기", text: "직원을 누르면 그 사람 급여 내역이 열려요." },
           { scene: "paySheet", sel: ".sheet .m-hero", title: "받을 금액", text: "이 직원이 받을 금액과 기본급, 주휴수당, 세금 내역이에요. 알바 기본급은 찍은 시각을 <b>10분 단위로 반올림</b>한 근무시간으로 계산해요(퇴근을 안 찍은 날은 근무표 종료 시각)." },
@@ -2828,6 +2836,8 @@ function tourSlot(add) {
       ? { wd: String(wd), empId: emp.id, addEmpId: null, fixedEmp: false, start: toMin(r.start), snapshot: structuredClone(schedWork().weekly) }
       : null;
 }
+// 기록 수정 단계에서 보여 줄 날짜: 오늘, 오늘 기록이 없으면 어제
+const tourRecDate = () => (recordsOn(todayDateString()).length ? todayDateString() : addDays(todayDateString(), -1));
 const TOUR_SCENES = {
   day: { hash: () => (isDesktop() ? null : `#/day/${todayDateString()}`), set: () => isDesktop() && Object.assign(state, { selectedDate: todayDateString(), animateOpen: false }) },
   staff: {
@@ -2835,8 +2845,18 @@ const TOUR_SCENES = {
     set: () => {
       const d = todayDateString();
       if (isDesktop()) Object.assign(state, { selectedDate: d, animateOpen: false });
-      const emp = scheduledOn(d)[0] ?? employeeById(recordsOn(d)[0]?.employeeId);
+      // 관리자 화면은 출근 기록이 없는 사람만 펼쳐진다
+      const list = scheduledOn(d);
+      const emp = (ADMIN_SITE ? list.find((e) => !recordFor(e.id, d)) : list[0]) ?? employeeById(recordsOn(d)[0]?.employeeId);
       state.expandedId = emp?.id ?? null;
+    },
+  },
+  rec: {
+    hash: () => (isDesktop() ? null : `#/day/${tourRecDate()}`),
+    set: () => {
+      const d = tourRecDate();
+      if (isDesktop()) Object.assign(state, { selectedDate: d, animateOpen: false });
+      state.expandedRecId = recordsOn(d)[0]?.employeeId ?? null;
     },
   },
   add: { hash: () => (isDesktop() ? null : `#/day/${todayDateString()}`), set: () => Object.assign(state, isDesktop() ? { selectedDate: todayDateString(), animateOpen: false, adding: true } : { adding: true }) },
@@ -2876,7 +2896,7 @@ async function applyTourScene(name) {
   const b = tour.base;
   // 튜토리얼 시작 때 모습으로 되돌린 뒤 이 단계의 화면을 펼친다
   closeTourShare();
-  Object.assign(state, { selectedDate: b.selectedDate, expandedId: null, adding: false, editingId: null, editingWhere: null, sheet: null, payslipId: null, allowDraft: null, salDraft: null, slotEdit: null, contractDraft: null });
+  Object.assign(state, { selectedDate: b.selectedDate, expandedId: null, expandedRecId: null, adding: false, editingId: null, editingWhere: null, sheet: null, payslipId: null, allowDraft: null, salDraft: null, slotEdit: null, contractDraft: null });
   state.payroll.employeeId = b.payrollEmp;
   const sc = name ? TOUR_SCENES[name] : null;
   const target = sc?.hash?.() ?? b.hash;
@@ -3013,7 +3033,7 @@ function endTour() {
   // 펼쳐 둔 화면을 시작할 때 모습으로
   closeTourShare();
   if (t.scene) {
-    Object.assign(state, { selectedDate: t.base.selectedDate, expandedId: null, adding: false, sheet: null, payslipId: null, allowDraft: null, salDraft: null, slotEdit: null, contractDraft: null });
+    Object.assign(state, { selectedDate: t.base.selectedDate, expandedId: null, expandedRecId: null, adding: false, sheet: null, payslipId: null, allowDraft: null, salDraft: null, slotEdit: null, contractDraft: null });
     state.payroll.employeeId = t.base.payrollEmp;
     if (location.hash !== t.base.hash) {
       t.nav = true;
@@ -3293,6 +3313,7 @@ function activeDate() {
 function resetDayUi() {
   state.error = "";
   state.expandedId = null;
+  state.expandedRecId = null;
   state.editingId = null;
   state.editingWhere = null;
   state.adding = false;
@@ -3360,16 +3381,25 @@ app.addEventListener("click", (e) => {
     case "toggle-staff": {
       state.error = "";
       state.editingId = null;
+      state.editingWhere = null;
+      state.expandedRecId = null;
       const opening = state.expandedId !== id;
       state.expandedId = opening ? id : null;
       state.expandEnter = Boolean(state.expandedId);
       break;
     }
+    case "toggle-rec":
+      state.error = "";
+      state.editingId = null;
+      state.editingWhere = null;
+      state.expandedId = null;
+      state.expandedRecId = state.expandedRecId === id ? null : id;
+      break;
     case "edit-shift":
       if (!ADMIN_SITE) return;
       state.error = "";
       state.editingId = id;
-      state.editingWhere = "staff";
+      state.editingWhere = el.dataset.where ?? "staff";
       break;
     case "cancel-edit":
       state.error = "";
@@ -3390,8 +3420,8 @@ app.addEventListener("click", (e) => {
       }
       const date = activeDate();
       const emp = employeeById(id);
-      // 관리자: 지난 날짜는 근무 기록을 바로 고친다 (기록이 없으면 새로 넣는다)
-      if (ADMIN_SITE && date < todayDateString()) {
+      // 오늘 · 지난 날짜는 근무 기록만 고친다 (기록이 없으면 새로 넣는다). 근무표 시간은 그대로
+      if (date <= todayDateString()) {
         setRecordTimes(id, date, start, end);
         save();
         queueToast(`${emp.name}님 근무 시간을 고쳤어요`);
@@ -3399,17 +3429,11 @@ app.addEventListener("click", (e) => {
         state.editingId = null;
         state.editingWhere = null;
         state.expandedId = null;
+        state.expandedRecId = null;
         break;
       }
+      // 앞으로의 날짜: 그날만 근무 시간을 바꾼다
       setShift(id, date, start, end);
-      // 이미 출근했다면 기록 시간도 함께 고친다
-      const rec = recordFor(id, date);
-      // (직원 화면에서는 찍은 기록을 바꾸지 않는다. 근무 예정 시간만 바뀐다)
-      if (rec && (ADMIN_SITE || !rec.punchIn)) {
-        rec.clockIn = kstIso(date, start);
-        rec.clockOut = scheduledEnd(emp, date);
-        if (ADMIN_SITE) rec.edited = true;
-      }
       save();
       queueToast(`${emp.name}님 근무 시간을 바꿨어요`);
       state.error = "";
@@ -3444,13 +3468,6 @@ app.addEventListener("click", (e) => {
       }
       break;
     }
-    case "admin-clock-out": {
-      const date = activeDate();
-      adminClockOut(id, date);
-      state.expandedId = null;
-      queueToast(`${employeeById(id).name}님 ${shortDate(date)} 퇴근 처리했어요`);
-      break;
-    }
     case "clock-in":
       state.error = clockIn(id) || "";
       if (!state.error) {
@@ -3470,6 +3487,7 @@ app.addEventListener("click", (e) => {
         save();
         queueToast("근무 기록을 삭제했어요");
         state.expandedId = null;
+        state.expandedRecId = null;
         render();
       });
       return;
@@ -3890,7 +3908,7 @@ function renderInstallHint() {
 // ---------- 둘러보기(로그인 전): 보기만, 고치는 동작은 막는다 ----------
 // 화면을 옮겨 다니고 펼쳐 보는 동작만 허용. 나머지(추가·수정·삭제·저장·내보내기)는 안내만 띄운다.
 const DEMO_ALLOWED = new Set([
-  "prev-month", "next-month", "close-panel", "go-home", "toggle-staff", "toggle-help",
+  "prev-month", "next-month", "close-panel", "go-home", "toggle-staff", "toggle-rec", "toggle-help",
   "payroll-prev", "payroll-next", "open-payslip", "close-payslip",
   "open-sheet", "close-sheet", "sched-day", "open-today", "install-app", "dismiss-install", "start-tour",
 ]);
