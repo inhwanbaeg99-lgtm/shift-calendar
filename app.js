@@ -292,6 +292,9 @@ function roundPunch(now) {
   return new Date(Math.floor((minute + TEN_MIN / 2) / TEN_MIN) * TEN_MIN).toISOString();
 }
 
+// 기록에 넣는 시각은 모두 10분 단위 (관리자가 고친 시간 · 근무표로 채운 시간도 같다)
+const roundIso = (iso) => roundPunch(new Date(iso));
+
 // 출근은 오늘 날짜에만 기록된다 (미래 날짜에는 출근 버튼이 나오지 않음)
 function clockIn(employeeId, now = new Date()) {
   const emp = employeeById(employeeId);
@@ -303,7 +306,7 @@ function clockIn(employeeId, now = new Date()) {
   // 근무 시간이 없는 대타는 출근 시각과 같게 둔다 (퇴근을 찍거나 관리자가 시간을 넣기 전까지 0시간)
   const start = roundPunch(now);
   const noEnd = noTimeShift(emp, date);
-  const end = noEnd ? start : scheduledEnd(emp, date);
+  const end = noEnd ? start : roundIso(scheduledEnd(emp, date));
   store.records.push({
     manual: true,
     id: uid(),
@@ -363,8 +366,8 @@ function clockOut(employeeId, date, now = new Date()) {
 // 관리자 달력에서 그날 근무 기록을 직접 넣거나 고친다. 근무 상세·급여 정산은 기록으로 계산되므로 바로 반영된다.
 // 직접 고친 기록(edited)은 이후 근무표를 저장해도 덮어쓰지 않는다.
 function setRecordTimes(empId, date, start, end) {
-  const clockIn = kstIso(date, start);
-  const clockOut = endIso(date, start, end);
+  const clockIn = roundIso(kstIso(date, start));
+  const clockOut = roundIso(endIso(date, start, end));
   const rec = recordFor(empId, date);
   if (rec) Object.assign(rec, { clockIn, clockOut, edited: true });
   else store.records.push({ id: uid(), employeeId: empId, date, clockIn, clockOut, createdAt: new Date().toISOString(), edited: true });
@@ -380,7 +383,7 @@ function adminClockIn(empId, date) {
   const emp = employeeById(empId);
   if (!emp || recordFor(empId, date) || noTimeShift(emp, date)) return;
   const { start } = shiftFor(emp, date);
-  store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: kstIso(date, start), clockOut: scheduledEnd(emp, date), createdAt: new Date().toISOString() });
+  store.records.push({ manual: true, id: uid(), employeeId: empId, date, clockIn: roundIso(kstIso(date, start)), clockOut: roundIso(scheduledEnd(emp, date)), createdAt: new Date().toISOString() });
   if (store.absent) delete store.absent[`${empId}|${date}`];
   save();
 }
@@ -441,8 +444,8 @@ function syncWeekday(emp, wd) {
     if (rec?.edited || rec?.punchIn) continue; // 관리자가 달력에서 직접 고친 날, 직원이 직접 찍은 날
     if (store.absent?.[`${emp.id}|${date}`]) continue; // 관리자가 기록을 지운 날 (결근)
     if (shift) {
-      const clockIn = kstIso(date, shift.start);
-      const clockOut = endIso(date, shift.start, shift.end);
+      const clockIn = roundIso(kstIso(date, shift.start));
+      const clockOut = roundIso(endIso(date, shift.start, shift.end));
       if (rec) Object.assign(rec, { clockIn, clockOut });
       else if (date < today) store.records.push({ id: uid(), employeeId: emp.id, date, clockIn, clockOut, createdAt: clockIn, auto: true });
     } else if (rec?.auto) {
@@ -1552,9 +1555,9 @@ function payrollFor(ym, employeeId) {
 }
 
 const won = (n) => `${n.toLocaleString()}원`;
-const hrs = (n) => `${Number(n.toFixed(2))}시간`;
-// 근무 상세 칸: 소수 둘째 자리까지 (5, 4.5, 0.75). 급여 정산 · 명세서와 같은 숫자
-const hour1 = (n) => (n ? String(Number(n.toFixed(2))) : "");
+const hrs = (n) => `${Number(n.toFixed(1))}시간`;
+// 근무 상세 칸: 소수 첫째 자리까지 (5, 4.5, 0.8). 금액은 반올림 전 시간으로 계산한다
+const hour1 = (n) => (n ? String(Number(n.toFixed(1))) : "");
 const shortDate = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))} (${WEEKDAYS[weekdayOf(d)]})`;
 
 function shiftMonth(ym, delta) {
@@ -1612,7 +1615,7 @@ function renderTimesheet(ym, employeeId) {
             <tr>
               <td class="ts-name">${nameLabel(r.emp)}</td>
               ${r.cells.map((_, j) => cell(r, j)).join("")}
-              <td class="ts-total">${Number(r.total.toFixed(2))}</td>
+              <td class="ts-total">${Number(r.total.toFixed(1))}</td>
             </tr>`,
             )
             .join("")}
@@ -1649,7 +1652,7 @@ function renderTimesheetMobile(days, rows, cell, dayClass) {
                 `<tr class="${dayClass(d).includes("today") ? "today-row" : ""}"><th class="ts-date${dayClass(d)}"><span class="ts-dn">${Number(d.slice(8))}</span><span class="ts-wd">${WEEKDAYS[weekdayOf(d)]}</span></th>${rows.map((r) => cell(r, j)).join("")}</tr>`,
             )
             .join("")}
-          <tr class="ts-sum"><th class="ts-date">합계</th>${rows.map((r) => `<td class="ts-total">${Number(r.total.toFixed(2))}</td>`).join("")}</tr>
+          <tr class="ts-sum"><th class="ts-date">합계</th>${rows.map((r) => `<td class="ts-total">${Number(r.total.toFixed(1))}</td>`).join("")}</tr>
         </tbody>
       </table>
     </div>`;
@@ -1689,9 +1692,9 @@ function renderPayslip(r, ym) {
         `공제: 4대보험·근로소득세는 세무사 산정 금액`,
       ]
     : [
-        `기본급: 근무 ${Number(r.hours.toFixed(2))}시간 × 시급 ${won(wage)}`,
+        `기본급: 근무 ${Number(r.hours.toFixed(1))}시간 × 시급 ${won(wage)}`,
         r.weekly.total
-          ? `주휴수당: ${weeks.filter((w) => w.allowHours).length}주 · 주휴 ${Number(juHours.toFixed(2))}시간 × 시급 ${won(wage)} (주별: 1주 소정근로시간 ÷ 40 × 8시간)`
+          ? `주휴수당: ${weeks.filter((w) => w.allowHours).length}주 · 주휴 ${Number(juHours.toFixed(1))}시간 × 시급 ${won(wage)} (주별: 1주 소정근로시간 ÷ 40 × 8시간)`
           : `주휴수당: 없음 ${weeks.find((w) => w.reason)?.reason ? `(${weeks.find((w) => w.reason).reason})` : ""}`,
         r.income ? `공제: 소득세 = 지급 합계 × 3% (10원 미만 버림), 지방소득세 = 소득세 × 10%` : `공제: 없음`,
       ];
@@ -1703,7 +1706,7 @@ function renderPayslip(r, ym) {
         <span class="ps-month">${y}년 ${m}월</span>
       </header>
       <h1 class="ps-name">${esc(r.emp.name)} 님</h1>
-      <p class="ps-meta">${r.salaried ? "월급제" : `시급 ${won(r.emp.hourlyWage)}`} · 근무 ${r.days}일 · 총 ${Number(r.hours.toFixed(2))}시간</p>
+      <p class="ps-meta">${r.salaried ? "월급제" : `시급 ${won(r.emp.hourlyWage)}`} · 근무 ${r.days}일 · 총 ${Number(r.hours.toFixed(1))}시간</p>
       <p class="ps-meta ps-ids">사번 ${r.emp.no ?? "-"}${r.emp.hireDate ? ` · 입사 ${dot(r.emp.hireDate)}` : ""} · 근무기간 ${m}/1~${m}/${lastDay} · <b>지급일 ${dot(payDateFor(ym))}</b></p>
 
       <div class="ps-net">
@@ -2085,12 +2088,12 @@ function exportLedger(button) {
       hourly.length
         ? [
             ...hourly.map((r) => [
-              cell(r.emp.name, st.name), cell(r.days, st.num), cell(Number(r.hours.toFixed(2)), st.dec), cell(r.emp.hourlyWage, st.num),
+              cell(r.emp.name, st.name), cell(r.days, st.num), cell(Number(r.hours.toFixed(1)), st.dec), cell(r.emp.hourlyWage, st.num),
               cell(r.base, st.num), cell(r.weekly.total, st.num), cell(r.extra, st.num), cell(r.gross, st.num),
               cell(r.income, st.num), cell(r.local, st.num), cell(r.net, st.net), cell(memo(r), st.text),
             ]),
             [
-              cell("합계", st.sumText), cell(tot(hourly, "days"), st.sum), cell(Number(tot(hourly, "hours").toFixed(2)), st.sum), cell("", st.sumText),
+              cell("합계", st.sumText), cell(tot(hourly, "days"), st.sum), cell(Number(tot(hourly, "hours").toFixed(1)), st.sum), cell("", st.sumText),
               cell(tot(hourly, "base"), st.sum), cell(hourly.reduce((a, r) => a + r.weekly.total, 0), st.sum), cell(tot(hourly, "extra"), st.sum), cell(tot(hourly, "gross"), st.sum),
               cell(tot(hourly, "income"), st.sum), cell(tot(hourly, "local"), st.sum), cell(tot(hourly, "net"), st.sum), cell("", st.sumText),
             ],
@@ -2107,7 +2110,7 @@ function exportLedger(button) {
       salaried.length
         ? [
             ...salaried.map((r) => [
-              cell(r.emp.name, st.name), cell(r.days, st.num), cell(Number(r.hours.toFixed(2)), st.dec),
+              cell(r.emp.name, st.name), cell(r.days, st.num), cell(Number(r.hours.toFixed(1)), st.dec),
               cell(r.base, st.num), cell(r.meal, st.num), cell(r.extra, st.num), cell(r.gross, st.num),
               ...DED_KEYS.map(([k]) => (r.ded ? cell(r.ded[k], st.num) : cell("", st.text))),
               r.ded ? cell(r.dedTotal, st.num) : cell("", st.text),
@@ -2115,7 +2118,7 @@ function exportLedger(button) {
               r.ded ? cell([r.setFrom ? `${Number(r.setFrom.slice(5, 7))}월부터 같은 금액` : "", memo(r)].filter(Boolean).join(" · "), st.text) : cell(["공제액 입력 필요 (세무사 계산)", empDates(r.emp)].filter(Boolean).join(" · "), st.note),
             ]),
             [
-              cell("합계", st.sumText), cell(tot(salaried, "days"), st.sum), cell(Number(tot(salaried, "hours").toFixed(2)), st.sum),
+              cell("합계", st.sumText), cell(tot(salaried, "days"), st.sum), cell(Number(tot(salaried, "hours").toFixed(1)), st.sum),
               cell(tot(salaried, "base"), st.sum), cell(tot(salaried, "meal"), st.sum), cell(tot(salaried, "extra"), st.sum), cell(tot(salaried, "gross"), st.sum),
               ...DED_KEYS.map(([k]) => cell(salaried.reduce((a, r) => a + (r.ded?.[k] ?? 0), 0), st.sum)),
               cell(tot(salaried, "dedTotal"), st.sum), cell(tot(salaried, "net"), st.sum), cell("", st.sumText),
@@ -2140,8 +2143,8 @@ function exportLedger(button) {
         const hs = days.map((d) => dayHours(r, d));
         return [
           cell(r.emp.name, st.name), cell(r.salaried ? "직원" : "알바", st.mid),
-          ...hs.map((h, i) => cell(h ? Number(h.toFixed(2)) : "", weekdayOf(days[i]) === 0 ? st.sun : st.mid)),
-          cell(hs.filter((h) => h).length, st.num), cell(Number(hs.reduce((a, h) => a + h, 0).toFixed(2)), st.dec),
+          ...hs.map((h, i) => cell(h ? Number(h.toFixed(1)) : "", weekdayOf(days[i]) === 0 ? st.sun : st.mid)),
+          cell(hs.filter((h) => h).length, st.num), cell(Number(hs.reduce((a, h) => a + h, 0).toFixed(1)), st.dec),
         ];
       }),
       [10, 6, ...days.map(() => 4.5), 6, 7],
@@ -2157,10 +2160,10 @@ function exportLedger(button) {
         r.weekly.weeks.map((w, i) => [
           cell(i ? "" : r.emp.name, st.name),
           cell(`${shortDate(w.mon)} ~ ${shortDate(w.sun)}`, st.mid),
-          cell(Number(w.planned.toFixed(2)), st.dec),
-          cell(Number(avgPlannedHours(r.emp, w.sun).toFixed(2)), st.dec),
-          cell(Number(w.hours.toFixed(2)), st.dec),
-          cell(Number(w.allowHours.toFixed(2)), st.dec),
+          cell(Number(w.planned.toFixed(1)), st.dec),
+          cell(Number(avgPlannedHours(r.emp, w.sun).toFixed(1)), st.dec),
+          cell(Number(w.hours.toFixed(1)), st.dec),
+          cell(Number(w.allowHours.toFixed(1)), st.dec),
           cell(w.amount, st.num),
           cell(w.reason, w.reason ? st.note : st.text),
         ]),
@@ -2267,7 +2270,7 @@ function renderTsCard(emp, ym) {
     <div class="tsc">
       <p class="tsc-store">${esc(storeName())}</p>
       <h1>${esc(emp.name)} · ${y}년 ${m}월 근무</h1>
-      <p class="tsc-sum">근무 <b>${workDays}일</b> · 총 <b>${row ? Number(row.total.toFixed(2)) : 0}시간</b></p>
+      <p class="tsc-sum">근무 <b>${workDays}일</b> · 총 <b>${row ? Number(row.total.toFixed(1)) : 0}시간</b></p>
       <div class="tsc-grid">
         ${WEEKDAYS.map((w, i) => `<div class="tsc-wd${i === 0 ? " sun" : ""}">${w}</div>`).join("")}
         ${'<div class="tsc-cell blank"></div>'.repeat(lead)}
@@ -2769,7 +2772,7 @@ const TOURS = {
     { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 여기 보이는 출퇴근 시간이 급여에 들어가요. 찍은 시각을 <b>10분 단위로 반올림</b>한 시간이에요(13:52 → 13:50, 13:55 → 14:00)." },
     { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름 밑 시간은 <b>근무표 시간</b>이라 출퇴근 기록을 고쳐도 바뀌지 않아요." },
     { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리", text: "출근 기록이 없는 사람은 이름을 눌러 <b>출근 처리</b>해요. 근무표 시간대로 위쪽 출근 기록에 들어가요. 앞으로의 날짜는 여기서 <b>수정</b>으로 그날만 근무 시간을 바꿔요." },
-    { scene: "rec", sel: ".in-action", title: "출퇴근 시간 수정", text: "위쪽 출근 기록에서 이름을 누르면 <b>수정</b>과 <b>기록 삭제</b>가 나와요. 고친 시간이 찍은 시간보다 우선하고 급여에 바로 반영돼요. 퇴근을 안 찍어서 <b>퇴근 확인 필요</b>로 뜬 날, 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
+    { scene: "rec", sel: ".in-action", title: "출퇴근 시간 수정", text: "위쪽 출근 기록에서 이름을 누르면 <b>수정</b>과 <b>기록 삭제</b>가 나와요. 고친 시간도 <b>10분 단위로 반올림</b>돼요(14:45 → 14:50). 찍은 시간보다 우선하고 급여에 바로 반영돼요. 퇴근을 안 찍어서 <b>퇴근 확인 필요</b>로 뜬 날, 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 직원 달력에서는 오늘 날짜에 이름만 넣고, 시간은 출근·퇴근을 찍으면 정해져요. 그런 대타가 퇴근을 안 찍으면 다음 날 <b>퇴근 확인 필요</b>로 떠요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
   ],
   // 직원용 달력 (출근 화면)
