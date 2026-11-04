@@ -1722,6 +1722,35 @@ td.name {
   width: 100%;
 }
 
+.badge.check {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+}
+.pay-check {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--red) 8%, var(--card, #fff));
+  font-size: 14px;
+  line-height: 1.5;
+}
+.pay-check p {
+  margin: 0;
+}
+.pay-check b {
+  color: var(--red);
+}
+.pay-check-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+}
+.pay-check-list a {
+  color: inherit;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
 .badge.none {
   background: var(--paper);
   color: var(--ink-sub);

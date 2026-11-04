@@ -311,6 +311,24 @@ function clockIn(employeeId, now = new Date()) {
 
 // 출근은 찍었는데 퇴근을 아직 안 찍은 기록 (퇴근 찍기를 넣기 전 기록은 punchIn 이 없어서 해당 없음)
 const punchOpen = (rec) => Boolean(rec?.punchIn && !rec.punchOut);
+// 출근을 찍고 근무표 종료 시간이 지났는데 퇴근을 안 찍은 기록 (관리자가 시간을 고쳤거나 퇴근 처리하면 사라진다)
+function needsCheck(rec) {
+  if (!punchOpen(rec) || rec.edited) return false;
+  const emp = employeeById(rec.employeeId);
+  return Boolean(emp) && new Date() > new Date(scheduledEnd(emp, rec.date));
+}
+
+// 급여 화면 맨 위 안내: 그달 퇴근 확인이 필요한 기록
+function payCheckNotice(month) {
+  const list = store.records.filter((r) => r.date.startsWith(month) && needsCheck(r)).sort((a, b) => (a.date < b.date ? -1 : 1));
+  if (!list.length) return "";
+  return `
+    <div class="pay-check">
+      <p><b>퇴근 확인 필요 ${list.length}건</b> 퇴근을 안 찍어서 근무표 종료 시간으로 계산하고 있어요. 눌러서 시간을 확인해 주세요.</p>
+      <div class="pay-check-list">${list.map((r) => `<a href="#/day/${r.date}">${esc(employeeById(r.employeeId).name)} ${shortDate(r.date)}</a>`).join("")}</div>
+    </div>`;
+}
+
 // 어제 시작해서 오늘 끝나는 근무 (자정 넘김): 오늘 화면에서 퇴근을 찍게 한다
 function overnightOpen(today) {
   return recordsOn(addDays(today, -1)).filter((r) => punchOpen(r) && dateOfIso(r.clockOut) === today);
@@ -651,7 +669,7 @@ function renderCalendar() {
         ...entries.slice(0, MAX_VISIBLE).map((r) => {
           const emp = employeeById(r.employeeId);
           const diff = diffClass(emp, date, hoursBetween(r.clockIn, r.clockOut));
-          return `<span class="chip">${nameLabel(emp, r)} <span class="chip-time${diff}">${formatTime(r.clockIn)}~${formatTime(r.clockOut)}</span></span>`;
+          return `<span class="chip">${nameLabel(emp, r)} ${needsCheck(r) ? `<span class="chip-time under">${formatTime(r.clockIn)}~확인 필요</span>` : `<span class="chip-time${diff}">${formatTime(r.clockIn)}~${formatTime(r.clockOut)}</span>`}</span>`;
         }),
         entries.length > MAX_VISIBLE ? `<span class="chip more">+${entries.length - MAX_VISIBLE}명</span>` : "",
       ].join("");
@@ -693,7 +711,7 @@ function renderDateBox(date, { closable }) {
         <li class="in-item${r.id === state.justAddedId ? " new" : ""}">
           <div class="in-row">
             <span class="in-name">${nameLabel(employeeById(r.employeeId), r)}</span>
-            <span class="in-time${diffClass(employeeById(r.employeeId), date, hoursBetween(r.clockIn, r.clockOut))}">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span>
+            ${needsCheck(r) ? `<span class="in-time under">${formatTime(r.clockIn)} ~ 퇴근 확인 필요</span>` : `<span class="in-time${diffClass(employeeById(r.employeeId), date, hoursBetween(r.clockIn, r.clockOut))}">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span>`}
           </div>
         </li>`,
     )
@@ -747,7 +765,7 @@ function renderStaffItem(emp, date) {
     <li class="staff-item${expanded ? " expanded" : ""}">
       <button type="button" class="staff-name-btn" data-action="toggle-staff" data-id="${emp.id}"${editable ? "" : " disabled"}>
         <span class="staff-name">${nameLabel(emp, rec)}</span>
-        ${punchOpen(rec) && date < today && !(date === addDays(today, -1) && dateOfIso(rec.clockOut) === today) ? `<span class="badge none">퇴근 안 찍음</span>` : rec?.punchOut ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">퇴근 완료</span>` : done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
+        ${needsCheck(rec) ? `<span class="badge check">퇴근 확인 필요</span>` : rec?.punchOut ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">퇴근 완료</span>` : done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
         <span class="staff-time">${shift.start} ~ ${shift.end}</span>
       </button>
       ${action ? `<div class="staff-action${state.expandEnter ? " enter" : ""}">${action}</div>` : ""}
@@ -806,7 +824,7 @@ function renderStaff(date) {
   const overnight = !ADMIN_SITE && isToday
     ? overnightOpen(today).map((r) => `
         <li class="staff-item expanded">
-          <div class="staff-name-btn"><span class="staff-name">${nameLabel(employeeById(r.employeeId))}</span><span class="badge done">어제 출근</span><span class="staff-time">${shiftFor(employeeById(r.employeeId), r.date).start} ~ ${shiftFor(employeeById(r.employeeId), r.date).end}</span></div>
+          <div class="staff-name-btn"><span class="staff-name">${nameLabel(employeeById(r.employeeId))}</span>${needsCheck(r) ? `<span class="badge check">퇴근 확인 필요</span>` : `<span class="badge done">어제 출근</span>`}<span class="staff-time">${shiftFor(employeeById(r.employeeId), r.date).start} ~ ${shiftFor(employeeById(r.employeeId), r.date).end}</span></div>
           <div class="staff-action"><div class="action-row"><button type="button" class="btn-primary" data-action="clock-out" data-id="${r.employeeId}" data-rec-date="${r.date}">퇴근</button></div></div>
         </li>`).join("")
     : "";
@@ -1223,6 +1241,7 @@ function renderRecordsMobile() {
   return renderAdminShell(
     "records",
     `
+    ${payCheckNotice(month)}
     <div class="m-month">
       <button type="button" class="round-btn" data-action="payroll-prev" aria-label="이전 달">${ICON_PREV}</button>
       <h1>${y}년 ${m}월</h1>
@@ -1803,6 +1822,7 @@ function renderRecords() {
   return renderAdminShell(
     "records",
     `
+    ${payCheckNotice(month)}
     <div class="toolbar records-bar">
       <div class="month-nav">
         <button type="button" class="round-btn" data-action="payroll-prev" aria-label="이전 달">${ICON_PREV}</button>
@@ -2725,7 +2745,7 @@ const TOURS = {
     { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "그날 출근 기록이 이름과 시간으로 보여요. 근무표보다 <b style=\"color:var(--more)\">더 일하면 파랑</b>, <b style=\"color:var(--red)\">덜 일하면 빨강</b>이에요. 날짜를 누르면 그날이 열려요." },
     { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 여기 보이는 출퇴근 시간이 급여에 들어가요. 찍은 시각을 <b>10분 단위로 반올림</b>한 시간이에요(13:52 → 13:50, 13:55 → 14:00)." },
     { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름 밑 시간은 <b>근무표 시간</b>이에요. 이름을 누르면 고칠 수 있어요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날 시간 고치기, 찍은 시간보다 우선해요), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 퇴근을 안 찍은 지난 날은 <b>퇴근 안 찍음</b>으로 보이고, 근무표 종료 시각으로 계산돼요. 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날 시간 고치기, 찍은 시간보다 우선해요), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 출근을 찍고 근무표 종료 시간이 지나도 퇴근을 안 찍으면 <b>퇴근 확인 필요</b>로 보이고, 근무표 종료 시간으로 계산돼요. 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
   ],
   // 직원용 달력 (출근 화면)
@@ -2743,6 +2763,7 @@ const TOURS = {
     pc
       ? [
           { sel: ".month-nav", title: "달 바꾸기", text: "화살표로 지난달 급여를 볼 수 있어요." },
+          { sel: ".pay-check", title: "퇴근 확인 필요", text: "출근을 찍고 근무표 종료 시간이 지나도록 퇴근을 안 찍은 기록이에요. 눌러서 그날 화면으로 가서 <b>퇴근 처리</b>하거나 <b>수정</b>으로 시간을 고치면 사라져요." },
           { sel: "#r-emp", title: "직원 고르기", text: "한 명을 고르면 그 사람 것만 보여요." },
           { scene: "emp", sel: "[data-action=share-ts-image]", title: "카카오톡 전송하기", text: "직원을 고르면 나타나요. 누르면 이 직원의 한 달 근무를 달력 사진으로 만들어요." },
           { scene: "share", sel: ".share-box img", title: "근무 사진 미리보기", text: "이런 사진이 만들어져요. 날짜별 근무 시간과 출퇴근 시간, 한 달 합계가 들어가요." },
@@ -2761,6 +2782,7 @@ const TOURS = {
         ]
       : [
           { sel: ".m-month", title: "달 바꾸기", text: "화살표로 지난달 급여를 볼 수 있어요." },
+          { sel: ".pay-check", title: "퇴근 확인 필요", text: "출근을 찍고 근무표 종료 시간이 지나도록 퇴근을 안 찍은 기록이에요. 눌러서 그날 화면으로 가서 <b>퇴근 처리</b>하거나 <b>수정</b>으로 시간을 고치면 사라져요." },
           { sel: ".m-hero", title: "이번 달 합계", text: "실지급액 합계예요. 오른쪽에서 알바 세금(3.3% / 공제 안 함)을 바꿔요." },
           { sel: ".m-pay", title: "직원 누르기", text: "직원을 누르면 그 사람 급여 내역이 열려요." },
           { scene: "paySheet", sel: ".sheet .m-hero", title: "받을 금액", text: "이 직원이 받을 금액과 기본급, 주휴수당, 세금 내역이에요. 알바 기본급은 찍은 시각을 <b>10분 단위로 반올림</b>한 근무시간으로 계산해요(퇴근을 안 찍은 날은 근무표 종료 시각)." },
