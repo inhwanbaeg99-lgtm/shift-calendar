@@ -5542,8 +5542,155 @@ td.name {
 }
 .hire-btn:hover { text-decoration: underline; }
 .hire-btn.need { color: #b45309; }
-.payday-pick { display: flex; gap: 6px; }
+/* 드롭다운: select 는 값만 들고 숨어 있고, 위에 사이트 모양의 버튼 · 목록 */
+.dd {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.dd > select.field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+.dd-btn {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dd-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dd-btn svg {
+  flex-shrink: 0;
+  color: var(--ink-sub);
+  transition: transform 0.2s ease;
+}
+.dd-btn:hover:not(:disabled) {
+  background: var(--line);
+}
+.dd-btn:focus-visible,
+.dd.open .dd-btn {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.dd.open .dd-btn svg {
+  transform: rotate(180deg);
+}
+.dd-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.dd-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-height: 288px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.14);
+  animation: dd-in 0.14s ease;
+}
+.dd-list.right {
+  left: auto;
+  right: 0;
+}
+@keyframes dd-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dd-list {
+    animation: none;
+  }
+}
+.dd-opt {
+  width: 100%;
+  display: block;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dd-opt:hover,
+.dd-opt:focus-visible {
+  outline: 0;
+  background: var(--bg);
+}
+.dd-opt.on {
+  background: var(--accent-soft);
+  color: var(--accent-press, var(--accent));
+  font-weight: 700;
+}
+/* 급여 지급일: 툴바 오른쪽 끝, 달 · 날짜를 한 덩어리로 */
+.records-bar .payday-box {
+  margin-left: auto;
+}
+.payday-box label b {
+  margin-left: 4px;
+  color: var(--accent-press, var(--accent));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.payday-pick {
+  display: flex;
+  gap: 2px;
+}
 .payday-pick .field { width: auto; }
+.payday-pick .dd-btn {
+  background: var(--accent-soft);
+  color: var(--accent-press, var(--accent));
+  font-weight: 700;
+}
+.payday-pick .dd-btn svg {
+  color: inherit;
+}
+.payday-pick .dd-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.payday-pick .dd:first-child .dd-btn {
+  border-radius: 12px 4px 4px 12px;
+}
+.payday-pick .dd:last-child .dd-btn {
+  border-radius: 4px 12px 12px 4px;
+}
+/* 근무자 추가 입력칸의 직원 고르기는 칸 너비에 맞춘다 */
+.slot-form .dd,
+.tl-edit .dd,
+.sheet .dd {
+  display: block;
+}
 .m-payday { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 10px; font-size: 13px; opacity: 0.9; }
 .m-payday span { margin-right: auto; }
 .m-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }

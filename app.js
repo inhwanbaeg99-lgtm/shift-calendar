@@ -1863,15 +1863,15 @@ function renderRecords() {
         </select>
       </div>
       <div>
-        <label>급여 지급일</label>
-        <div class="payday-pick">${payDaySelects()}</div>
-      </div>
-      <div>
         <label for="r-tax">세금</label>
         <select id="r-tax" class="field" data-setting="tax">
           <option value="3.3"${taxOn ? " selected" : ""}>${isDesktop() ? "3.3% 공제 (사업소득)" : "3.3% 공제"}</option>
           <option value="none"${taxOn ? "" : " selected"}>공제 안 함</option>
         </select>
+      </div>
+      <div class="payday-box">
+        <label>급여 지급일 <b>${dot(payDateFor(month))}</b></label>
+        <div class="payday-pick">${payDaySelects()}</div>
       </div>
     </div>
 
@@ -2792,6 +2792,7 @@ const TOURS = {
           { sel: ".month-nav", title: "달 바꾸기", text: "화살표로 지난달 급여를 볼 수 있어요." },
           { sel: ".pay-check", title: "퇴근 확인 필요", text: "출근을 찍고 근무표 종료 시간이 지나도록 퇴근을 안 찍은 기록이에요. 눌러서 그날 화면으로 간 뒤, 출근 기록에서 이름을 눌러 <b>수정</b>으로 시간을 넣으면 사라져요." },
           { sel: "#r-emp", title: "직원 고르기", text: "한 명을 고르면 그 사람 것만 보여요." },
+          { sel: ".payday-box", title: "급여 지급일", text: "오른쪽에서 지급 달과 날짜를 골라요. 위에 이 달 급여의 실제 지급일이 보이고, 명세서에 들어가요." },
           { scene: "emp", sel: "[data-action=share-ts-image]", title: "카카오톡 전송하기", text: "직원을 고르면 나타나요. 누르면 이 직원의 한 달 근무를 달력 사진으로 만들어요." },
           { scene: "share", sel: ".share-box img", title: "근무 사진 미리보기", text: "이런 사진이 만들어져요. 날짜별 근무 시간과 출퇴근 시간, 한 달 합계가 들어가요." },
           { scene: "share", sel: ".share-actions", title: "복사하기 · 사진 저장", text: "<b>복사하기</b>를 누르고 카톡 채팅방에 붙여넣으면 사진으로 보내져요. 복사하면 <b>다음 직원으로 자동으로 넘어가서</b> 한 명씩 차례로 보낼 수 있어요." },
@@ -3096,13 +3097,14 @@ function render() {
   const period = document.querySelector(".sc-period");
   if (period) fitPeriod(period);
   lockDemoFields();
+  enhanceSelects();
   placeNavPill();
   if (state.pageEnter && r.name === "records") countUp(app.querySelectorAll(".pay-table td.net, .m-main .net"));
   // 카톡 복사 후 다음 직원으로 넘어갔음을 보여준다: 직원 칸 반짝, 표 새로 들어옴, 전송 버튼 두근
   // (저장 직후 다시 그려져도 이어서 돌도록 지난 시간만큼 앞당겨 시작)
   const flashMs = Date.now() - (state.nextFlashAt ?? 0);
   if (flashMs < 2600 && r.name === "records") {
-    for (const sel of ["#r-emp", ".ts-desktop", '[data-action="share-ts-image"]']) {
+    for (const sel of [".dd:has(#r-emp) .dd-btn", "#r-emp:not(.dd *)", ".ts-desktop", '[data-action="share-ts-image"]']) {
       const el = app.querySelector(sel);
       if (!el) continue;
       el.style.setProperty("--flash-t", `${flashMs}ms`);
@@ -3132,6 +3134,89 @@ function render() {
     if (first && !first.value) first.focus();
   }
 }
+
+// ---------- 드롭다운 (컴퓨터 화면) ----------
+// 브라우저 기본 select 목록은 모양을 바꿀 수 없어서, select 는 값만 들고 있게 숨기고 그 위에 사이트 모양의 목록을 띄운다.
+// 고르면 select 값을 바꾸고 change 를 내보내므로 저장 처리는 원래 코드 그대로다. 휴대폰은 기본 선택창을 쓴다.
+const DD_CHEVRON = svg(14, '<path d="m6 9 6 6 6-6"/>', 2.5);
+function enhanceSelects() {
+  if (!isDesktop()) return;
+  for (const sel of app.querySelectorAll("select.field")) {
+    const dd = document.createElement("div");
+    dd.className = "dd";
+    sel.before(dd);
+    dd.append(sel);
+    sel.tabIndex = -1;
+    const label = sel.selectedOptions[0]?.textContent ?? "";
+    dd.insertAdjacentHTML(
+      "beforeend",
+      `<button type="button" class="dd-btn" aria-haspopup="listbox" aria-expanded="false"${sel.disabled ? " disabled" : ""}${sel.getAttribute("aria-label") ? ` aria-label="${esc(sel.getAttribute("aria-label"))}"` : ""}><span>${esc(label)}</span>${DD_CHEVRON}</button>`,
+    );
+  }
+}
+function closeDropdowns() {
+  for (const dd of document.querySelectorAll(".dd.open")) {
+    dd.classList.remove("open");
+    dd.querySelector(".dd-list")?.remove();
+    dd.querySelector(".dd-btn")?.setAttribute("aria-expanded", "false");
+  }
+}
+function openDropdown(dd) {
+  closeDropdowns();
+  const sel = dd.querySelector("select");
+  const list = document.createElement("div");
+  list.className = "dd-list";
+  list.setAttribute("role", "listbox");
+  list.innerHTML = [...sel.options]
+    .map((o) => `<button type="button" class="dd-opt${o.selected ? " on" : ""}" role="option" aria-selected="${o.selected}" data-value="${esc(o.value)}">${esc(o.textContent)}</button>`)
+    .join("");
+  dd.append(list);
+  dd.classList.add("open");
+  dd.querySelector(".dd-btn").setAttribute("aria-expanded", "true");
+  // 화면 오른쪽을 넘어가면 오른쪽에 맞춰 연다
+  list.classList.toggle("right", list.getBoundingClientRect().right > document.documentElement.clientWidth - 8);
+  const on = list.querySelector(".dd-opt.on") ?? list.firstElementChild;
+  on?.focus({ preventScroll: true });
+  if (on) list.scrollTop = on.offsetTop - list.clientHeight / 2 + on.offsetHeight / 2;
+}
+function pickDropdown(opt) {
+  const dd = opt.closest(".dd");
+  const sel = dd.querySelector("select");
+  const changed = sel.value !== opt.dataset.value;
+  sel.value = opt.dataset.value;
+  dd.querySelector(".dd-btn span").textContent = opt.textContent;
+  closeDropdowns();
+  dd.querySelector(".dd-btn").focus({ preventScroll: true });
+  if (changed) sel.dispatchEvent(new Event("change", { bubbles: true }));
+}
+document.addEventListener("click", (e) => {
+  const opt = e.target.closest(".dd-opt");
+  if (opt) return pickDropdown(opt);
+  const btn = e.target.closest(".dd-btn");
+  if (!btn) return closeDropdowns();
+  const dd = btn.closest(".dd");
+  if (dd.classList.contains("open")) closeDropdowns();
+  else openDropdown(dd);
+});
+document.addEventListener("keydown", (e) => {
+  const opt = e.target.closest?.(".dd-opt");
+  if (!opt) {
+    if (e.target.closest?.(".dd-btn") && ["ArrowDown", "ArrowUp"].includes(e.key)) {
+      e.preventDefault();
+      openDropdown(e.target.closest(".dd"));
+    }
+    return;
+  }
+  const dd = opt.closest(".dd");
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    (e.key === "ArrowDown" ? opt.nextElementSibling : opt.previousElementSibling)?.focus();
+  } else if (e.key === "Escape" || e.key === "Tab") {
+    e.preventDefault();
+    closeDropdowns();
+    dd.querySelector(".dd-btn").focus({ preventScroll: true });
+  }
+});
 
 function navigate(hash) {
   endTour();
