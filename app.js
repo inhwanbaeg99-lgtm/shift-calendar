@@ -278,23 +278,32 @@ function scheduledEnd(emp, date) {
   return endIso(date, start, end);
 }
 
+// 찍은 시각을 10분 단위로 반올림 (초는 버림, 13:52 → 13:50, 13:55 · 13:57 → 14:00)
+function roundPunch(now) {
+  const TEN_MIN = 600_000;
+  const minute = Math.floor(now.getTime() / 60_000) * 60_000;
+  return new Date(Math.floor((minute + TEN_MIN / 2) / TEN_MIN) * TEN_MIN).toISOString();
+}
+
 // 출근은 오늘 날짜에만 기록된다 (미래 날짜에는 출근 버튼이 나오지 않음)
-function clockIn(employeeId) {
+function clockIn(employeeId, now = new Date()) {
   const emp = employeeById(employeeId);
   if (!emp || !emp.active) return "직원을 찾을 수 없습니다.";
   const date = todayDateString();
   if (recordFor(employeeId, date)?.clockIn) return "이미 출근 처리되었습니다.";
-  // 급여(clockIn · clockOut)는 그날 근무 시간대로, 실제로 누른 시각은 punchIn · punchOut 에 따로 남긴다
-  const { start } = shiftFor(emp, date);
+  // 급여(clockIn · clockOut)는 찍은 시각을 10분 단위로 반올림한 값, 실제로 누른 시각은 punchIn · punchOut 에 그대로 남긴다.
+  // 퇴근을 찍기 전까지 clockOut 은 그날 근무 종료 시간이다 (퇴근을 못 찍으면 이 시간으로 계산된다)
+  const start = roundPunch(now);
+  const end = scheduledEnd(emp, date);
   store.records.push({
     manual: true,
     id: uid(),
     employeeId,
     date,
-    clockIn: kstIso(date, start),
-    clockOut: scheduledEnd(emp, date),
-    punchIn: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
+    clockIn: start,
+    clockOut: end > start ? end : start,
+    punchIn: now.toISOString(),
+    createdAt: now.toISOString(),
   });
   save();
   return null;
@@ -308,12 +317,13 @@ function overnightOpen(today) {
 }
 
 // 퇴근 찍기: 오늘 기록, 또는 어제 시작해서 오늘 끝나는 근무만
-function clockOut(employeeId, date) {
+function clockOut(employeeId, date, now = new Date()) {
   const rec = recordFor(employeeId, date);
   if (!punchOpen(rec)) return "이미 퇴근 처리되었습니다.";
   const today = todayDateString();
   if (date !== today && !(date === addDays(today, -1) && dateOfIso(rec.clockOut) === today)) return "지난 날짜의 퇴근은 관리자에게 말해주세요.";
-  rec.punchOut = new Date().toISOString();
+  rec.punchOut = now.toISOString();
+  if (!rec.edited) rec.clockOut = roundPunch(now); // 관리자가 직접 고친 시간은 그대로 둔다
   save();
   return null;
 }
@@ -407,7 +417,7 @@ function syncWeekday(emp, wd) {
     if (String(weekdayOf(date)) !== String(wd) || store.shifts[date]?.[emp.id]) continue;
     const shift = emp.weekly[wd];
     const rec = recordFor(emp.id, date);
-    if (rec?.edited) continue; // 관리자가 달력에서 직접 고친 날
+    if (rec?.edited || rec?.punchIn) continue; // 관리자가 달력에서 직접 고친 날, 직원이 직접 찍은 날
     if (store.absent?.[`${emp.id}|${date}`]) continue; // 관리자가 기록을 지운 날 (결근)
     if (shift) {
       const clockIn = kstIso(date, shift.start);
@@ -2717,7 +2727,7 @@ const TOURS = {
     ...(pc ? [] : [{ sel: ".m-today", title: "오늘 근무자", text: "오늘 일할 사람과 출근했는지가 보여요. 누르면 오늘 화면으로 가요." }]),
     { sel: ".cal-head", title: "달 바꾸기", text: "화살표로 지난달, 다음 달을 봐요." },
     { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "그날 출근 기록이 이름과 시간으로 보여요. 근무표보다 <b style=\"color:var(--more)\">더 일하면 파랑</b>, <b style=\"color:var(--red)\">덜 일하면 빨강</b>이에요. 날짜를 누르면 그날이 열려요." },
-    { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 큰 글씨는 급여에 쓰는 근무 시간, 아래 <b>찍은 시각</b>은 직원이 실제로 누른 시각이에요." },
+    { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 큰 글씨는 급여에 쓰는 근무 시간이에요. 찍은 시각을 <b>10분 단위로 반올림</b>해요(13:52 → 13:50, 13:55 → 14:00). 아래 <b>찍은 시각</b>은 직원이 실제로 누른 시각이에요." },
     { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름을 누르면 고칠 수 있어요." },
     { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날만 시간 바꾸기), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 퇴근을 안 찍은 지난 날은 <b>퇴근 안 찍음</b>으로 보여요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
@@ -2730,7 +2740,7 @@ const TOURS = {
       : { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "점이 있는 날은 출근 기록이 있는 날이에요. 날짜를 누르면 그날 화면이 열려요." },
     { scene: "day", sel: ".date-box", title: "출근 기록", text: "날짜를 누르면 이렇게 열려요. 그날 실제로 출근한 사람과 시간이에요." },
     { scene: "day", sel: ".staff", title: "오늘 근무자", text: "근무표에 있는 오늘 근무자예요. <b>본인 이름</b>을 찾아 눌러요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근 · 퇴근 찍기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 누르고, 일이 끝나면 다시 이름을 눌러 <b>퇴근</b>을 눌러 주세요. 자정을 넘겨 끝나면 다음 날 화면 맨 위에 퇴근 버튼이 나와요. 그날만 시간이 바뀌었으면 <b>수정</b>으로 고쳐요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근 · 퇴근 찍기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 누르고, 일이 끝나면 다시 이름을 눌러 <b>퇴근</b>을 눌러 주세요. 찍은 시각은 10분 단위로 반올림돼서 급여에 들어가요. 자정을 넘겨 끝나면 다음 날 화면 맨 위에 퇴근 버튼이 나와요. 그날만 시간이 바뀌었으면 <b>수정</b>으로 고쳐요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "근무표에 없는데 일하게 됐으면 <b>+</b>를 눌러 이름과 시간을 넣고 <b>등록</b>해요. 그다음 이름을 눌러 출근하면 돼요." },
   ],
   records: (pc) =>
@@ -3359,9 +3369,11 @@ app.addEventListener("click", (e) => {
       setShift(id, date, start, end);
       // 이미 출근했다면 기록 시간도 함께 고친다
       const rec = recordFor(id, date);
-      if (rec) {
+      // (직원 화면에서는 찍은 기록을 바꾸지 않는다. 근무 예정 시간만 바뀐다)
+      if (rec && (ADMIN_SITE || !rec.punchIn)) {
         rec.clockIn = kstIso(date, start);
         rec.clockOut = scheduledEnd(emp, date);
+        if (ADMIN_SITE) rec.edited = true;
       }
       save();
       queueToast(`${emp.name}님 근무 시간을 바꿨어요`);
@@ -3393,7 +3405,7 @@ app.addEventListener("click", (e) => {
       state.error = clockOut(id, date) || "";
       if (!state.error) {
         state.expandedId = null;
-        queueToast(`${employeeById(id).name}님 퇴근 완료!`);
+        queueToast(`${employeeById(id).name}님 퇴근 완료! ${formatTime(recordFor(id, date).clockOut)}로 기록했어요`);
       }
       break;
     }
@@ -3409,7 +3421,7 @@ app.addEventListener("click", (e) => {
       if (!state.error) {
         state.expandedId = null;
         state.justAddedId = recordFor(id, todayDateString()).id;
-        queueToast(`${employeeById(id).name}님 출근 완료!`);
+        queueToast(`${employeeById(id).name}님 출근 완료! ${formatTime(recordFor(id, todayDateString()).clockIn)}로 기록했어요`);
         render();
         state.justAddedId = null;
         return;
