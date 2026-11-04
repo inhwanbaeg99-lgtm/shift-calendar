@@ -336,9 +336,6 @@ function adminClockOut(empId, date) {
   save();
 }
 
-// 찍은 시각 (08:57 ~ 13:02, 퇴근 전이면 08:57 ~ -)
-const punchLabel = (rec) => (rec?.punchIn ? `찍은 시각 ${formatTime(rec.punchIn)} ~ ${rec.punchOut ? formatTime(rec.punchOut) : "-"}` : "");
-
 // 관리자 달력에서 그날 근무 기록을 직접 넣거나 고친다. 근무 상세·급여 정산은 기록으로 계산되므로 바로 반영된다.
 // 직접 고친 기록(edited)은 이후 근무표를 저장해도 덮어쓰지 않는다.
 function setRecordTimes(empId, date, start, end) {
@@ -698,7 +695,6 @@ function renderDateBox(date, { closable }) {
             <span class="in-name">${nameLabel(employeeById(r.employeeId), r)}</span>
             <span class="in-time${diffClass(employeeById(r.employeeId), date, hoursBetween(r.clockIn, r.clockOut))}">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span>
           </div>
-          ${r.punchIn ? `<p class="in-punch">${punchLabel(r)}</p>` : ""}
         </li>`,
     )
     .join("");
@@ -725,7 +721,7 @@ function renderStaffItem(emp, date) {
   const editable = ADMIN_SITE || date >= today;
   const rec = recordFor(emp.id, date);
   const done = Boolean(rec?.clockIn);
-  // 관리자 화면에서는 기록이 있으면 기록된 시간을 보여준다
+  // 이름 밑에는 항상 근무표 시간. 관리자가 고치는 칸에는 기록이 있으면 기록된 시간을 넣는다
   const shift = shiftFor(emp, date);
   const start = ADMIN_SITE && rec ? formatTime(rec.clockIn) : shift.start;
   const end = ADMIN_SITE && rec ? formatTime(rec.clockOut) : shift.end;
@@ -752,7 +748,7 @@ function renderStaffItem(emp, date) {
       <button type="button" class="staff-name-btn" data-action="toggle-staff" data-id="${emp.id}"${editable ? "" : " disabled"}>
         <span class="staff-name">${nameLabel(emp, rec)}</span>
         ${punchOpen(rec) && date < today && !(date === addDays(today, -1) && dateOfIso(rec.clockOut) === today) ? `<span class="badge none">퇴근 안 찍음</span>` : rec?.punchOut ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">퇴근 완료</span>` : done ? `<span class="badge done${rec.id === state.justAddedId ? " just" : ""}">출근 완료</span>` : ADMIN_SITE && date < today ? `<span class="badge none">기록 없음</span>` : ""}
-        <span class="staff-time${ADMIN_SITE && rec ? diffClass(emp, date, hoursBetween(rec.clockIn, rec.clockOut)) : ""}">${start} ~ ${end}</span>
+        <span class="staff-time">${shift.start} ~ ${shift.end}</span>
       </button>
       ${action ? `<div class="staff-action${state.expandEnter ? " enter" : ""}">${action}</div>` : ""}
     </li>`;
@@ -810,7 +806,7 @@ function renderStaff(date) {
   const overnight = !ADMIN_SITE && isToday
     ? overnightOpen(today).map((r) => `
         <li class="staff-item expanded">
-          <div class="staff-name-btn"><span class="staff-name">${nameLabel(employeeById(r.employeeId))}</span><span class="badge done">어제 출근</span><span class="staff-time">${formatTime(r.clockIn)} ~ ${formatTime(r.clockOut)}</span></div>
+          <div class="staff-name-btn"><span class="staff-name">${nameLabel(employeeById(r.employeeId))}</span><span class="badge done">어제 출근</span><span class="staff-time">${shiftFor(employeeById(r.employeeId), r.date).start} ~ ${shiftFor(employeeById(r.employeeId), r.date).end}</span></div>
           <div class="staff-action"><div class="action-row"><button type="button" class="btn-primary" data-action="clock-out" data-id="${r.employeeId}" data-rec-date="${r.date}">퇴근</button></div></div>
         </li>`).join("")
     : "";
@@ -2727,9 +2723,9 @@ const TOURS = {
     ...(pc ? [] : [{ sel: ".m-today", title: "오늘 근무자", text: "오늘 일할 사람과 출근했는지가 보여요. 누르면 오늘 화면으로 가요." }]),
     { sel: ".cal-head", title: "달 바꾸기", text: "화살표로 지난달, 다음 달을 봐요." },
     { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "그날 출근 기록이 이름과 시간으로 보여요. 근무표보다 <b style=\"color:var(--more)\">더 일하면 파랑</b>, <b style=\"color:var(--red)\">덜 일하면 빨강</b>이에요. 날짜를 누르면 그날이 열려요." },
-    { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 큰 글씨는 급여에 쓰는 근무 시간이에요. 찍은 시각을 <b>10분 단위로 반올림</b>해요(13:52 → 13:50, 13:55 → 14:00). 아래 <b>찍은 시각</b>은 직원이 실제로 누른 시각이에요." },
-    { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름을 누르면 고칠 수 있어요." },
-    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날 시간 고치기, 찍은 시각보다 우선해요), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 퇴근을 안 찍은 지난 날은 <b>퇴근 안 찍음</b>으로 보이고, 근무표 종료 시각으로 계산돼요. 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
+    { scene: "day", sel: ".date-box", title: "그날 출근 기록", text: "날짜를 누르면 이렇게 열려요. 여기 보이는 출퇴근 시간이 급여에 들어가요. 찍은 시각을 <b>10분 단위로 반올림</b>한 시간이에요(13:52 → 13:50, 13:55 → 14:00)." },
+    { scene: "day", sel: ".staff", title: "근무 예정", text: "그날 근무표에 있는 사람이에요. 이름 밑 시간은 <b>근무표 시간</b>이에요. 이름을 누르면 고칠 수 있어요." },
+    { scene: "staff", sel: ".staff-item.expanded", title: "출근 처리 · 수정", text: "이름을 누르면 <b>수정</b>(그날 시간 고치기, 찍은 시간보다 우선해요), <b>출근 처리</b>(출근을 못 찍은 경우), <b>퇴근 처리</b>(퇴근을 못 찍은 경우), <b>기록 삭제</b> 버튼이 나와요. 퇴근을 안 찍은 지난 날은 <b>퇴근 안 찍음</b>으로 보이고, 근무표 종료 시각으로 계산돼요. 깜빡하고 늦게 찍은 날도 여기서 고쳐요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "<b>+</b>를 누르면 이름과 시간을 넣어 그날만 근무자를 추가해요. 처음 보는 이름이면 새 직원으로 등록할지 물어요." },
   ],
   // 직원용 달력 (출근 화면)
@@ -2738,8 +2734,8 @@ const TOURS = {
     pc
       ? { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "그날 출근한 사람과 시간이 보여요. 근무표보다 <b style=\"color:var(--more)\">더 일하면 파랑</b>, <b style=\"color:var(--red)\">덜 일하면 빨강</b>이에요. 날짜를 누르면 그날이 열려요." }
       : { sel: [".cell:has(.day-num.today)", ".grid .cell"], title: "날짜 칸", text: "점이 있는 날은 출근 기록이 있는 날이에요. 날짜를 누르면 그날 화면이 열려요." },
-    { scene: "day", sel: ".date-box", title: "출근 기록", text: "날짜를 누르면 이렇게 열려요. 큰 글씨는 10분 단위로 반올림한 근무 시간(13:52 → 13:50, 13:55 → 14:00)이고, 아래 <b>찍은 시각</b>은 실제로 누른 시각이에요." },
-    { scene: "day", sel: ".staff", title: "오늘 근무자", text: "근무표에 있는 오늘 근무자예요. <b>본인 이름</b>을 찾아 눌러요." },
+    { scene: "day", sel: ".date-box", title: "출근 기록", text: "날짜를 누르면 이렇게 열려요. 보이는 시간은 출근·퇴근을 찍은 시각을 <b>10분 단위로 반올림</b>한 시간이에요(13:52 → 13:50, 13:55 → 14:00)." },
+    { scene: "day", sel: ".staff", title: "오늘 근무자", text: "근무표에 있는 오늘 근무자예요. 이름 밑 시간은 <b>근무표 시간</b>이에요. <b>본인 이름</b>을 찾아 눌러요." },
     { scene: "staff", sel: ".staff-item.expanded", title: "출근 · 퇴근 찍기", text: "이름을 누르면 <b>출근</b> 버튼이 나와요. 매장에 도착하면 누르고, 일이 끝나면 다시 이름을 눌러 <b>퇴근</b>을 눌러 주세요. 찍은 시각은 10분 단위로 반올림돼서 급여에 들어가요. 자정을 넘겨 끝나면 다음 날 화면 맨 위에 퇴근 버튼이 나와요. 지난 날 퇴근을 못 찍었으면 관리자에게 말해 주세요." },
     { scene: "add", sel: "#add-extra", title: "대타 · 추가 근무", text: "근무표에 없는데 일하게 됐으면 <b>+</b>를 눌러 이름과 시간을 넣고 <b>등록</b>해요. 그다음 이름을 눌러 출근과 퇴근을 찍으면 돼요." },
   ],
