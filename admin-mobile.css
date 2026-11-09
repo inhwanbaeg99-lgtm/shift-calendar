@@ -70,14 +70,14 @@
   .m-top .m-tour { font-size: 21px; font-weight: 650; }
   .m-top .m-login svg, .m-top .m-logout svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
   .m-staff-shortcut { display: flex; justify-content: flex-end; padding: 8px 16px 0; }
-  .m-tabbar.m-bubble-nav { --nav-cell: calc((100vw - 32px) / 5); --nav-size: clamp(46px, 14vw, 60px); position: fixed; inset: auto 16px calc(12px + env(safe-area-inset-bottom, 0px)) 16px; display: block; width: auto; height: calc(var(--nav-size) + 28px); padding: 0; border: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; overflow: visible; isolation: isolate; pointer-events: none; }
+  .m-tabbar.m-bubble-nav { --nav-cell: calc((100vw - 32px) / 5); --nav-size: clamp(46px, 14vw, 60px); position: fixed; inset: auto 16px calc(8px + env(safe-area-inset-bottom, 0px)) 16px; display: block; width: auto; height: var(--nav-size); padding: 0; border: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; overflow: visible; isolation: isolate; pointer-events: none; }
   .m-menu-toggle { flex-direction: column; gap: 6px; position: absolute; top: 0; left: calc((var(--nav-cell) - var(--nav-size)) / 2); z-index: 2; display: flex; align-items: center; justify-content: center; width: var(--nav-size); height: var(--nav-size); margin: 0; padding: 0; border: 0; border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 5px 18px color-mix(in srgb, var(--accent) 30%, transparent); cursor: pointer; pointer-events: auto; }
   .m-menu-lines { display: grid; gap: 6px; width: 22px; }
   .m-menu-lines i { display: block; height: 2px; width: 22px; background: currentColor; border-radius: 2px; transition: transform .35s ease; }
   .is-open .m-menu-lines i:first-child { transform: translateY(4px) rotate(45deg); }
   .is-open .m-menu-lines i:last-child { transform: translateY(-4px) rotate(-45deg); }
-  .m-menu-toggle::after { content: '메뉴'; position: static; font-size: 10px; line-height: 1.1; font-weight: 600; color: inherit; }
-  .is-open .m-menu-toggle::after { content: '닫기'; }
+  .m-menu-toggle::after { content: none; }
+  .is-open .m-menu-toggle::after { content: none; }
   .m-bubble-links { position: absolute; inset: 0; pointer-events: none; }
   .m-bubble-nav .m-tab { position: absolute; top: 0; left: calc((var(--nav-cell) - var(--nav-size)) / 2); display: flex; flex-direction: column; align-items: center; width: var(--nav-size); height: var(--nav-size); min-height: var(--nav-size); gap: 3px; padding: 0; justify-content: center; border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); border-radius: 50%; background: var(--paper); color: var(--accent); box-shadow: 0 4px 14px rgb(0 0 0 / .08); opacity: 0; visibility: hidden; transform: translateX(0) scale(.45); transition: transform .48s cubic-bezier(.34,1.5,.5,1), opacity .2s ease, visibility .48s; }
   .m-bubble-nav.is-open .m-tab { pointer-events: auto; opacity: 1; visibility: visible; transform: translateX(calc((var(--tab-index) + 1) * var(--nav-cell))) scale(1); transition-delay: calc(var(--tab-index) * 35ms); }
