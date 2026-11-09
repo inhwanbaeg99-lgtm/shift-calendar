@@ -1070,7 +1070,7 @@ function renderMobileShell(active, content) {
     ${renderInstallHint()}
     <main class="m-main m-screen-${active}${state.pageEnter ? " page-enter" : ""}">${content}</main>
     <nav class="m-tabbar m-bubble-nav" aria-label="관리자 메뉴">
-      <button type="button" class="m-menu-toggle" data-action="toggle-mobile-menu" aria-expanded="false" aria-controls="mBubbleLinks" aria-label="메뉴 펼치기"><span class="m-menu-lines" aria-hidden="true"><i></i><i></i><i></i></span></button>
+      <button type="button" class="m-menu-toggle" data-action="toggle-mobile-menu" aria-expanded="false" aria-controls="mBubbleLinks" aria-label="메뉴 펼치기"><span class="m-menu-lines" aria-hidden="true"><i></i><i></i></span></button>
       <div class="m-bubble-links" id="mBubbleLinks" inert>
         ${tab("calendar", "출퇴근", 0)}${tab("schedule", "근무표", 1)}${tab("employees", "직원", 2)}${tab("records", "급여", 3)}
       </div>
@@ -4049,7 +4049,7 @@ function renderInstallHint() {
 const DEMO_ALLOWED = new Set([
   "prev-month", "next-month", "close-panel", "go-home", "toggle-staff", "toggle-rec", "toggle-help",
   "payroll-prev", "payroll-next", "open-payslip", "close-payslip",
-  "open-sheet", "close-sheet", "sched-day", "open-today", "install-app", "dismiss-install", "start-tour",
+  "open-sheet", "close-sheet", "sched-day", "open-today", "install-app", "dismiss-install", "start-tour", "toggle-mobile-menu",
 ]);
 
 let toastTimer = null;
