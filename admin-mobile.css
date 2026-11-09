@@ -1,0 +1,63 @@
+/* 관리자 모바일: 화면별 안내, 손가락으로 누르기 쉬운 탐색과 편집 */
+@media (max-width: 767px) {
+  body[data-site="admin"] { --radius: 18px; }
+  body[data-site="admin"] #app { min-height: 100dvh; }
+  .m-top { gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .m-store { flex: 1; min-width: 100px; overflow-wrap: anywhere; font-size: 17px; }
+  .m-top .m-staff-link { order: 4; flex-basis: 100%; margin: 0; font-size: 12px; }
+  .m-top .m-tour { width: auto; height: 44px; padding: 0 10px; font-size: 12px; border-radius: 10px; }
+  .m-top .m-logout, .m-top .m-login { min-height: 44px; display: inline-flex; align-items: center; padding: 0 8px; font-size: 12px; }
+  .m-main { padding: 8px 16px calc(110px + env(safe-area-inset-bottom, 0px)); }
+  .m-head { margin: 18px 0 8px; gap: 10px; }
+  .m-head h1 { font-size: 25px; letter-spacing: -.04em; }
+  .m-page-intro { margin: 0 0 22px; color: var(--ink-sub); font-size: 14px; line-height: 1.65; word-break: keep-all; }
+  .m-tabbar { padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -4px 20px rgb(0 0 0 / .035); }
+  .m-tab { min-height: 54px; gap: 5px; padding: 7px 0; font-size: 12px; }
+  .m-tab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .m-tab.active { background: var(--accent-soft); font-weight: 800; }
+  .m-add, .m-link .pill { min-height: 44px; }
+  .m-row { min-height: 88px; padding: 18px 16px; gap: 12px; }
+  .m-row-body small { white-space: normal; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .m-chev { color: var(--ink-sub); }
+  .m-card, .m-list, .m-fold { border: 1px solid var(--line); box-shadow: none; }
+  .m-period { align-items: flex-start; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--line); box-shadow: none; }
+  .m-period .sc-period { width: 100% !important; min-height: 44px; padding: 8px 10px; background: var(--bg); border-radius: 8px; }
+  .m-days { gap: 4px; margin: 20px 0; }
+  .m-day { min-width: 0; min-height: 64px; border: 1px solid var(--line); box-shadow: none; border-radius: 12px; }
+  .m-day-heading { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 17px; }
+  .m-day-heading span { color: var(--ink-sub); font-size: 13px; font-weight: 500; }
+  .m-shift { min-height: 80px; box-shadow: none; border: 1px solid var(--line); }
+  .m-add-shift { min-height: 52px; border: 1px dashed var(--accent); border-radius: 14px; margin-top: 8px; }
+  .m-savebar { position: static; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 22px 0 0; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); }
+  .m-save-explain { grid-column: 1 / -1; margin: 0 0 4px; color: var(--ink-sub); font-size: 12px; line-height: 1.6; }
+  .m-savebar > button { min-width: 0; min-height: 48px; }
+  .m-savebar > [data-action="schedule-share"] { grid-column: 1 / -1; }
+  .m-month { justify-content: space-between; margin: 16px 0; }
+  .m-month h1 { font-size: 21px; }
+  .m-month .round-btn { min-width: 44px; min-height: 44px; }
+  .m-hero { padding: 22px 18px; border-radius: 18px; }
+  .m-hero-meta { flex-wrap: wrap; gap: 12px; }
+  .m-payday { flex-wrap: wrap; gap: 8px; }
+  .m-payday select, .m-tax { min-height: 44px; max-width: 100%; }
+  .m-pay { flex-wrap: wrap; }
+  .m-pay-net { font-size: 16px; overflow-wrap: anywhere; }
+  .m-btns { grid-template-columns: 1fr; }
+  .m-btns button { min-height: 48px; }
+  .sheet { position: relative; max-height: 92dvh; padding: 12px 18px calc(24px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: 100px; }
+  .m-sheet-close { display: flex; align-items: center; gap: 8px; margin: -8px 0 12px auto; min-height: 44px; padding: 0 10px; border: 0; border-radius: 10px; color: var(--ink-sub); background: var(--bg); font-size: 13px; }
+  .m-sheet-close span { font-size: 22px; }
+  .sheet-label { font-size: 15px; margin-top: 24px; }
+  .sheet-label small { display: block; margin: 6px 0 0; line-height: 1.6; }
+  .sheet-note { font-size: 13px; line-height: 1.7; }
+  .sheet .field, .sheet select, .sheet textarea { font-size: 16px; }
+  .sheet-actions { position: sticky; bottom: -1px; z-index: 2; padding: 14px 0; background: var(--paper); border-top: 1px solid var(--line); }
+  .sheet-actions button { min-height: 48px; }
+  .m-toggles { flex-wrap: wrap; gap: 8px; }
+  .m-toggle { min-height: 44px; }
+  .m-main button:focus-visible, .m-tab:focus-visible, .sheet button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+}
+@media (max-width: 360px) {
+  .m-head h1 { font-size: 22px; }
+  .m-add { font-size: 13px; padding: 10px; }
+  .m-pay .m-pay-net { margin-left: 48px; }
+}
