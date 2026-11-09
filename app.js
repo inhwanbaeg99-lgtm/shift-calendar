@@ -1051,10 +1051,10 @@ const ICON_CHEVRON = svg(18, '<path d="m9 18 6-6-6-6"/>', 2.25);
 
 function renderMobileShell(active, content) {
   const icons = {
-    employees: '<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-3-5"/>',
+    employees: '<circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5a5.5 5.5 0 0 1 11 0V20M16 5.5a3 3 0 0 1 0 5.8M20.5 20v-1.5a5.5 5.5 0 0 0-3-4.9"/>',
     schedule: '<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 2v4M16 2v4M4 10h16M8 14h3M8 17h7"/>',
-    calendar: '<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18M8 14h1M15 14h1M8 17h1"/>',
-    records: '<rect x="4" y="3" width="16" height="19" rx="3"/><path d="M8 7h8M8 11h4M8 15h8M8 18h5"/>'
+    calendar: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2M8 2.5 5 4M16 2.5 19 4"/>',
+    records: '<path d="M20 7H6a2.5 2.5 0 0 1 0-5h11v5M4 4.5V19a2 2 0 0 0 2 2h14V7"/><path d="M20 11h-5a3 3 0 0 0 0 6h5"/><circle cx="15" cy="14" r=".7"/>'
   };
   const tab = (key, label, i) =>
     `<a href="#/${key}" style="--tab-index:${i}" class="m-tab${active === key ? " active" : ""}"${active === key ? ' aria-current="page"' : ""} aria-label="${label}"><svg viewBox="0 0 24 24" aria-hidden="true">${icons[key]}</svg><span>${label}</span></a>`;
@@ -1069,9 +1069,9 @@ function renderMobileShell(active, content) {
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. <a href="#/signup">매장 등록</a> · <a href="#/login">로그인</a></p>` : ""}
     ${renderInstallHint()}
     <main class="m-main m-screen-${active}${state.pageEnter ? " page-enter" : ""}">${content}</main>
-    <nav class="m-tabbar m-bubble-nav" aria-label="관리자 메뉴">
-      <button type="button" class="m-menu-toggle" data-action="toggle-mobile-menu" aria-expanded="false" aria-controls="mBubbleLinks" aria-label="메뉴 펼치기"><span class="m-menu-lines" aria-hidden="true"><i></i><i></i></span></button>
-      <div class="m-bubble-links" id="mBubbleLinks" inert>
+    <nav class="m-tabbar m-bubble-nav${state.mobileMenuOpen ? " is-open" : ""}" aria-label="관리자 메뉴">
+      <button type="button" class="m-menu-toggle" data-action="toggle-mobile-menu" aria-expanded="${!!state.mobileMenuOpen}" aria-controls="mBubbleLinks" aria-label="${state.mobileMenuOpen ? "메뉴 닫기" : "메뉴 펼치기"}"><span class="m-menu-lines" aria-hidden="true"><i></i><i></i></span></button>
+      <div class="m-bubble-links" id="mBubbleLinks"${state.mobileMenuOpen ? "" : " inert"}>
         ${tab("calendar", "출퇴근", 0)}${tab("schedule", "근무표", 1)}${tab("employees", "직원", 2)}${tab("records", "급여", 3)}
       </div>
     </nav>
@@ -3459,6 +3459,7 @@ function closePanel() {
 
 // 모바일 메뉴는 데이터 재렌더 없이 열고 닫아 입력 중인 내용을 유지한다.
 function setMobileMenu(open) {
+  state.mobileMenuOpen = open;
   const nav = app.querySelector('.m-bubble-nav');
   if (!nav) return;
   nav.classList.toggle('is-open', open);
@@ -3467,16 +3468,6 @@ function setMobileMenu(open) {
   toggle.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 펼치기');
   nav.querySelector('.m-bubble-links').inert = !open;
 }
-document.addEventListener('click', (e) => {
-  const nav = app.querySelector('.m-bubble-nav.is-open');
-  if (nav && (!nav.contains(e.target) || e.target.closest('.m-tab'))) setMobileMenu(false);
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  const nav = app.querySelector('.m-bubble-nav.is-open');
-  if (nav) { setMobileMenu(false); nav.querySelector('.m-menu-toggle').focus(); }
-});
-
 app.addEventListener("click", (e) => {
   const cell = e.target.closest("[data-date]");
   if (cell) {
