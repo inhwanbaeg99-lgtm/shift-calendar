@@ -3494,7 +3494,7 @@ app.addEventListener("click", (e) => {
   switch (action) {
     case "toggle-mobile-menu":
       setMobileMenu(el.getAttribute('aria-expanded') !== 'true');
-      break;
+      return; // 공통 render()가 열린 메뉴를 다시 닫지 않도록 여기서 종료
     case "prev-month":
     case "next-month":
       moveMonth(action === "prev-month" ? -1 : 1);
