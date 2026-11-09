@@ -1056,20 +1056,24 @@ function renderMobileShell(active, content) {
     calendar: '<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18M8 14h1M15 14h1M8 17h1"/>',
     records: '<rect x="4" y="3" width="16" height="19" rx="3"/><path d="M8 7h8M8 11h4M8 15h8M8 18h5"/>'
   };
-  const tab = (key, label) =>
-    `<a href="#/${key}" class="m-tab${active === key ? " active" : ""}"${active === key ? ' aria-current="page"' : ""}><svg viewBox="0 0 24 24" aria-hidden="true">${icons[key]}</svg><span>${label}</span></a>`;
+  const tab = (key, label, i) =>
+    `<a href="#/${key}" style="--tab-index:${i}" class="m-tab${active === key ? " active" : ""}"${active === key ? ' aria-current="page"' : ""} aria-label="${label}"><svg viewBox="0 0 24 24" aria-hidden="true">${icons[key]}</svg><span>${label}</span></a>`;
+  const accountIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>';
   return `
     <header class="m-top">
+      <button type="button" class="m-tour" data-action="start-tour" aria-label="도움말" title="도움말">?</button>
       <b class="m-store">${esc(storeName())}</b>
-      ${demoLoaded ? "" : staffCalLink("m-staff-link")}
-      <button type="button" class="m-tour" data-action="start-tour" aria-label="이 화면 사용법 보기">사용법</button>
-      ${demoLoaded ? `<a class="m-login" href="#/login">로그인</a>` : `<button type="button" class="m-logout" data-action="logout">로그아웃</button>`}
+      ${demoLoaded ? `<a class="m-login" href="#/login" aria-label="로그인" title="로그인">${accountIcon}</a>` : `<button type="button" class="m-logout" data-action="logout" aria-label="로그아웃" title="로그아웃">${accountIcon}</button>`}
     </header>
+    ${demoLoaded ? "" : `<div class="m-staff-shortcut">${staffCalLink("m-staff-link")}</div>`}
     ${demoLoaded ? `<p class="demo-bar">샘플 매장을 둘러보는 중이에요. <a href="#/signup">매장 등록</a> · <a href="#/login">로그인</a></p>` : ""}
     ${renderInstallHint()}
     <main class="m-main m-screen-${active}${state.pageEnter ? " page-enter" : ""}">${content}</main>
-    <nav class="m-tabbar" aria-label="관리자 메뉴">
-      ${tab("calendar", "출퇴근")}${tab("schedule", "근무표")}${tab("employees", "직원")}${tab("records", "급여")}
+    <nav class="m-tabbar m-bubble-nav" aria-label="관리자 메뉴">
+      <button type="button" class="m-menu-toggle" data-action="toggle-mobile-menu" aria-expanded="false" aria-controls="mBubbleLinks" aria-label="메뉴 펼치기"><span class="m-menu-lines" aria-hidden="true"><i></i><i></i><i></i></span></button>
+      <div class="m-bubble-links" id="mBubbleLinks" inert>
+        ${tab("calendar", "출퇴근", 0)}${tab("schedule", "근무표", 1)}${tab("employees", "직원", 2)}${tab("records", "급여", 3)}
+      </div>
     </nav>
     ${renderSheet()}
     ${toastHtml()}`;
@@ -3453,6 +3457,26 @@ function closePanel() {
   }, PANEL_ANIM_MS);
 }
 
+// 모바일 메뉴는 데이터 재렌더 없이 열고 닫아 입력 중인 내용을 유지한다.
+function setMobileMenu(open) {
+  const nav = app.querySelector('.m-bubble-nav');
+  if (!nav) return;
+  nav.classList.toggle('is-open', open);
+  const toggle = nav.querySelector('.m-menu-toggle');
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 펼치기');
+  nav.querySelector('.m-bubble-links').inert = !open;
+}
+document.addEventListener('click', (e) => {
+  const nav = app.querySelector('.m-bubble-nav.is-open');
+  if (nav && (!nav.contains(e.target) || e.target.closest('.m-tab'))) setMobileMenu(false);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const nav = app.querySelector('.m-bubble-nav.is-open');
+  if (nav) { setMobileMenu(false); nav.querySelector('.m-menu-toggle').focus(); }
+});
+
 app.addEventListener("click", (e) => {
   const cell = e.target.closest("[data-date]");
   if (cell) {
@@ -3468,6 +3492,9 @@ app.addEventListener("click", (e) => {
   const { action, id } = el.dataset;
 
   switch (action) {
+    case "toggle-mobile-menu":
+      setMobileMenu(el.getAttribute('aria-expanded') !== 'true');
+      break;
     case "prev-month":
     case "next-month":
       moveMonth(action === "prev-month" ? -1 : 1);
