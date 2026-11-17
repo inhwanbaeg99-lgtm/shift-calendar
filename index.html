@@ -10,7 +10,7 @@
         try { code = localStorage.getItem("shift-calendar:store"); } catch (e) {}
         if (code && !q.get("s")) q.set("s", code);
         var qs = q.toString();
-        location.replace("https://kokwork-copy.web.app" + location.pathname.replace(/^\/shift-calendar/, "") + (qs ? "?" + qs : "") + location.hash);
+        location.replace("https://kokwork.web.app" + location.pathname.replace(/^\/shift-calendar/, "") + (qs ? "?" + qs : "") + location.hash);
       }
     </script>
     <title>콕</title>

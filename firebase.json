@@ -3,7 +3,7 @@
     "rules": "database.rules.json"
   },
   "hosting": {
-    "site": "kokwork-copy",
+    "site": "kokwork",
     "public": "_site",
     "cleanUrls": true,
     "ignore": [

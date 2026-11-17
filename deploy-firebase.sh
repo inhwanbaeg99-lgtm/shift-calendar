@@ -1,5 +1,5 @@
 #!/bin/sh
-# Firebase 주소(https://kokwork-copy.web.app)에 올린다.
+# Firebase 주소(https://kokwork.web.app)에 올린다.
 # git 에 올라간 파일만 올린다 (사용법 HTML·.app 같은 로컬 파일은 절대 안 올라감)
 set -e
 cd "$(dirname "$0")"
