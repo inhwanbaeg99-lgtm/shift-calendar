@@ -4440,8 +4440,8 @@ async function login() {
   state.error = "";
   render();
   try {
-    // 창을 닫으면 로그아웃 (매장 공용 컴퓨터)
-    await cloud.auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    // 로그아웃을 누를 때까지 로그인 유지 (앱을 닫거나 다시 열어도)
+    await cloud.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     await cloud.auth.signInWithEmailAndPassword(email, password);
     // 매장 확인(busy "check")은 로그인 감지 쪽이 끝낸다. 여기서 지우면 "등록된 매장이 없어요"가 잠깐 뜬다
     if (state.busy === "login") state.busy = null;
@@ -4490,7 +4490,7 @@ async function signup() {
   state.error = "";
   render();
   try {
-    await cloud.auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    await cloud.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     const { user } = await cloud.auth.createUserWithEmailAndPassword(email, password);
     await createStore(user.uid, name);
   } catch (err) {
